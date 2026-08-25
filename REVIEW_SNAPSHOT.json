@@ -1,0 +1,45 @@
+{
+  "exportedAt": "2026-08-25T14:56:54Z",
+  "notice": "Point-in-time review snapshot only. It is not an ongoing sync, deployment source, or credential store.",
+  "safety": {
+    "credentialsIncluded": false,
+    "customerDataIntended": false,
+    "excludedFiles": [
+      "client/public/test-call.mp3",
+      "docs/front-discovery-timing-map.md",
+      "docs/zoom-matching-412a-discovery.md",
+      "loom-analysis-report.md",
+      "screenshare-analysis-report.md",
+      "scripts/cleanup-bloated-contacts-task-914.ts",
+      "scripts/demo-data-export.json",
+      "scripts/verification-auth-rbac.ts",
+      "scripts/verification-fixtures.ts",
+      "scripts/verify-domains.ts",
+      "scripts/verify-recurring-meetings.ts",
+      "scripts/verify-task-381.ts",
+      "skills-lock.json"
+    ],
+    "excludedPrefixes": [
+      "docs/verification-335/",
+      "docs/verification/",
+      "scripts/verification-335/"
+    ],
+    "excludedTopLevel": [
+      ".agents/",
+      ".impeccable/",
+      ".source/",
+      "artifacts/",
+      "attached_assets/",
+      "audits/",
+      "design-source/"
+    ],
+    "historyIncluded": false,
+    "ownerAuthorizedFunctionalIdentifiersUnchanged": true
+  },
+  "schemaVersion": 1,
+  "snapshotKind": "history-free sanitized private code-review snapshot",
+  "source": {
+    "branch": "main",
+    "commit": "c8a478b43a13bb613fc78df5517468c39719b3dd"
+  }
+}
