@@ -1,0 +1,2707 @@
+@layer theme, base, clerk, components, utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Class-gated dark variant (Task #4377 dark-mode capstone): the global
+   ThemeProvider (client/src/lib/theme.tsx) + the pre-paint script in
+   client/index.html toggle `.dark` on <html> from the per-user preference
+   (light / dark / system). Keep this class-gated — switching to Tailwind's
+   prefers-color-scheme default would ignore the user's explicit choice.
+   The live `.dark { … }` token block lives below, after :root. */
+@custom-variant dark (&:is(.dark *));
+
+/* ================================================================
+   Mobile compatibility baseline (see DESIGN.md → "Responsive
+   baseline"). Ships as un-layered CSS so it wins over layered
+   Tailwind utilities for these global policies.
+   ---------------------------------------------------------------
+   1. Pinch-zoom stays enabled (index.html has no maximum-scale);
+      the 16px form-control floor below is what stops iOS focus-
+      zoom. The two must always ship together.
+   2. text-size-adjust stops mobile browsers inflating text after
+      orientation changes.
+   3. body overflow-x: clip = a single wide element can never
+      widen the page; wide content scrolls inside its own
+      container (.os-table-wrap convention below). clip, unlike
+      hidden, does not create a scroll container, so position:
+      sticky (header, table identity columns) keeps working.
+   4. Safe-area padding keeps content and fixed UI clear of the
+      notch / home indicator (index.html sets viewport-fit=cover).
+   ================================================================ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: clip;
+  /* Notch gutters in landscape; 0px on devices without insets. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* iOS Safari zooms the page when a focused control's font is under
+   16px. Enforce the floor at phone widths only, so desktop keeps
+   its denser admin type. High-specificity on purpose: it must beat
+   per-usage text-xs/text-sm utilities. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="button"]):not([type="submit"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Mobile sidebar sheet hugs a screen edge; pad it away from the
+   notch and home indicator. */
+[data-sidebar="sidebar"][data-mobile="true"] {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+/* WCAG 2.5.8 24px target-size floor on touch devices. Checkbox /
+   radio / switch keep their visual size (their labels extend the
+   effective target); everything else gets at least 24px. */
+@media (pointer: coarse) {
+  button:not([role="checkbox"]):not([role="radio"]):not([role="switch"]) {
+    min-height: 24px;
+    min-width: 24px;
+  }
+  /* Frequent primary chrome gets the full 44px Apple/Material target. */
+  [data-sidebar="trigger"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* The global app-nav band is all primary chrome (bell, feedback, ⌘K trigger,
+     hamburger, user menu, inline nav links). The 56px band absorbs the taller
+     targets without growing (Task #4659). Portaled menu content is NOT inside
+     the header element, so this stays scoped to the band itself. */
+  header[data-testid="global-app-nav"] :is(button, a) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Wide-table convention: the table scrolls horizontally INSIDE a
+   bordered wrapper while the first (identity) column stays pinned.
+   Usage: .os-table-wrap on the scroll container, .os-sticky-col on
+   the <table>. Rows with a tinted background should set
+   --os-sticky-col-bg to a solid equivalent so the pinned cell
+   matches — compose the tint over the table surface token so it flips
+   with the theme (a raw light hex like #fef2f2 or `white` leaves the
+   pinned cell near-white in dark mode while the text stays light), e.g.
+   [--os-sticky-col-bg:color-mix(in_srgb,hsl(var(--primary))_5%,hsl(var(--os-table-surface)))]. */
+.os-table-wrap {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  /* Solid surface so the pinned identity column always matches the table
+     base, even when the page behind is beige. Tokenized (Task #4377) so
+     tables flip with the theme: white in light, card charcoal in dark. */
+  background-color: hsl(var(--os-table-surface));
+}
+
+.os-sticky-col th:first-child,
+.os-sticky-col td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-raised);
+  background-color: var(--os-sticky-col-bg, hsl(var(--os-table-surface)));
+  box-shadow: inset -1px 0 0 hsl(var(--border));
+}
+
+.os-sticky-col thead th:first-child {
+  /* One rung above the pinned body cells so the header corner wins. */
+  z-index: calc(var(--z-raised) + 1);
+}
+
+/* ── OsTable primitive (Task #4343, design-audit §8.3 P0-1) ─────────
+   Component: client/src/components/ui/os-table.tsx — the shared
+   virtualized table. These rules extend the .os-table-wrap /
+   .os-sticky-col convention above with a sticky header row, a bounded
+   vertically-scrolling viewport (row virtualization), scrolled-state
+   overflow shadows, and spacer-row neutralization. Long lists adopt
+   the component; nothing should hand-roll these classes. */
+
+.os-table-shell {
+  position: relative;
+}
+
+.os-table-frame {
+  /* Anchors the edge-shadow overlay to the viewport only (not the
+     toolbar or pagination footer). */
+  position: relative;
+}
+
+.os-table-wrap--bounded {
+  /* The wrap becomes the vertical scroll container too (virtualized
+     tables and explicit maxHeight); sticky header/column pin inside it. */
+  overflow: auto;
+}
+
+.os-table--sticky-header thead th {
+  position: sticky;
+  top: 0;
+  /* Above the pinned body cells (--z-raised) so scrolling rows slide
+     under the header, never over it. */
+  z-index: calc(var(--z-raised) + 1);
+  /* Solid header surface matching the table base (same rationale as
+     the .os-table-wrap surface above). */
+  background-color: hsl(var(--os-table-surface));
+  /* border-collapse keeps cell borders from traveling with sticky
+     cells; draw the header rule as an inset shadow instead. */
+  box-shadow: inset 0 -1px 0 hsl(var(--border));
+}
+
+.os-sticky-col.os-table--sticky-header thead th:first-child {
+  /* Corner cell beats both the sticky header row and the pinned column. */
+  z-index: calc(var(--z-raised) + 2);
+}
+
+/* Scrolled-state overflow shadows — OsTable toggles the data attrs. */
+.os-table-shell[data-scrolled-y="true"] .os-table--sticky-header thead th {
+  box-shadow:
+    inset 0 -1px 0 hsl(var(--border)),
+    0 8px 12px -8px hsl(var(--shadow-ink) / 0.28);
+}
+
+.os-table-shell[data-scrolled-x="true"] .os-sticky-col th:first-child,
+.os-table-shell[data-scrolled-x="true"] .os-sticky-col td:first-child {
+  box-shadow:
+    inset -1px 0 0 hsl(var(--border)),
+    8px 0 12px -8px hsl(var(--shadow-ink) / 0.28);
+}
+
+.os-table-shell[data-scrolled-x="true"] .os-sticky-col.os-table--sticky-header thead th:first-child {
+  /* Corner keeps its bottom hairline while casting the column shadow. */
+  box-shadow:
+    inset -1px -1px 0 hsl(var(--border)),
+    8px 0 12px -8px hsl(var(--shadow-ink) / 0.28);
+}
+
+.os-table-edge-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  background: linear-gradient(to left, hsl(var(--shadow-ink) / 0.14), transparent);
+  /* Above the sticky header corner so the hint reads over all cells. */
+  z-index: calc(var(--z-raised) + 3);
+}
+
+.os-table-shell[data-can-scroll-right="true"] .os-table-edge-right {
+  opacity: 1;
+}
+
+/* Virtualization spacer rows must not inherit cell chrome. */
+tr[data-os-spacer] > td {
+  padding: 0;
+  border: 0;
+}
+
+.os-sticky-col tr[data-os-spacer] > td:first-child {
+  position: static;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Fixed-height virtualized rows stay single-line so the row-height
+   estimate holds exactly; wide content scrolls horizontally per the
+   wrap convention. */
+.os-table--fixed-rows tbody tr:not([data-os-spacer]) > td {
+  white-space: nowrap;
+}
+
+/* Row hover with a solid pinned-cell equivalent (the pinned cell has
+   its own opaque background — see --os-sticky-col-bg above). */
+.os-table--hover tbody tr:not([data-os-spacer]):hover {
+  background-color: hsl(var(--muted) / 0.4);
+  --os-sticky-col-bg: color-mix(in srgb, hsl(var(--muted)) 40%, hsl(var(--os-table-surface)));
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* Interactive primary TEXT ink (Task #4687): --primary as text measured
+     ~2.8–3.0:1 on dark surfaces (below the 4.5:1 AA floor). Interactive
+     elements (links, active tabs/nav items) use text-primary-ink /
+     border-primary-ink instead of text-primary; fills keep --primary. */
+  --color-primary-ink: hsl(var(--primary-ink));
+  
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  
+  --font-sans: 'Montserrat', sans-serif;
+  --font-heading: 'Playfair Display', serif;
+
+  /* Internal-OS constitution v2 mappings — raw tokens live in :root below */
+  --color-surface-warm-1: hsl(var(--surface-warm-1));
+  --color-surface-warm-2: hsl(var(--surface-warm-2));
+  --color-status-ok: hsl(var(--status-ok));
+  --color-status-warn: hsl(var(--status-warn));
+  --color-status-critical: hsl(var(--status-critical));
+  --color-status-info: hsl(var(--status-info));
+  --color-chrome: hsl(var(--chrome));
+  --color-chrome-foreground: hsl(var(--chrome-foreground));
+  --color-chrome-edge: hsl(var(--chrome-edge));
+  --color-heading-ink: hsl(var(--heading-ink));
+  --radius-pill: var(--radius-pill);
+
+  /* Internal-OS type scale (constitution v2) — 4 steps; see the :root
+     constitution block for intent + floors (prose ≥13px, caption ≥11px).
+       text-display 28px/1.2/700 — page titles (one per page)
+       text-heading 18px/1.35/600 — section & card headers
+       text-body    14px/1.5      — default prose and controls
+       text-caption 12px/1.35     — secondary metadata */
+  --text-display: 1.75rem;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 700;
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.35;
+  --text-heading--font-weight: 600;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.35;
+  
+  --radius: 0.5rem;
+
+  /* ── Client-report token utilities (Task #4272; audit §8.2) ──────────
+     Raw values live in the ":root client-report token layer" block below.
+     Report status utilities are deliberately namespaced `report-*`
+     (text-report-critical, bg-report-healthy/10, …) so they cannot
+     collide with the internal-OS --color-status-* utilities above. */
+  --color-report-crimson: var(--report-crimson);
+  --color-report-crimson-deep: var(--report-crimson-deep);
+  --color-report-crimson-shadow: var(--report-crimson-shadow);
+  --color-report-gold: var(--report-gold);
+  --color-report-gold-ink: var(--report-gold-ink);
+  --color-report-eggshell: var(--report-eggshell);
+  --color-report-paper: var(--report-paper);
+  --color-report-paper-bright: var(--report-paper-bright);
+  --color-report-cream-deep: var(--report-cream-deep);
+  --color-report-ink: var(--report-ink);
+  --color-report-ink-muted: var(--report-ink-muted);
+  --color-report-ink-inverse: var(--report-ink-inverse);
+  --color-report-ink-inverse-muted: var(--report-ink-inverse-muted);
+  --color-report-charcoal: var(--report-charcoal);
+  --color-report-charcoal-hi: var(--report-charcoal-hi);
+  --color-report-charcoal-card: var(--report-charcoal-card);
+  --color-report-charcoal-deep: var(--report-charcoal-deep);
+  --color-report-steel: var(--report-steel);
+  --color-report-sage: var(--report-sage);
+  --color-report-slate: var(--report-slate);
+  --color-report-liberty: var(--report-liberty);
+  --color-report-earth: var(--report-earth);
+  --color-report-healthy-bright: var(--report-healthy-bright);
+  --color-report-crimson-bright: var(--report-crimson-bright);
+  --color-report-healthy: var(--status-healthy);
+  --color-report-watch: var(--status-watch);
+  --color-report-attention: var(--status-attention);
+  --color-report-critical: var(--status-critical);
+  --color-report-neutral: var(--status-neutral);
+  --font-report-serif: 'Merriweather', serif;
+
+  /* ── NoBull Brief brand tokens (Task #4834) ─────────────────────────
+     The Studio preview and the /pulse/:token share page render the brief
+     with its own fixed brand palette (deliberately NOT the themed OS
+     tokens — the brief is a branded artifact; these are the same values as
+     the literal hexes CeoPulseVisual.tsx has always used). Namespaced
+     `brief-*` so they can never collide with report-* or OS status
+     utilities. New brief markup uses these utilities instead of raw hex
+     literals (design-contract ratchet: per-file hex counts only go down). */
+  --color-brief-crimson: #8B2E31;
+  --color-brief-crimson-deep: #7a2729;
+  --color-brief-crimson-hover: #6d2426;  /* hover/active state for brief-crimson links */
+  --color-brief-gold: #C4A35A;
+  --color-brief-ink: #222222;
+  --color-brief-ink-soft: #333333;
+  --color-brief-ink-strong: #1A1A1A;
+  --color-brief-muted: #555555;
+  --color-brief-border: #e5e0d8;         /* warm light divider used in the letter layout */
+}
+
+/* v2 brand theme — Eggshell canvas, Liberty interactive, crimson chrome/accent */
+:root {
+  --background: 40 35% 90%; /* v2 Eggshell #EEE8DC (rebalance 2026-08, Task #4600 — was gray-beige #F0EFEA) */
+  --foreground: 0 0% 20%; /* Charcoal — 10.36:1 on eggshell */
+
+  --card: 40 37% 97%; /* v2 Warm Paper #FAF8F4 — "warm light cards" (guidelines p16), lifted off the eggshell canvas */
+  --card-foreground: 0 0% 20%;
+
+  --popover: 40 37% 97%; /* floats on Warm Paper like cards */
+  --popover-foreground: 0 0% 20%;
+
+  --primary: 229 35% 44%; /* Liberty Blue #485696 — re-primary 2026-08 (constitution below) */
+  --primary-foreground: 40 35% 90%; /* eggshell — 5.65:1 on the Liberty fill (≥5:1 bar) */
+  --primary-ink: 229 35% 44%; /* interactive primary TEXT ink — light: = --primary
+     (already AA on every light surface); dark lifts it (see .dark block).
+     Use text-primary-ink for links / active tabs / active nav ink. */
+
+  --secondary: 41 34% 86%; /* v2 Cream Deep #E7DFCE — deepest light field step */
+  --secondary-foreground: 0 0% 20%;
+
+  --muted: 40 28% 85%;
+  --muted-foreground: 0 0% 37%; /* 5.32:1 on eggshell — and 4.75:1 on --muted itself,
+     because the kit pairs muted-fg ON muted fills (inactive TabsList tabs, count
+     pills); 40% only reached 4.21:1 there, under the AA 4.5:1 bar (Task #4659) */
+
+  --accent: 358 50% 36%; /* Crimson #8B2E31 — BRAND ACCENT ONLY (usage rule in the constitution below) */
+  --accent-foreground: 40 35% 90%; /* eggshell — 6.80:1 on the crimson fill */
+
+  /* Alarm red, deepened from stock shadcn #ef4444 (Task #4659): as TEXT (form-field
+     errors, destructive menu items) stock red read 3.09:1 on eggshell and its white
+     button label only 3.76:1 — both under AA. 0 74% 42% keeps the same hue as text
+     at 5.27:1 on eggshell and carries its near-white label at 6.14:1. The dark
+     theme's own tuned pair is unchanged. */
+  --destructive: 0 74% 42%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 40 25% 78%;
+  --input: 40 25% 78%;
+  --ring: 229 35% 44%; /* Liberty — 5.65:1 vs the eggshell canvas (focus ring needs ≥3:1) */
+
+  --radius: 0rem; /* Sharper corners for this style — sole exception: --radius-pill (constitution block below) */
+
+  /* Tag-chip ink — a fixed pair, deliberately theme-independent: chips sit on the
+     user-picked tag color stored in the DB, which never flips with the app theme.
+     tagTextColor() (components/tags/TagChip.tsx) picks per-chip by bg luminance. */
+  --tag-chip-ink-dark: #1f2937;
+  --tag-chip-ink-light: #ffffff;
+  
+  /* Chart Colors for Google Trends Slide */
+  --chart-1: 220 13% 60%; /* Neutral Blue/Gray */
+
+  /* Z-index layer scale — the app's stacking contract.
+     App chrome takes its z-index from these six rungs instead of ad-hoc
+     literals; component `z-[N]` one-offs migrate here opportunistically.
+     Nothing may stack above --z-toast (toasts stay visible over every
+     overlay; the pre-scale 9999 lightbox outlier was folded into it).
+       --z-base     0   normal flow
+       --z-raised   2   lifted within a component (pinned table cells)
+       --z-sticky  10   sticky in-page chrome (banners, sticky sub-headers)
+       --z-nav     40   global app chrome band (the sticky nav shell). Sits
+                        above every in-page rung AND the legacy z-20/z-30
+                        one-offs (comms rails/scrim, pinned dashboard cells)
+                        that predate the scale; below the overlay layer so
+                        portaled menus/dialogs/scrims cover the shell. Comms
+                        popups still tie at 40 (pre-scale literals) and win
+                        by DOM order — unchanged until they migrate.
+       --z-overlay 50   modal / popover layer (shadcn z-50 family)
+       --z-toast  100   top chrome ceiling (toast viewport, lightboxes) */
+  --z-base: 0;
+  --z-raised: 2;
+  --z-sticky: 10;
+  --z-nav: 40;
+  --z-overlay: 50;
+  --z-toast: 100;
+
+  /* ── Global nav band height (Task #4633) ─────────────────────────────
+     Single source of truth for the sticky global nav's height: the inner
+     bar (--nav-content-height, consumed by QuicklinksBar and App.tsx's
+     Suspense-fallback placeholder as h-[var(--nav-content-height)]) plus
+     the 1px border-b. Full-screen editor pages (SheetEditor / DocEditor)
+     size themselves to the visible area below the nav via
+     h-[calc(100dvh-var(--nav-height))] so Univer's bottom-pinned
+     sheet-tab/status bars land on-screen without scrolling. Keep these in
+     lockstep with the nav markup — never hardcode 56/57px elsewhere. */
+  --nav-content-height: 3.5rem; /* = tailwind h-14 */
+  --nav-height: calc(var(--nav-content-height) + 1px); /* + border-b */
+
+  /* ═══ Internal-OS token constitution v2 (2026-08) ═══════════════════
+     Color anchor: the v2 brand guidelines (docs/brand/
+     no-bull-brand-guidelines-v2.pdf, "Second Edition · 2026", pp. 15–16)
+     plus the Revenue Engine token pack (design-source/
+     nobull-revenue-engine-2026/04_BRAND_TOKENS.json).
+       v2 primary:  Crimson #8A292F · Earth #524B3A · Eggshell #EEE8DC ·
+                    Liberty Blue #485696 · Goldenrod #D5AC5C
+       v2 extended: Engine Black #060605 · Charcoal #11110F · Ink #100D0B ·
+                    Warm Paper #FAF8F4 · Cream Deep #E7DFCE · Gold Ink #7D5C1B
+
+     PRIMARY — Liberty Blue (owner decision 2026-08, Task #4558; SUPERSEDES
+     Task #4342's "confirmed as-is" crimson call). With --primary, --accent
+     and --ring all crimson, the OS read "all red" — ~1,600 primary-class
+     references plus the nav band sat on top of the true danger reds.
+     --primary is now v2 Liberty Blue #485696 (229 35% 44%): AA-verified as
+     text on every light OS surface (5.65:1 eggshell canvas, 6.89:1 white
+     table surface, 4.96:1 worst case on --muted) and as a fill under the
+     eggshell --primary-foreground (5.65:1). Earth #524B3A was considered
+     for the role and REJECTED — too close to the charcoal foreground to
+     carry interactive affordance. --destructive and --status-critical are
+     now the only reds in the working UI, restoring their warning power.
+     (History: the legacy nav-shell fork burgundy was never a brand color;
+     it was retired tree-wide by the 2026-08 mass re-token before this
+     re-primary.)
+
+     CANVAS — true v2 eggshell (rebalance 2026-08, Task #4600; follows the
+     internal-OS color study in audits/internal-os-design-audit-2026-08.md).
+     After the re-primary the OS read as a generic blue-on-beige tool: the
+     canvas was a desaturated gray-beige #F0EFEA, not a brand color. The
+     light neutral ramp is now re-anchored on the v2 eggshell family:
+       --background        v2 Eggshell   #EEE8DC (40 35% 90%)
+       --card / --popover  v2 Warm Paper #FAF8F4 (40 37% 97%) — lifted cards
+       --secondary         v2 Cream Deep #E7DFCE (41 34% 86%)
+       --muted / --border  warm steps interpolated on the same 40° axis
+     Contrast re-verified 2026-08-12 on the new surfaces (WCAG 2.x):
+     foreground 10.36:1, muted-foreground 4.71:1, Liberty text 5.65:1,
+     crimson accent text 6.80:1, Earth heading 7.09:1, status ok/warn/
+     critical/info 4.97 / 4.98 / 5.31 / 5.65:1 — all ≥4.5:1 on eggshell and
+     higher on warm-1/2 and white. Dark mode is UNAFFECTED: the machinery
+     darks (Engine Black / Charcoal / Ink) stay the dark anchors.
+
+     CHROME — crimson brand band (rebalance 2026-08, Task #4600; SUPERSEDES
+     the #4558 note below that the nav shell renders Liberty). The global
+     nav band is BRAND CHROME, not a working-UI surface, so it carries the
+     v2 crimson identity with the reverse bull mark (exact approved
+     artwork, never redrawn or recolored). Dedicated tokens keep the
+     crimson usage rule enforceable — the band uses --chrome, NOT --accent
+     and NOT --primary:
+       light: --chrome = v2 Crimson #8A292F (356 54% 35%), eggshell
+              foreground 7.06:1 (≥5:1 fill bar); hover/active washes are
+              chrome-foreground alpha tints (same idiom as the old band).
+       dark:  --chrome = the card charcoal (machinery darks), warm-ink
+              foreground 13.96:1, with a crimson --chrome-edge hairline
+              carrying the brand identity (decorative, not text).
+     USAGE RULE: --chrome is for the global chrome band(s) only (nav shell,
+     the Brief Studio band, and the signed-out auth shell band — AuthShell
+     frames sign-in/sign-up and the auth dead ends with the same chrome
+     lockup, Task #4742). It never colors buttons, links, focus rings,
+     data, or status — those stay Liberty / status tokens.
+
+     HEADINGS — v2 Earth (rebalance 2026-08, Task #4600). Display/section
+     headings on light surfaces default to --heading-ink = v2 Earth
+     #524B3A (43 17% 27%, 7.09:1 on eggshell): "eggshell backgrounds,
+     crimson and earth typography" (guidelines p3). Wired as a base-layer
+     h1–h3 rule, so explicit text-* utilities still win. Dark mode keeps a
+     light heading tone (--heading-ink = the warm-ink foreground).
+     Crimson identity moments stay a deliberately SMALL set within the
+     accent rule: the chrome band, the page-header identity title
+     (PageHeader), and the sign-in brand lockup — never data rows, links,
+     focus rings, or anything confusable with an error state.
+
+     ACCENT — crimson, brand-identity moments ONLY. --accent keeps the
+     incumbent crimson (358 50% 36%, ≈ v2 Crimson #8A292F) as a
+     deliberately narrow brand accent: logo lockups and explicit identity
+     touches. USAGE RULE: never on data rows, links, focus rings,
+     hover/selected washes, status contexts, or anything that could be
+     confused with an error state — ambient crimson is exactly what the
+     re-primary removed. The shadcn kit's focus/selected highlights were
+     re-pointed from --accent to --primary (the accent alias was
+     historical; they always meant "interactive highlight"); new
+     interaction states must not reach for --accent. v2 Goldenrod #D5AC5C stays out of
+     the accent role: it fails AA as text on our light surfaces; where gold
+     emphasis is needed use --status-warn (= v2 Gold Ink, the guidelines'
+     accessibility-grade gold). (Deck gold #C4A35A is the client-report
+     deck's own idiom, ≠ v2.)
+
+     STATUS-INFO × PRIMARY — same hue, on purpose. --status-info was
+     already v2 Liberty Blue and KEEPS it after the re-primary: info
+     accents are non-interactive FYI chips/text, so sharing the primary's
+     calm hue reads as one family ("informational" and "interactive" both
+     calm) while critical/warn stay the only hot hues. If a surface ever
+     needs info chips distinct from primary actions, solve it locally —
+     don't fork the token.
+
+     DARK RANGE — landed with the dark-mode capstone (Task #4377): the
+     `.dark { … }` block after this :root supplies dark values for every
+     OS token, anchored on the v2 extended darks (Engine Black #060605 /
+     Charcoal #11110F / Ink #100D0B) via the Ads OS dark palette that
+     shipped first (Task #3705/#4359 prior art).
+
+     TYPE SCALE — 4 steps live in the @theme block above as --text-display/
+     heading/body/caption (utilities: text-display, text-heading, text-body,
+     text-caption). FLOORS: running prose never below 13px, captions/labels
+     never below 11px — if a design wants smaller text, it wants less
+     content, not smaller type. */
+
+  /* Warm surfaces — the warm panel tints, re-anchored on the v2 family
+     (rebalance 2026-08): Eggshell #EEE8DC (page BG) → Warm Paper #FAF8F4
+     ("warm light cards", p16). warm-1 sits between them (inset warm panel
+     on the eggshell canvas); warm-2 IS v2 Warm Paper (elevated warm card,
+     = --card). All AA text bars re-verified on both (see CANVAS above). */
+  --surface-warm-1: 37 40% 93.5%; /* #F5F0E8 */
+  --surface-warm-2: 40 37% 97%;   /* v2 Warm Paper #FAF8F4 */
+
+  /* Brand chrome tokens — the global chrome band(s). See the CHROME
+     section of the constitution above for the usage rule. */
+  --chrome: 356 54% 35%;           /* v2 Crimson #8A292F */
+  --chrome-foreground: 40 35% 90%; /* eggshell — 7.06:1 on the crimson band */
+  --chrome-edge: 356 50% 28%;      /* deep crimson hairline under the band */
+
+  /* Earth heading role — see the HEADINGS section of the constitution. */
+  --heading-ink: 43 17% 27%;       /* v2 Earth #524B3A — 7.09:1 on eggshell */
+
+  /* Status colors — USAGE RULE: red only for actionable-now.
+     --status-critical marks conditions a human should act on right now;
+     anything at rest, historical, or merely informational renders NEUTRAL
+     (foreground / muted-foreground), not a status color. Healthy is quiet:
+     green marks confirmed-good moments (checks passing, a recovery), not
+     the permanent dress of every healthy row. warn = degraded-but-working
+     / attention-soon. info = neutral-positive FYI accents.
+     All four pass WCAG AA (≥4.5:1) both as text on --background /
+     --surface-warm-1/2 AND as fills under white text (verified 2026-08).
+     v2 defines no status palette, so the calls are:
+       ok       — muted forest green sitting in the Earth #524B3A
+                  saturation family (v2 has no green at all);
+       warn     — IS v2 Gold Ink #7D5C1B, the guidelines' own
+                  "accessibility-grade gold for text on light surfaces";
+       critical — bright alarm red, deliberately separated from the crimson
+                  brand accent so alarms never read as brand chrome. State,
+                  not action: --destructive stays the action-button red.
+       info     — IS v2 Liberty Blue #485696 (not a generic blue); shares
+                  the primary hue BY DESIGN post-re-primary (see the
+                  STATUS-INFO note in the constitution above). */
+  --status-ok: 145 45% 30%;      /* #2A6F47 */
+  --status-warn: 40 64% 30%;     /* ≈ v2 Gold Ink #7D5C1B */
+  --status-critical: 0 72% 42%;  /* #B81E1E */
+  --status-info: 229 35% 44%;    /* = v2 Liberty Blue #485696 */
+
+  /* Vivid amber for attention UI drawn ON the crimson band (AM Dashboard alert
+     badge). --status-warn (#7D5C1B, dark gold) is only ~2.5:1 on the deep
+     crimson band — below WCAG AA. This value (≈ #F4BE34) gives ≥8:1 in light
+     mode and ≥6:1 in dark mode (dark --status-critical is a lighter crimson,
+     so the contrast is still comfortably above the 4.5:1 AA floor). No dark
+     override is needed — the single value clears AA on both band colours.
+     Usage rule: ONLY for text/icons drawn directly on the crimson alert band
+     (.amd-alert.attn). All other attention UI continues to use --status-warn. */
+  --warn-on-critical: 43 90% 58%; /* ≈ #F4BE34 — vivid amber, crimson-band only */
+
+  /* Solid table surface (.os-table-wrap convention above) — white in
+     light so pinned cells match the table base on beige; flips to the
+     card charcoal in .dark. */
+  --os-table-surface: 0 0% 100%;
+
+  /* Shadow ink for the os-table scrolled-state shadows + edge fade.
+     Light = the charcoal foreground (incumbent look); .dark switches to
+     pure black so shadows never become light glows. */
+  --shadow-ink: 0 0% 20%;
+
+  /* Pill radius — THE sole exception to --radius: 0rem. Square corners are
+     the OS's machined default (Revenue Engine "machinery" language);
+     fully-round pills are reserved for intrinsically-round elements.
+     Nothing between 0 and full — no soft-rounded cards.
+
+     Intentional-exception list (Task #4361 sweep) — the ONLY component
+     classes that may round, always via `rounded-pill` (never ad-hoc
+     rounded-full/rounded-lg) so intent is greppable:
+       1. Status/count chips — kit StatusPill + local badge chips
+          (ticket status, tab counts, risk/severity chips): a pill IS the
+          chip's identity.
+       2. Avatars + avatar fallbacks — faces are circles.
+       3. Status dots — presence/risk/doc-state indicator circles.
+       4. Pill segmented controls & filter pills — roadmap/churn filters.
+       5. Progress meters — kit Progress is fully-rounded; ad-hoc bars
+          match it (track + fill).
+       6. Circular icon controls — round-by-geometry buttons (e.g. the
+          CEO Pulse chat launcher FAB), radio-dot indicators.
+     Out of internal-OS radius scope entirely: client-facing branded
+     artifacts (public report slides, the NoBull Brief visuals) keep the
+     client-report design language; embedded vendor UI (Univer canvases)
+     and Ads OS are audit-accepted elsewhere. */
+  --radius-pill: 9999px;
+
+  /* ═══ Client-report token layer (Task #4272; audit §8.2–§8.4) ════════
+     Semantic tokens for the public client report (/share/:token,
+     /demo-report, print). Option A: adopt the v2 brand hexes directly.
+     Every report surface color routes through these vars; raw hexes in
+     report slide code are a defect (exceptions: the heatmap SERVED
+     palette guarded by lint-heatmap-color-lockstep, and derive.ts's
+     lead-source data-viz series).
+
+     AA notes (computed 2026-08-10, WCAG 2.x relative luminance):
+       gold-ink   #7D5C1B — v2 Gold Ink, the guidelines' accessibility-
+                  grade gold. The audit table proposed #8F7434 but that
+                  value fails its own stated role (3.65:1 on eggshell,
+                  4.45:1 on white — both < 4.5); the brand's own ink
+                  passes everywhere (5.03:1 eggshell, 6.14:1 as fill
+                  under white text). Deviation recorded in Task #4272.
+       gold       #D5AC5C — decoration + large-text on dark ONLY (8.2:1
+                  on charcoal; 4.05:1 on crimson = large-text bar).
+       ink-inverse-muted #B3AC9F — muted text on charcoal fields
+                  (≥6.1:1 on all three charcoal steps).
+     Charcoal ramp consolidates the report's near-miss dark hexes
+     (#1F1F1F→card, #151515/#111→deep); crimson-deep/-shadow name the
+     incumbent burgundy gradient stops. steel/sage/slate/liberty/earth
+     are data-accent + phase colors (chart fills, not body text). */
+  --report-crimson: #8A292F;        /* v2 Crimson — headers, critical, brand chrome */
+  --report-crimson-deep: #6B2327;   /* burgundy gradient mid-stop */
+  --report-crimson-shadow: #4A1A1C; /* burgundy gradient end-stop */
+  --report-gold: #D5AC5C;           /* v2 Goldenrod — decoration / large-on-dark only */
+  --report-gold-ink: #7D5C1B;       /* v2 Gold Ink — the text-safe gold on light */
+  --report-eggshell: #EEE8DC;       /* v2 Eggshell — slide field */
+  --report-paper: #F7F5F0;          /* card field on light slides */
+  --report-paper-bright: #FAF8F4;   /* v2 Warm Paper — brightest field step */
+  --report-cream-deep: #E7DFCE;     /* v2 Cream Deep — deepest light field step */
+  --report-ink: #232323;            /* primary text on light (12.9:1 on eggshell) */
+  --report-ink-muted: #595959;      /* secondary text on light (5.7:1 on eggshell) */
+  --report-ink-inverse: #F5F1E8;    /* primary text on dark (15.4:1 on charcoal) */
+  --report-ink-inverse-muted: #B3AC9F; /* secondary text on dark */
+  --report-charcoal: #1A1A1A;       /* dark slide field */
+  --report-charcoal-hi: #2D2D2D;    /* dark gradient top */
+  --report-charcoal-card: #252525;  /* card on dark (absorbs #1F1F1F) */
+  --report-charcoal-deep: #121212;  /* deepest dark (absorbs #151515 / #111) */
+  --report-steel: #5B7B9A;          /* muted steel-blue data accent */
+  --report-sage: #2D8B6F;           /* muted positive data accent */
+  --report-slate: #9CA3AF;          /* neutral data accent (phase Soft) */
+  --report-liberty: #485696;        /* v2 Liberty Blue — info/ramp-up accent */
+  --report-earth: #524B3A;          /* v2 Earth — baseline/grounded accent */
+  /* Dark-surface status inks: the status colors above are tuned for
+     light ground and vanish on charcoal. These lightened steps carry
+     positive/negative text + data lines on dark fields (≥4.5:1 as text
+     on charcoal/card; ≥3:1 as data accents on all charcoal steps). */
+  --report-healthy-bright: #66B384;
+  --report-crimson-bright: #D4757A;
+
+  /* Marketing-calendar phase colors (MarketContextSlide bars + print/pdf
+     rect[data-phase] rules) — aliases into the palette above. */
+  --report-phase-peak: var(--report-crimson);
+  --report-phase-hold: var(--report-steel);
+  --report-phase-taper: var(--report-gold);
+  --report-phase-soft: var(--report-slate);
+  --report-phase-rebuild: var(--report-sage);
+
+  /* §8.4 spacing & radius — 8px grid. Radius ≤4px everywhere in the
+     report; text chips are squared tags (3px), never pills. Circles
+     remain only for intrinsically-round elements (progress dots, the
+     slide-number roundel). */
+  --report-radius: 4px;
+  --report-radius-tag: 3px;
+  /* 8px-grid spacing scale (Task #4413 — §8.4 rhythm adoption).
+     --report-space-N = N × 8px. All report-band padding/margins/gaps
+     reference these steps (plus --report-space-half, the 4px micro
+     half-step for chip-level spacing). In slide TSX, Tailwind spacing
+     utilities express the same grid: even steps (gap-2/4/6…, p-2/4/6…)
+     plus the *-1 half-step; off-grid steps (…-1.5/2.5/3/5) are retired
+     from the report surface. */
+  --report-space: 0.5rem;           /* 8px base grid unit */
+  --report-space-half: 0.25rem;     /* 4px micro half-step */
+  --report-space-1: 0.5rem;         /* 8px */
+  --report-space-2: 1rem;           /* 16px */
+  --report-space-3: 1.5rem;         /* 24px */
+  --report-space-4: 2rem;           /* 32px */
+  --report-space-5: 2.5rem;         /* 40px */
+  --report-space-6: 3rem;           /* 48px */
+  --report-space-8: 4rem;           /* 64px */
+  --report-space-10: 5rem;          /* 80px */
+  --report-slide-pad: var(--report-space-6);
+  --report-slide-pad-mobile: var(--report-space-2);
+  --report-frame-margin: var(--report-space-4);
+  --report-content-max: 1080px;     /* §8.4 content column cap */
+  --report-card-gap: var(--report-space-3); /* 24px card gap */
+}
+
+/* ═══ Dark theme (Task #4377 — app-wide dark mode capstone) ═══════════════
+   Applied as `.dark` on <html> by the global ThemeProvider (client/src/lib/
+   theme.tsx; per-user preference light/dark/system, default system) and
+   pre-paint by the inline script in client/index.html.
+
+   Palette: the v2 "machinery" dark range — warm near-black canvas in the
+   Engine Black / Charcoal / Ink family, NOT inverted beige. Values are
+   lifted from the Ads OS dark palette (Task #3705, HSL-ified + re-keyed in
+   Task #4359 expressly so this capstone could adopt them; the module block
+   in adsOs.css now keeps only its deltas).
+
+   PRIMARY is a fill-grade Liberty lift (re-primary 2026-08, Task #4558 —
+   crimson demoted to the --accent brand-accent slot; the nav shell moved
+   OFF --primary onto the dedicated --chrome tokens in the 2026-08 Task
+   #4600 rebalance): filled buttons carry light labels, so dark
+   --primary lifts Liberty #485696 to 229 40% 50% (#4D5FB3;
+   --primary-foreground 5.49:1 on it, ≥5:1 bar) — the Ads OS module
+   shadows its own text-grade Liberty for link/text accents at .ads-os
+   scope. --accent carries the crimson lift (#B8454E, the pre-flip dark
+   primary; its foreground 5.05:1, same ≥5:1 bar) for scoped brand-accent
+   moments only, and --ring is a Liberty lift with ≥3:1 on every dark
+   surface (worst case --muted, 4.45:1), replacing the old rose.
+   Status tones are the Ads OS lifted set (text-grade on charcoal, ≥4.5:1
+   on canvas and cards). NOTE the light-theme "fills under white text"
+   guarantee inverts here: dark status fills want near-black labels — tint
+   chips (bg-status-x/10 + text-status-x) are the dark-safe idiom.
+
+   The client-report token layer (--report-*, .report-surface) is
+   deliberately ABSENT: the public deck is a branded artifact with its own
+   light/charcoal system and must not flip with app dark mode. */
+.dark {
+  color-scheme: dark;
+
+  --background: 30 6% 7%;          /* warm near-black canvas (#121110) */
+  --foreground: 34 13% 90%;        /* warm ink (#E8E5E1) */
+
+  --card: 24 6% 10%;               /* panel charcoal (#1B1917 family) */
+  --card-foreground: 34 13% 90%;
+
+  --popover: 24 6% 12%;            /* a step above cards */
+  --popover-foreground: 34 13% 90%;
+
+  --primary: 229 40% 50%;          /* fill-grade Liberty lift (#4D5FB3) — fg 5.49:1 on it */
+  --primary-foreground: 40 20% 97%;
+  --primary-ink: 229 58% 70%;      /* text-grade Liberty lift (#8496DE, Task #4687) — the
+     fill-grade --primary reads ~2.8–3.0:1 as TEXT on dark surfaces; this ink
+     is AA on all of them (bg 6.54, card 6.22, warm-1 5.87, warm-2 5.70,
+     muted 5.16:1). Interactive text/borders only; fills stay --primary. */
+
+  --secondary: 24 7% 15%;          /* neutral chips / tracks (#272422) */
+  --secondary-foreground: 34 13% 88%;
+
+  --muted: 30 6% 16%;
+  --muted-foreground: 34 11% 62%;  /* muted warm ink (#A89F93) */
+
+  --accent: 356 48% 49%;           /* crimson brand accent (#B8454E) — brand moments ONLY; kit highlights ride --primary */
+  --accent-foreground: 40 20% 97%; /* 5.05:1 on the accent fill */
+
+  --destructive: 0 72% 61%;        /* lifted alarm — near-black label (≥5:1) */
+  --destructive-foreground: 20 10% 8%;
+
+  --border: 30 7% 17%;             /* #2E2B28 */
+  --input: 30 7% 17%;
+  --ring: 229 55% 66%;             /* Liberty focus ring (#798AD8) — ≥3:1 on all surfaces (worst --muted 4.45:1) */
+
+  --chart-1: 220 15% 68%;          /* neutral blue-gray, lifted for dark */
+
+  --surface-warm-1: 30 6% 12%;     /* warm inset panel */
+  --surface-warm-2: 30 5% 13%;     /* elevated warm card / hover wash */
+
+  --status-ok: 145 56% 58%;
+  --status-warn: 43 75% 59%;
+  --status-critical: 2 81% 68%;
+  --status-info: 218 76% 75%;
+
+  --os-table-surface: 24 6% 10%;   /* tables ride the card charcoal */
+  --shadow-ink: 0 0% 0%;           /* shadows stay shadows, never glow */
+
+  /* Brand chrome, dark counterpart (rebalance 2026-08, Task #4600 —
+     CHROME section of the constitution): the band sits on the v2
+     machinery darks, crimson identity carried by the edge hairline +
+     the reverse bull mark, not by a red field. */
+  --chrome: 24 6% 10%;             /* charcoal band (= card) */
+  --chrome-foreground: 34 13% 90%; /* warm ink — 13.96:1 on the band */
+  --chrome-edge: 356 48% 49%;      /* crimson identity hairline (#B8454E) */
+
+  --heading-ink: 34 13% 90%;       /* dark keeps a light heading tone */
+}
+
+/* ── Dark compat remap for light-era literal utilities (Task #4377) ────────
+   The 2026-08 sweep found ~3.6k pre-token `bg-white` / gray- / slate-ramp
+   utilities across client/src (white cards, gray table headers, gray text
+   ramps). Editing every call site in the capstone would be an unreviewable
+   mega-diff, so the dark theme remaps the LIGHT-ERA LITERALS onto the token
+   system centrally; call sites migrate to semantic tokens opportunistically.
+
+   Rules of this block:
+   - Applies ONLY under `.dark`, and never inside `.report-surface` (the
+     public deck is light-locked — see the token block comment above). The
+     `:where(:not(.report-surface *))` guard adds ZERO specificity, so a
+     plain `.dark .bg-white` (0,2,0) still beats layered utilities.
+   - Unlayered on purpose: wins over @layer'd utilities regardless of order,
+     including the handful of legacy `dark:` variants (both resolve to
+     equivalent charcoals, verified in the sweep).
+   - LOW-alpha forms (bg-white/5 … /30) are deliberately ABSENT — they are
+     translucent highlight overlays on colored/dark surfaces and already
+     dark-safe. HIGH-alpha whites (/70+) are frosted light SURFACES (sticky
+     tab bars, sheet scrims) and remap to frosted card charcoal; /50 washes
+     become a muted lift.
+   - text-gray-300 and lighter are ABSENT — they are light-on-dark labels
+     already (footers, filled buttons) and must not be dimmed.
+   - New code must use semantic tokens (bg-card, text-muted-foreground, …);
+     this block exists to keep the epic's remaining literals legible, not to
+     bless new ones. */
+.dark .bg-white:where(:not(.report-surface *)) { background-color: hsl(var(--card)); }
+.dark .bg-gray-50:where(:not(.report-surface *)),
+.dark .bg-slate-50:where(:not(.report-surface *)) { background-color: hsl(30 6% 13%); }
+.dark .bg-gray-100:where(:not(.report-surface *)),
+.dark .bg-slate-100:where(:not(.report-surface *)) { background-color: hsl(var(--muted)); }
+.dark .bg-gray-200:where(:not(.report-surface *)) { background-color: hsl(30 6% 20%); }
+.dark .bg-gray-300:where(:not(.report-surface *)) { background-color: hsl(30 6% 24%); }
+.dark .hover\:bg-gray-50:hover:where(:not(.report-surface *)),
+.dark .hover\:bg-slate-50:hover:where(:not(.report-surface *)) { background-color: hsl(var(--muted)); }
+.dark .hover\:bg-gray-100:hover:where(:not(.report-surface *)) { background-color: hsl(30 6% 19%); }
+.dark .text-gray-900:where(:not(.report-surface *)),
+.dark .text-slate-900:where(:not(.report-surface *)),
+.dark .text-gray-800:where(:not(.report-surface *)),
+.dark .text-slate-800:where(:not(.report-surface *)) { color: hsl(var(--foreground)); }
+.dark .text-gray-700:where(:not(.report-surface *)),
+.dark .text-slate-700:where(:not(.report-surface *)) { color: hsl(34 12% 80%); }
+.dark .text-gray-600:where(:not(.report-surface *)),
+.dark .text-slate-600:where(:not(.report-surface *)) { color: hsl(34 11% 70%); }
+.dark .text-gray-500:where(:not(.report-surface *)),
+.dark .text-slate-500:where(:not(.report-surface *)) { color: hsl(var(--muted-foreground)); }
+.dark .text-gray-400:where(:not(.report-surface *)),
+.dark .text-slate-400:where(:not(.report-surface *)) { color: hsl(34 9% 54%); }
+.dark .border-gray-100:where(:not(.report-surface *)),
+.dark .border-gray-200:where(:not(.report-surface *)),
+.dark .border-slate-200:where(:not(.report-surface *)),
+.dark .border-gray-300:where(:not(.report-surface *)) { border-color: hsl(var(--border)); }
+
+/* Report status scale — scoped to the report surface because the
+   internal OS already owns :root --status-critical/--status-info as HSL
+   triplets (hsl(var(--…)) callers would break if redefined globally).
+   Zero OS status utilities render inside the report subtree (verified
+   2026-08-10), so shadowing here is safe. All five pass ≥4.5:1 under
+   white text AND as text on white/paper; healthy/attention/critical
+   also pass on eggshell (watch = gold-ink, 5.03:1 on eggshell).
+   Glyph redundancy: status is never color-alone — squared tags carry
+   ▲ (healthy) / — (watch, neutral) / ▼ (attention, critical). */
+.report-surface {
+  --status-healthy: #2F6B44;
+  --status-watch: #7D5C1B;   /* = gold-ink; audit's #8F6E1E failed on eggshell (3.9:1) */
+  --status-attention: #96491F;
+  --status-critical: var(--report-crimson);
+  --status-neutral: var(--report-ink-muted);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  /* Earth heading role (HEADINGS section of the constitution) — headings
+     default to --heading-ink (v2 Earth on light, warm ink in dark).
+     Class-based text-* utilities out-specify this element rule, so any
+     explicit heading color (text-primary, text-accent, …) still wins.
+     Scoped out of the light-locked report deck, which owns its own inks. */
+  h1:where(:not(.report-surface *)),
+  h2:where(:not(.report-surface *)),
+  h3:where(:not(.report-surface *)) {
+    color: hsl(var(--heading-ink));
+  }
+}
+
+@layer components {
+  /* Slideshow Presentation Styles */
+  .slideshow-container {
+    scroll-snap-type: y proximity;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    /* Pull the deck up behind the sticky ReportTopBar so the cover renders
+       full-bleed beneath the transparent bar on slide 1 (Task #4275,
+       §8.7-1). Must equal BAR_HEIGHT_PX in publicReport/ReportTopBar.tsx
+       (h-16 row + 1px border). @media print below resets margins to 0;
+       body.pdf-mode resets this too. */
+    margin-top: -65px;
+  }
+
+  /* The window is the report's real scroller (.slideshow-container never
+     overflows on its own), so roadmap anchor jumps glide via <html> — but
+     only on report surfaces and only when the OS doesn't ask for reduced
+     motion (Task #4275, §8.7-2). */
+  @media (prefers-reduced-motion: no-preference) {
+    html:has(.report-surface) {
+      scroll-behavior: smooth;
+    }
+  }
+
+  .slide {
+    scroll-snap-align: start;
+    /* Roadmap anchor jumps land below the sticky top bar (Task #4275);
+       the ≤768px block overrides this for the taller bar + progress strip. */
+    scroll-margin-top: 5rem;
+    min-height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding-top: var(--report-space-6);
+  }
+
+  /* Slides with intrinsically short content (agenda) opt in to vertical
+     centering to remove the dead zone below their content (§8.4 dead-space
+     rule; Task #4275). ≤768px is unaffected — .slide collapses to content
+     height there. */
+  .slide-vcenter {
+    justify-content: center;
+  }
+
+  /* Slide Frame Styles — §8.4: content column capped at 1080px, centered */
+  .slide-frame {
+    position: relative;
+    margin: var(--report-frame-margin) auto;
+    max-width: var(--report-content-max);
+    width: calc(100% - 2 * var(--report-frame-margin));
+    padding: var(--report-slide-pad);
+    padding-bottom: var(--report-space-10); /* Extra space for navigation button */
+    border-radius: 0;
+  }
+  
+  .slide-frame::before,
+  .slide-frame::after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-style: solid;
+    border-color: var(--report-gold);
+    pointer-events: none;
+  }
+  
+  .slide-frame::before {
+    top: 0;
+    left: 0;
+    border-width: 3px 0 0 3px;
+  }
+  
+  .slide-frame::after {
+    bottom: 0;
+    right: 0;
+    border-width: 0 3px 3px 0;
+  }
+
+  /* Slide background variants — brand fields (§8.2). Beige/cream rebuilt
+     from the warm eggshell family (the old stops were cool grays). */
+  .slide-burgundy {
+    background: linear-gradient(135deg, var(--report-crimson) 0%, var(--report-crimson-deep) 50%, var(--report-crimson-shadow) 100%) !important;
+    color: var(--report-ink-inverse) !important;
+  }
+
+  .slide-beige {
+    background: linear-gradient(135deg, var(--report-paper) 0%, var(--report-eggshell) 50%, var(--report-cream-deep) 100%) !important;
+    color: var(--report-ink) !important;
+  }
+
+  .slide-charcoal {
+    background: linear-gradient(135deg, var(--report-charcoal-hi) 0%, var(--report-charcoal-card) 50%, var(--report-charcoal-deep) 100%) !important;
+    color: var(--report-ink-inverse) !important;
+  }
+
+  .slide-cream {
+    background: linear-gradient(135deg, var(--report-paper-bright) 0%, var(--report-paper) 50%, var(--report-eggshell) 100%) !important;
+    color: var(--report-ink) !important;
+  }
+
+  /* Decorative patterns — deck-only idiom (client report deck gold
+     #C4A35A, which predates brand v2). KEPT deliberately (2026-08
+     internal-OS token audit P3-6): they are live in the public report
+     deck (PublicReport.tsx) — a client-facing surface outside the
+     internal-OS design scope — and are NOT part of the OS chrome
+     vocabulary. Do not spread them into app surfaces; print styles
+     already hide them (@media print). */
+  /* Gold #D5AC5C is baked into the data-URL below — CSS var() cannot
+     reach inside url(). Kept in exact lockstep with --report-gold. */
+  .pattern-geometric {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D5AC5C' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .pattern-dots {
+    background-image: radial-gradient(circle, var(--report-gold) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.15;
+  }
+
+  .pattern-lines {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      color-mix(in srgb, var(--report-gold) 5%, transparent) 10px,
+      color-mix(in srgb, var(--report-gold) 5%, transparent) 20px
+    );
+  }
+  /* Slide number badge — roundel: a sanctioned circle (§8.4 exception) */
+  .slide-number {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    width: 48px;
+    height: 48px;
+    background: color-mix(in srgb, var(--report-crimson) 10%, transparent);
+    border: 2px solid color-mix(in srgb, var(--report-crimson) 30%, transparent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-report-serif);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--report-crimson);
+  }
+
+  .slide-burgundy .slide-number,
+  .slide-charcoal .slide-number {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+  }
+
+  /* Progress indicator */
+  .slide-progress {
+    position: fixed;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    /* Fixed slide-nav chrome rides the top chrome layer. */
+    z-index: var(--z-toast);
+  }
+
+  .slide-progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--report-crimson) 20%, transparent);
+    border: 2px solid color-mix(in srgb, var(--report-crimson) 40%, transparent);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .slide-progress-dot.active {
+    background: var(--report-crimson);
+    border-color: var(--report-crimson);
+    transform: scale(1.3);
+  }
+
+  .slide-progress-dot:hover {
+    transform: scale(1.2);
+    background: color-mix(in srgb, var(--report-crimson) 40%, transparent);
+  }
+
+  /* Decorative dividers — gold accents (decoration role) */
+  .divider-gold {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--report-gold), transparent);
+    margin: var(--report-space-3) 0;
+  }
+
+  .divider-burgundy {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--report-crimson), transparent);
+    margin: var(--report-space-3) 0;
+  }
+  
+  /* Solid gold divider (not faded) */
+  .divider-gold-solid {
+    height: 2px;
+    background: var(--report-gold);
+    margin: var(--report-space-3) 0;
+  }
+
+  /* Top/bottom rule lines for slides */
+  .slide-rules::before,
+  .slide-rules::after {
+    content: '';
+    position: absolute;
+    left: 3rem;
+    right: 3rem;
+    height: 3px;
+    background: linear-gradient(90deg, var(--report-gold), var(--report-crimson), var(--report-gold));
+  }
+
+  .slide-rules::before {
+    top: 1.5rem;
+  }
+
+  .slide-rules::after {
+    bottom: 1.5rem;
+  }
+
+  /* Cards - Light Background (Beige/Cream slides) — §8.2 paper field */
+  .card-light {
+    background: var(--report-paper) !important;
+    border-radius: var(--report-radius);
+    border: 1px solid color-mix(in srgb, var(--report-crimson) 10%, transparent);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  /* Cards - Dark Background (Charcoal/Burgundy slides) */
+  .card-dark {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: var(--report-radius);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .card-dark-accent {
+    background: hsl(var(--surface-warm-1) / 0.05) !important;
+    border-radius: var(--report-radius);
+    border: 1px solid color-mix(in srgb, var(--report-gold) 30%, transparent);
+  }
+
+  /* Section Labels - Unified Uppercase Treatment (§8.3 eyebrow: ≥11px,
+     tracking .08em) */
+  .section-label-light {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--report-crimson);
+  }
+}
+
+@layer components {
+  .section-label-dark {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--report-gold);
+  }
+
+  /* Solid ink-muted, not a 50% alpha — the audit's eyebrow AA defect. */
+  .section-label-muted {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--report-ink-muted);
+  }
+
+  /* Metric Values — §8.3: metrics are Montserrat 700 tabular-nums
+     (serif stays reserved for display/titles/verdicts). */
+  .metric-large {
+    font-size: 1.875rem;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Divider - Thin Gold Line */
+  .divider-thin {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--report-gold), transparent);
+    margin: var(--report-space-2) 0;
+  }
+
+  /* Slide Header Pattern — gaps/margins on the 8px grid (§8.4) */
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: var(--report-space-1);
+    margin-bottom: var(--report-space-1);
+  }
+
+  .slide-header-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .slide-title {
+    font-size: 2rem; /* §8.3 slide title step */
+    line-height: 1.2;
+    font-weight: 700;
+    font-family: var(--font-report-serif);
+  }
+
+  .slide-subtitle-light {
+    font-size: 0.875rem;
+    margin-bottom: var(--report-space-2);
+    color: var(--report-ink-muted);
+  }
+
+  .slide-subtitle-dark {
+    font-size: 0.875rem;
+    margin-bottom: var(--report-space-2);
+    color: var(--report-ink-inverse-muted);
+  }
+
+  /* ── §8.3 report type scale primitives (Task #4272) ─────────────────
+     Defined here for per-slide adoption; the cover uses report-display
+     immediately. Floors: captions ≥12px (0.75rem), eyebrows/ticks ≥11px
+     (0.6875rem), body measure ≤68ch. */
+  .report-display {
+    font-family: var(--font-report-serif);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    line-height: 1.15;
+  }
+
+  .report-verdict {
+    font-family: var(--font-report-serif);
+    font-weight: 400;
+    font-style: italic;
+    font-size: 1.25rem;
+    line-height: 1.5;
+  }
+
+  .report-hero-metric {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 3rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .report-prose {
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 68ch;
+  }
+
+  .report-eyebrow {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--report-ink-muted);
+  }
+
+  .slide-charcoal .report-eyebrow,
+  .slide-burgundy .report-eyebrow {
+    color: var(--report-ink-inverse-muted);
+  }
+
+  /* ── Squared status tag (§8.4) — replaces pill chips. Color is never
+     the sole signal: ReportStatusTag pairs each level with ▲ / — / ▼.
+     Soft (tinted) variant is light-surface only; dark surfaces use the
+     solid variant so text stays white-on-fill (AA everywhere). */
+  .report-status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: var(--report-radius-tag);
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ── Opaque status card tints — for status-tinted CARDS that sit on
+     dark or patterned slides. A translucent `/10` tint only works inside
+     a light opaque wrapper; these mix the status ink over paper-bright
+     so ink-on-card text stays AA everywhere. */
+  .report-card-tint-healthy {
+    background-color: color-mix(in srgb, var(--status-healthy) 8%, var(--report-paper-bright));
+  }
+  .report-card-tint-watch {
+    background-color: color-mix(in srgb, var(--status-watch) 8%, var(--report-paper-bright));
+  }
+  .report-card-tint-attention {
+    background-color: color-mix(in srgb, var(--status-attention) 8%, var(--report-paper-bright));
+  }
+  .report-card-tint-critical {
+    background-color: color-mix(in srgb, var(--status-critical) 8%, var(--report-paper-bright));
+  }
+  .report-card-tint-neutral {
+    background-color: var(--report-paper);
+  }
+
+  /* "Data not provided" — static high-contrast state (Task #4286, audit
+     backlog #27; WCAG 2.2.2). The infinite critical-flash loop is retired
+     for ALL users: the resting styles below ARE the old animation's
+     peak-contrast keyframe, so the state reads without motion.
+     critical-flash survives only as a one-shot tint-in whose 100% frame
+     equals the resting values (no pop when it completes). */
+  @keyframes critical-flash {
+    0% {
+      background-color: color-mix(in srgb, var(--report-crimson) 15%, transparent);
+      border-color: color-mix(in srgb, var(--report-crimson) 60%, transparent);
+    }
+    100% {
+      background-color: color-mix(in srgb, var(--report-crimson) 25%, transparent);
+      border-color: color-mix(in srgb, var(--report-crimson) 90%, transparent);
+    }
+  }
+
+  .data-not-provided {
+    background-color: color-mix(in srgb, var(--report-crimson) 25%, transparent);
+    border-color: color-mix(in srgb, var(--report-crimson) 90%, transparent);
+    animation: critical-flash 1.5s ease-in-out 1;
+  }
+}
+
+
+/* ===== MOBILE RESPONSIVE STYLES ===== */
+
+/* Tablet and below (768px) */
+@media (max-width: 768px) {
+  /* Disable scroll snap for smoother scrolling */
+  .slideshow-container {
+    scroll-snap-type: none !important;
+  }
+
+  .slide {
+    min-height: auto !important;
+    height: auto !important;
+    padding: 1rem !important;
+    /* Sticky bar (65px) + mobile progress strip (~46px) — anchor jumps
+       must clear both (Task #4275). */
+    scroll-margin-top: 7.5rem;
+    scroll-snap-align: none !important;
+  }
+
+  .slide-frame {
+    margin: 0.5rem;
+    padding: 1rem;
+    padding-bottom: 3rem; /* Extra space for navigation button */
+  }
+
+  .slide-frame::before,
+  .slide-frame::after {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+  }
+
+  .slide-number {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .slide-progress {
+    display: none;
+  }
+
+  .slide-title {
+    font-size: 1.25rem !important;
+  }
+
+  .slide-subtitle-light,
+  .slide-subtitle-dark {
+    font-size: 0.75rem !important;
+  }
+
+  .metric-large {
+    font-size: 1.5rem !important;
+  }
+
+  .slide-header {
+    gap: 0.5rem;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .slide-header-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* Force all grids to stack on mobile. Grids that must keep their
+     own template at phone widths (e.g. 7-column calendars that
+     scroll inside an overflow container) opt out with the
+     .mobile-grid-keep marker class. */
+  .grid:not(.mobile-grid-keep) {
+    grid-template-columns: 1fr !important;
+    gap: var(--report-space-2) !important;
+  }
+
+  /* Overflow containment: a stacked grid item must never inflate the
+     track past the viewport. Grid/flex items default to
+     min-width:auto, so one nowrap/truncate descendant deep inside a
+     card propagates its full min-content width into the track's
+     `auto` minimum and forces horizontal page scroll (WCAG 1.4.10
+     reflow). min-width:0 lets items shrink to the track; inner
+     content then truncates/wraps/scrolls inside its own container. */
+  .grid:not(.mobile-grid-keep) > * {
+    min-width: 0;
+  }
+
+  /* Except for 2-column small grids */
+  .grid-cols-2:not(.md\:grid-cols-3):not(.lg\:grid-cols-3) {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Cards more compact */
+  .card-light,
+  .card-dark {
+    padding: var(--report-space-2) !important;
+  }
+
+  /* Section labels compact — padding only; 11px floor holds (§8.3) */
+  .section-label-light,
+  .section-label-dark {
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  /* Status tags compact — padding only; 11px floor holds (§8.3) */
+  .report-status-tag {
+    padding: 0.125rem 0.375rem !important;
+  }
+
+  /* Dividers thinner */
+  .divider-gold,
+  .divider-thin {
+    margin: 0.5rem 0 !important;
+  }
+
+  /* Force stacking on mobile */
+  .mobile-stack {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .mobile-stack > * {
+    width: 100% !important;
+  }
+
+  /* Cover slide mobile */
+  #cover {
+    padding: 1.5rem !important;
+    /* The cover is content-height here (.slide min-height:auto) while the
+       scroll cue (bottom-16 + bounce) and domain bar (bottom-0) stay
+       absolutely anchored — reserve their band so the letterhead-shifted
+       subtitle can't collide with them (Task #4275). */
+    padding-bottom: 4.5rem !important;
+  }
+
+  /* #cover h1 sizing now flows from .report-display's clamp() (§8.3) */
+
+  #cover .text-xl {
+    font-size: 1rem !important;
+  }
+
+  #cover p {
+    font-size: 0.875rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Book promo colophon — mobile behavior lives in the component's own
+     responsive utilities (flex-col md:flex-row, centered text, hidden
+     plate-mark/tags, stepped image widths); the old structure-specific
+     overrides died with the split navy/teal design (Task #4284). */
+
+  /* Charts - taller on mobile for readability */
+  .recharts-wrapper {
+    min-height: 120px !important;
+    height: 120px !important;
+  }
+
+  /* Trend charts stack in single column */
+  .grid-cols-2 .recharts-wrapper,
+  .grid-cols-3 .recharts-wrapper {
+    min-height: 100px !important;
+    height: 100px !important;
+  }
+
+  /* Make GBP location cards full width */
+  .rounded-xl.border {
+    width: 100% !important;
+  }
+}
+
+/* Small phones (480px) */
+@media (max-width: 480px) {
+  .slide {
+    padding: var(--report-space-1) !important;
+  }
+
+  .slide-frame {
+    margin: var(--report-space-half);
+    padding: var(--report-space-2);
+    padding-bottom: var(--report-space-5); /* Extra space for navigation button */
+  }
+
+  .slide-title {
+    font-size: 1.125rem !important;
+  }
+
+  .metric-large {
+    font-size: 1.25rem !important;
+  }
+
+  .slide-frame::before,
+  .slide-frame::after {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Cover even more compact (h1 flows from .report-display clamp) */
+  #cover .text-xl {
+    font-size: 0.875rem !important;
+  }
+
+  /* Smaller text — but never below the 12px caption floor (§8.3).
+     (.text-xs stays at its native 0.75rem; the old 0.625rem override
+     violated the floor and is gone.) */
+  .text-sm {
+    font-size: 0.75rem !important;
+  }
+
+  /* Status tags: tighter padding only; 11px floor holds */
+  .report-status-tag {
+    padding: 0.125rem 0.375rem !important;
+  }
+
+  /* Book promo colophon — keep the hero book proportionate on small phones */
+  #book-promo img {
+    max-width: 160px !important;
+  }
+}
+
+/* Extra typography scaling for small screens */
+@media (max-width: 640px) {
+  /* Reduce large stat numbers on small screens */
+  .text-7xl {
+    font-size: 2.5rem !important;
+  }
+
+  .text-6xl {
+    font-size: 2rem !important;
+  }
+
+  .text-5xl {
+    font-size: 1.75rem !important;
+  }
+
+  .text-4xl {
+    font-size: 1.5rem !important;
+  }
+
+  .text-3xl {
+    font-size: 1.25rem !important;
+  }
+
+  .text-2xl {
+    font-size: 1.125rem !important;
+  }
+
+  .text-xl {
+    font-size: 1rem !important;
+  }
+
+  /* Legend items wrap better */
+  .flex.justify-center.gap-6 {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .flex.justify-center.gap-4 {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Phase badges smaller */
+  .gap-6 {
+    gap: 0.5rem !important;
+  }
+
+  .gap-4 {
+    gap: 0.5rem !important;
+  }
+
+  /* Padding reductions — snapped to the 8px grid (§8.4) */
+  .p-6 {
+    padding: var(--report-space-2) !important;
+  }
+
+  .p-5 {
+    padding: var(--report-space-2) !important;
+  }
+
+  .px-16 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .py-20 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+/* PDF mode - applied when generating PDF via html2pdf */
+body.pdf-mode .print\:hidden {
+  display: none !important;
+}
+
+body.pdf-mode .slideshow-container {
+  background: white;
+  margin-top: 0; /* the -65px under-bar pull is screen-only (Task #4275) */
+}
+
+body.pdf-mode .slide {
+  page-break-after: always;
+  break-after: page;
+}
+
+/* Phase bar colors for PDF mode (html2canvas doesn't use @media print) */
+body.pdf-mode .phase-rect-peak,
+body.pdf-mode rect[data-phase="Peak"] { fill: var(--report-phase-peak) !important; }
+
+body.pdf-mode .phase-rect-hold,
+body.pdf-mode rect[data-phase="Hold"] { fill: var(--report-phase-hold) !important; }
+
+body.pdf-mode .phase-rect-taper,
+body.pdf-mode rect[data-phase="Taper"] { fill: var(--report-phase-taper) !important; }
+
+body.pdf-mode .phase-rect-soft,
+body.pdf-mode rect[data-phase="Soft"] { fill: var(--report-phase-soft) !important; }
+
+body.pdf-mode .phase-rect-rebuild,
+body.pdf-mode rect[data-phase="Rebuild"] { fill: var(--report-phase-rebuild) !important; }
+
+/* Defense in depth: the heatmap PNG snapshot rendered by InteractiveHeatmap
+   is print-only. JS gates it with `printMode && printSnapshot`; this rule
+   guarantees it's never visible on the normal screen view even if state
+   leaks for any reason. The print snapshot is re-enabled inside @media
+   print below. */
+@media screen {
+  .heatmap-print-image {
+    display: none !important;
+  }
+}
+
+@media print {
+  /* Page setup — zero page margin so slide backgrounds bleed to the page
+     edge; each .slide carries its own inner padding instead (Task #4288).
+     Dark slides previously printed inside a white 0.3in ring. */
+  @page {
+    margin: 0;
+    size: letter portrait;
+  }
+
+  /* Force backgrounds and colors to print */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Force all content to be visible (override framer-motion animations) */
+  * {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* CRITICAL: Reset mobile overrides for print */
+  /* Grids should use their natural column counts, not be forced to 1 column */
+  .grid.grid-cols-1.sm\:grid-cols-2,
+  .grid.grid-cols-1.md\:grid-cols-2,
+  .grid.grid-cols-1.lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .grid.grid-cols-1.sm\:grid-cols-3,
+  .grid.grid-cols-1.md\:grid-cols-3,
+  .grid.grid-cols-1.lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Restore gap sizes */
+  .gap-6 {
+    gap: 1.5rem !important;
+  }
+
+  .gap-4 {
+    gap: 1rem !important;
+  }
+
+  /* Hide non-printable elements */
+  header,
+  nav,
+  .no-print,
+  button,
+  [data-testid*="button-"],
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Landmark carve-out (Task #4286): the blanket header/nav hide above
+     targets app chrome, but the agenda roadmap timeline is a semantic
+     <nav> that IS slide content — without this it would print as a bare
+     title. It lays out as a flex row on screen; keep that in print. */
+  .slide nav {
+    display: flex !important;
+  }
+
+  /* Slide number — printed in the same top-right roundel position as
+     screen (§8.7-12 consistent page-number position, Task #4284). The
+     book promo's old stray bottom-left copy is gone; every numbered
+     slide prints this one shared marker. z-index lifts it above the
+     z-10 slide-frame (whose box overlaps this spot now that the slide's
+     print padding is the page margin) so it reads as a corner badge on
+     every variant instead of hiding behind light frames (Task #4288). */
+  .slide-number {
+    top: 0.45in !important;
+    right: 0.5in !important;
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.75rem !important;
+    border-width: 1.5px !important;
+    z-index: 20 !important;
+  }
+
+  /* Root container */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  /* Slideshow container */
+  .slideshow-container {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Each slide owns its page(s): every slide starts on a fresh page and
+     fills at least one full page box, so its background gradient bleeds
+     edge-to-edge (the 0.5in/0.55in padding is the effective page margin).
+     Slides taller than one page keep flowing — their background continues
+     on each fragment — and the NEXT slide still starts on its own page.
+     (Task #4288; replaces the old per-slide break patchwork.) */
+  .slide {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    min-height: 11in !important;
+    height: auto !important;
+    break-before: page !important;
+    page-break-before: always !important;
+    scroll-snap-align: unset !important;
+    margin: 0 !important;
+    padding: 0.5in 0.55in !important;
+    box-sizing: border-box !important;
+    /* Horizontal safety only; fragmentation is not "overflow", so this
+       does not clip multi-page slides. */
+    overflow: hidden !important;
+  }
+
+  /* Special class to keep header with following content */
+  .print-keep-together {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Also keep chart container from being separated from header */
+  #market-context .bg-white.rounded-lg {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  /* Market Context chart grid - ensure proper column layout in print */
+  #market-context .grid.grid-cols-12 {
+    grid-template-columns: 2fr 1fr !important;
+    gap: 0 !important;
+  }
+  
+  #market-context .col-span-8 {
+    grid-column: span 1 !important;
+    min-height: 200px !important;
+  }
+  
+  #market-context .col-span-4 {
+    grid-column: span 1 !important;
+  }
+  
+  /* Ensure Market Context chart is visible in print */
+  #market-context .recharts-responsive-container {
+    width: 100% !important;
+    height: 180px !important;
+    min-height: 180px !important;
+  }
+  
+  #market-context svg.recharts-surface {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Hide Replit development banner in print - target all fixed position elements at page top */
+  [class*="replit"],
+  [data-replit],
+  iframe[src*="replit"],
+  div[style*="position: fixed"],
+  .development-banner,
+  body > div:first-child:not(#root),
+  body > div[style*="fixed"],
+  div[class*="banner"],
+  div[class*="preview"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  }
+  
+  /* Cover is first slide - no page break before it */
+  #cover {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  /* Cover slide - special full-page treatment */
+  #cover {
+    min-height: 11in !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    background: linear-gradient(135deg, var(--report-crimson) 0%, var(--report-crimson-deep) 40%, var(--report-crimson-shadow) 100%) !important;
+    padding: 1in !important;
+  }
+
+  /* Hide decorative elements in cover for cleaner print */
+  #cover > .absolute {
+    display: none !important;
+  }
+
+  /* Cover content centering and visibility - target the main content wrapper */
+  #cover > .relative {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    max-width: 600px !important;
+  }
+
+  /* Cover text colors and sizing */
+  #cover h1 {
+    color: white !important;
+    font-size: 3rem !important;
+    line-height: 1.15 !important;
+    margin-bottom: 0.75rem !important;
+    text-align: center !important;
+  }
+
+  #cover h1 br {
+    display: inline !important;
+  }
+
+  #cover h1 span {
+    color: var(--report-gold) !important;
+    display: block !important;
+  }
+
+  #cover p,
+  #cover span,
+  #cover div {
+    color: white !important;
+  }
+
+  #cover .text-report-gold,
+  #cover .text-report-gold\/80 {
+    color: var(--report-gold) !important;
+  }
+
+  #cover .text-xl {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  #cover .text-lg {
+    font-size: 1rem !important;
+    max-width: 450px !important;
+  }
+
+  /* Agenda slide - ensure vertical timeline layout */
+  #agenda .flex.flex-col {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  #agenda .flex.items-start {
+    flex-direction: row !important;
+  }
+
+  /* Make agenda items more compact for print */
+  #agenda .rounded-lg {
+    padding: 0.5rem !important;
+  }
+
+  #agenda .w-10 {
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+
+  #agenda h3 {
+    font-size: 0.75rem !important;
+  }
+
+  #agenda p {
+    font-size: 0.75rem !important; /* 12px caption floor (§8.3) */
+  }
+
+  /* Keep slide headers with their content - no page break after headers */
+  .slide-header,
+  .slide-title,
+  h2,
+  h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Text fragmentation hygiene */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Never slice a bitmap across a page boundary — a sliced image forces
+     the print engine to re-encode it losslessly (a 1.4MB JPEG ballooned
+     to 7MB when fragmented mid-image). */
+  img {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Cards are the atomic print unit: never break inside a leaf card
+     (stat cards, list rows, chart cards). Large p-8 section shells can
+     exceed a page and must stay breakable so the engine breaks BETWEEN
+     their child cards instead of slicing arbitrarily. (Task #4288 —
+     consolidates the old .grid/.flex/rounded-* avoid patchwork.) */
+  .card,
+  .card-light,
+  .card-dark,
+  .card-dark-accent,
+  [class*="rounded-xl"]:not([class*="p-8"]),
+  [class*="rounded-lg"]:not([class*="p-8"]) {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Sparse-deck empty-state atomics (Tasks #4715/#4747): the no-data upsell
+     callout bands and dashed chart-placeholder frames must never split
+     across a page break. Guarded EXPLICITLY by testid — the old contract
+     rode a literal `rounded-lg` class on their roots and silently died when
+     that class was dropped; testids are load-bearing and pinned by tests.
+     Lockstep with SPARSE_ATOMIC_SELECTORS in scripts/reportSmokePageBreak.ts
+     (asserted by tests/report-smoke-page-break-detector.test.ts). */
+  [data-testid^="upsell-"],
+  [data-testid^="chart-placeholder-"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hide loading states in print */
+  .animate-pulse {
+    display: none !important;
+  }
+
+  /* Preserve slide background colors (print charcoal was a slate-navy
+     near-miss #2D3748/#1A202C — now the same charcoal ramp as screen) */
+  .slide-burgundy {
+    background: linear-gradient(135deg, var(--report-crimson) 0%, var(--report-crimson-deep) 100%) !important;
+  }
+
+  .slide-charcoal {
+    background: linear-gradient(135deg, var(--report-charcoal-hi) 0%, var(--report-charcoal) 100%) !important;
+  }
+
+  .slide-beige {
+    background: linear-gradient(135deg, var(--report-paper) 0%, var(--report-eggshell) 100%) !important;
+  }
+
+  .slide-cream {
+    background: linear-gradient(135deg, var(--report-paper-bright) 0%, var(--report-paper) 100%) !important;
+  }
+
+  /* Slide frame styling for print */
+  .slide-frame {
+    margin: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+    padding: 0.75rem !important;
+    background: rgba(255,255,255,0.95) !important;
+    border-radius: var(--report-radius) !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Dark slide frames */
+  .slide-burgundy .slide-frame,
+  .slide-charcoal .slide-frame {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+  }
+
+  /* Remove decorative frame corners for print */
+  .slide-frame::before,
+  .slide-frame::after {
+    display: none !important;
+  }
+
+  /* Pattern overlays - hide for cleaner print */
+  .pattern-geometric,
+  .pattern-dots,
+  .pattern-lines,
+  [class*="pattern-"] {
+    display: none !important;
+  }
+
+  /* Hide explicitly marked decorative elements only - be very specific */
+  .print-hide,
+  .slide > .opacity-10,
+  .slide > .opacity-5 {
+    display: none !important;
+  }
+
+  /* Hide blur glow effects but NOT content with blur in class name */
+  .blur-3xl,
+  .blur-2xl,
+  .blur-xl {
+    display: none !important;
+  }
+
+  /* Ensure SVGs (charts, icons) are visible */
+  svg {
+    display: inline-block !important;
+    visibility: visible !important;
+  }
+
+  /* Ensure text colors stay correct on dark slides */
+  .slide-burgundy .text-white,
+  .slide-charcoal .text-white,
+  .slide-burgundy .slide-title,
+  .slide-charcoal .slide-title,
+  #cover .text-white,
+  #cover h1,
+  #cover p {
+    color: white !important;
+  }
+
+  /* Light slide text stays dark */
+  .slide-beige .text-report-ink,
+  .slide-cream .text-report-ink {
+    color: var(--report-ink) !important;
+  }
+
+  /* Charts and SVGs - LARGER for readability */
+  .recharts-wrapper {
+    max-width: 100% !important;
+    min-height: 120px !important;
+    max-height: 180px !important;
+  }
+
+  /* Trend chart containers - make them bigger */
+  .grid-cols-2 .recharts-wrapper,
+  .grid-cols-3 .recharts-wrapper {
+    min-height: 100px !important;
+    height: 100px !important;
+  }
+
+  /* Historical trends section - taller charts */
+  [class*="historical"] .recharts-wrapper,
+  h3 + .grid .recharts-wrapper {
+    min-height: 120px !important;
+  }
+
+  /* Chart text labels - §8.3 tick floor */
+  .recharts-text,
+  .recharts-cartesian-axis-tick-value {
+    font-size: 11px !important;
+  }
+
+  /* Bar chart bars should be visible - force print colors */
+  .recharts-bar-rectangle,
+  .recharts-bar-rectangle path,
+  .recharts-bar-rectangle rect {
+    stroke-width: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Force all SVG fills and colors to print */
+  svg,
+  svg *,
+  .recharts-wrapper svg,
+  .recharts-wrapper svg * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Recharts bar rectangles - ensure fill is preserved */
+  .recharts-rectangle,
+  .recharts-bar rect,
+  .recharts-bar-rectangle rect {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Market Context chart - force phase colors on bars */
+  #market-context .recharts-bar-rectangle {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Explicitly preserve fill colors on Recharts cells */
+  .recharts-cell {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* SVG rect elements inside charts */
+  .recharts-bar-rectangles rect,
+  .recharts-bar g rect {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Explicit phase bar colors for print - applied directly to rect elements */
+  .phase-rect {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Phase-specific colors on the actual rect elements */
+  .phase-rect-peak,
+  rect[data-phase="Peak"] { fill: var(--report-phase-peak) !important; }
+  
+  .phase-rect-hold,
+  rect[data-phase="Hold"] { fill: var(--report-phase-hold) !important; }
+  
+  .phase-rect-taper,
+  rect[data-phase="Taper"] { fill: var(--report-phase-taper) !important; }
+  
+  .phase-rect-soft,
+  rect[data-phase="Soft"] { fill: var(--report-phase-soft) !important; }
+  
+  .phase-rect-rebuild,
+  rect[data-phase="Rebuild"] { fill: var(--report-phase-rebuild) !important; }
+  
+  /* Chart containers - ensure visibility */
+  .recharts-responsive-container,
+  .recharts-wrapper,
+  .recharts-surface {
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Ensure chart layer is visible */
+  .recharts-layer {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Area chart gradients - ensure fills print */
+  .recharts-area-area {
+    fill-opacity: 0.3 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .recharts-area-curve {
+    stroke-opacity: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Task #4274 — §8.5 trend-card fill ramp holds in print: the gradient
+     stops (0.18→0.04) are the single opacity source and the Area path sets
+     fillOpacity=1, so the generic 0.3 print flattener above must not dim
+     Historical Trends. */
+  [class*="historical"] .recharts-area-area {
+    fill-opacity: 1 !important;
+  }
+  
+  /* SVG gradients and definitions */
+  svg defs,
+  svg linearGradient,
+  svg stop {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Historical Trends section - keep header with charts together */
+  .historical-trends-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  .historical-trends-header {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  
+  .historical-trends-grid {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  /* Revenue Leak Analysis slide - full width layout */
+  #closing {
+    padding-left: 0.4in !important;
+    padding-right: 0.4in !important;
+  }
+  
+  /* Revenue leak analysis - print layout */
+  .revenue-leak-headline {
+    padding: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .revenue-leak-breakdown {
+    padding: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .revenue-leak-funnel {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Lifetime Value slide — owns its page via the shared .slide rule; the
+     old max-height 9in cap clipped real content and is gone (#4288). */
+  
+  /* Lifetime value content - compact layout for print */
+  #lifetime-value .slide-header {
+    margin-bottom: 0.25in !important;
+  }
+  
+  #lifetime-value .ltv-story,
+  #lifetime-value .ltv-arc {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #lifetime-value .ltv-story {
+    gap: 0.5rem !important;
+  }
+
+  /* Reduce padding on lifetime value cards (story beats + arc card) */
+  #lifetime-value .card-dark,
+  #lifetime-value .card-dark-accent {
+    padding: 0.75rem !important;
+  }
+
+  /* Keep the arc plot compact so the slide stays inside its 9in cap */
+  #lifetime-value .ltv-arc-plot {
+    height: 170px !important;
+  }
+
+  /* ===== SEMRUSH HEATMAP PRINT FIXES ===== */
+  /* The live MapLibre WebGL canvas may print as blank in some browsers
+     (especially Safari). InteractiveHeatmap captures a PNG snapshot on
+     print and renders it as an absolutely-positioned overlay; we hide
+     the WebGL canvas only when that snapshot is in place. */
+  .heatmap-live-map--hidden-print .maplibregl-canvas,
+  .heatmap-live-map--hidden-print .maplibregl-control-container {
+    visibility: hidden !important;
+  }
+
+  /* Always show the print snapshot image when present, and keep its
+     colors accurate. */
+  .heatmap-print-image {
+    display: block !important;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Keep the heatmap container from collapsing and don't split it across
+     pages. The inline height styles in InteractiveHeatmap (320px / 480px)
+     are preserved here as min-heights so flex/aspect parents can't crush
+     them during print rasterization. */
+  [data-testid="heatmap-map-container"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+
+  [data-testid="interactive-heatmap"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hide the on-map control buttons in print — they're not relevant to
+     the captured PNG and can overlay it. */
+  [data-testid="heatmap-reset-map"],
+  [data-testid="heatmap-map-toggles"] {
+    display: none !important;
+  }
+
+  /* Ensure the dark report panel background behind heatmaps prints. */
+  /* Task #4226 — charcoal-card covers the dark-variant trend cards too. */
+  .bg-report-charcoal,
+  .bg-report-charcoal-hi,
+  .bg-report-charcoal-card,
+  .bg-report-charcoal-deep {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ===== BOOK PROMO — CLOSING COLOPHON ===== */
+  /* Redesigned onto the light report palette (Task #4284, §8.7-10): the
+     slide-beige gradient + shared frame come from the Slide wrapper, so
+     print only pins pagination and the two-column layout. The colophon
+     always closes the deck on its own page. */
+  #book-promo {
+    break-before: page !important;
+    page-break-before: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Print evaluates media queries against the page box (~7.9in), so the
+     md: two-column utilities never activate — force the columns here. */
+  #book-promo .book-colophon {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.4in !important;
+  }
+
+  #book-promo .book-colophon-text {
+    width: 58% !important;
+    text-align: left !important;
+  }
+
+  #book-promo .book-colophon-text p {
+    margin-left: 0 !important;
+  }
+
+  #book-promo .book-colophon-media {
+    width: 42% !important;
+  }
+
+  /* Compact the headline so the colophon comfortably fits one page */
+  #book-promo h2 {
+    font-size: 1.75rem !important;
+    line-height: 1.15 !important;
+  }
+
+  /* Book image sizing. filter:none — the screen drop-shadow forces the
+     print engine to rasterize the whole image+shadow as one large lossless
+     layer (~600KB); the plate-mark hairline already gives the editorial
+     offset in print (Task #4288). */
+  #book-promo img {
+    width: auto !important;
+    max-width: 2.2in !important;
+    height: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    filter: none !important;
+  }
+
+  /* Ensure book promo links stay visible */
+  #book-promo a {
+    display: inline-flex !important;
+    visibility: visible !important;
+  }
+
+  /* ===== CONTENT COMPACTION ===== */
+  /* Reduce font sizes slightly for better fit */
+  .slide-title {
+    font-size: 1.5rem !important;
+  }
+
+  .slide-subtitle-light,
+  .slide-subtitle-dark {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Tighter spacing */
+  .slide-header {
+    margin-bottom: 0.25rem !important;
+  }
+
+  .divider-gold,
+  .divider-thin {
+    margin: 0.5rem 0 !important;
+  }
+
+  /* Section labels more compact — padding only; 11px floor holds */
+  .section-label-light,
+  .section-label-dark {
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  /* Status tags compact — padding only; 11px floor holds */
+  .report-status-tag {
+    padding: 0.125rem 0.375rem !important;
+  }
+
+  /* Cards more compact */
+  .card-light,
+  .card-dark {
+    padding: 0.75rem !important;
+  }
+
+  /* Grid gaps tighter */
+  .gap-6 {
+    gap: 0.75rem !important;
+  }
+
+  .gap-4 {
+    gap: 0.5rem !important;
+  }
+}
+
+.maplibregl-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.maplibregl-canvas-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.maplibregl-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.heatmap-popup .maplibregl-popup-content {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  padding: 10px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.heatmap-popup .maplibregl-popup-tip {
+  border-top-color: #fff;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes rl-flash-highlight {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    background-color: hsl(var(--primary) / 0);
+  }
+  20% {
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.55);
+    background-color: hsl(var(--primary) / 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    background-color: hsl(var(--primary) / 0);
+  }
+}
+
+.rl-flash-highlight {
+  animation: rl-flash-highlight 1500ms ease-out;
+  border-radius: 6px;
+}
+
+/* ─── Ads OS: Negative-keyword conflict notes ─── */
+.ki-conflict-note {
+  background: #fdf6e7;
+  color: #7a5a12;
+  border: 1px solid #ecdca8;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 4px 6px;
+}
+
+.ki-conflicts {
+  margin-top: 16px;
+  background: var(--panel, #fff);
+  border: 1px solid #ecdca8;
+  border-radius: var(--radius, 8px);
+  box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,.08));
+  overflow: hidden;
+}
+
+.ki-conflicts-head {
+  background: #fdf6e7;
+  border-bottom: 1px solid #ecdca8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px;
+}
+
+.ki-conflicts-head strong {
+  color: #7a5a12;
+  font-size: 14px;
+}
+
+.ki-conflicts-head .muted {
+  color: #9a7c3c;
+  font-size: 12.5px;
+}
+
+.ki-conflicts .ki-table th {
+  white-space: nowrap;
+}
+
+.ki-conflict-kw {
+  font-weight: 600;
+}
+
+/* ================================================================
+   Report skip link (Task #4286, audit #19). First focusable element on
+   the public report: visually hidden until keyboard focus, then a
+   high-contrast chip pinned over the sticky chrome (z-index above the
+   print-countdown overlay at z-[100]).
+   ================================================================ */
+.report-skip-link {
+  position: fixed;
+  top: -100px;
+  left: 0.75rem;
+  z-index: 110;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  background: var(--report-crimson);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+}
+.report-skip-link:focus {
+  top: 0.75rem;
+  outline: 2px solid var(--report-gold);
+  outline-offset: 2px;
+}
+
+/* ================================================================
+   Keyboard focus baseline (Task #4659). One app-wide, token-based
+   focus indicator: every interactive element shows a 2px --ring
+   outline when focused via keyboard (:focus-visible), so tab order
+   is followable on any surface in both themes. :where() keeps the
+   element-list specificity at zero, and the block ships UN-layered
+   on purpose — un-layered author rules beat layered Tailwind
+   utilities, so this also restores a visible indicator on shadcn
+   primitives whose classes say `focus-visible:outline-none` and
+   lean on a 1px box-shadow ring alone (that hairline still renders;
+   the outline becomes the dominant, consistent cue).
+   Exclusions: [tabindex="-1"] containers (dialog panels, the
+   #main-content skip target) take programmatic focus and must not
+   paint a ring around whole regions; Radix menu/option items
+   (role=menuitem etc.) keep their own focus:bg-accent highlight and
+   never hold real DOM focus-visible state.
+   ================================================================ */
+:where(a, button, input, select, textarea, summary, [role="button"]):focus-visible,
+:where([tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Form fields hug the outline — a 2px offset on an already-bordered box
+   reads as a detached double border. */
+:where(input, select, textarea):focus-visible {
+  outline-offset: 0px;
+}
+
+/* On the chrome band the Liberty ring sits too close to the crimson band
+   color (light theme) — use the band's own foreground instead (≥7:1 against
+   --chrome in both themes). */
+.bg-chrome :where(a, button, [role="button"]):focus-visible,
+.bg-chrome:focus-visible {
+  outline-color: hsl(var(--chrome-foreground));
+}
+
+/* ================================================================
+   App-shell skip link (Task #4659). First tab stop on every authed
+   page (rendered by GlobalAppNavShell in App.tsx): visually hidden
+   until keyboard focus, then a high-contrast chip pinned over the
+   sticky nav band. Jumps to the #main-content marker rendered just
+   ahead of the routed page. (The public report ships its own
+   .report-skip-link above — different chrome, different tokens.)
+   ================================================================ */
+.os-skip-link {
+  position: fixed;
+  top: -100px;
+  left: 0.75rem;
+  z-index: var(--z-toast);
+  padding: 0.5rem 1rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+}
+.os-skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+/* ================================================================
+   Reduced-motion baseline (WCAG 2.3.3). When the OS requests reduced
+   motion, collapse this file's CSS-driven motion — slideshow smooth
+   scrolling, progress-dot transitions, critical-flash, the
+   rl-flash-highlight attention pulse, and tw-animate-css utilities —
+   to their end states. Durations are forced to near-zero instead of
+   `animation: none` so animationend/transitionend still fire (Radix /
+   tw-animate exit states unmount on those events) and end states stay
+   visible: nothing may be left stuck at opacity 0. framer-motion
+   animates via inline styles, not CSS transitions, so it is gated
+   separately with useReducedMotion (CeoPulseVisual, FunnelChart,
+   PublicReport). Ships un-layered, last in the file, so it wins over
+   layered Tailwind utilities and the un-layered rules above.
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* .data-not-provided needs no special case since Task #4286: its resting
+     styles are static high-contrast and critical-flash is a one-shot
+     tint-in, which the global rules above collapse to its end state
+     (= the resting values). */
+
+  /* One-shot attention flash: its end state is "no highlight", so skip
+     it entirely rather than blink for a frame. */
+  .rl-flash-highlight {
+    animation: none !important;
+  }
+}

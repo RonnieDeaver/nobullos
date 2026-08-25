@@ -1,0 +1,44 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+scripts/verification-manifest.json
+tmp/
+# Task #3794: .local/ (scratch zone + agent-local state) is ignored by the
+# repo's OWN .gitignore so the policy travels with the repo instead of
+# depending on the environment-level /etc/.gitignore.
+.local/
+
+# Task #3790/#3794: merge/scratch debris — these classes of files must never
+# be tracked again (see scripts/lint-worktree-hygiene.ts for the enforcement
+# lint and WORKTREE_HYGIENE.md for the policy).
+*.bak
+*.orig
+*.rej
+*~
+nohup.out
+/tmp_*
+/*_block.txt
+/*.html
+/*.log
+
+# Task #3789: durable TypeScript incremental build cache (tsBuildInfoFile) —
+# lives outside node_modules so dependency installs keep the typecheck warm.
+.cache/
+
+# Task #3791: per-environment run/state artifacts — most importantly the
+# incremental test green store (.local/state/test-green-store.json) — stay
+# untracked: the LOCAL store must never become a git merge surface. Since the
+# hermetic per-run test DB cutover (Tasks #3797/#3839/#3851) removed the
+# environment-specific state that made greens untrustworthy elsewhere, main's
+# greens ARE now exported — but only via the committed snapshot
+# tests/green-baseline.json, whose single writer is the main workspace's
+# nightly sweep (TEST_GREEN_BASELINE_PUBLISH=1). Task branches never modify
+# the baseline; runners with an empty local store seed from it
+# (tests/suiteFingerprint.ts). Task #3922: main's currently-RED suites are
+# likewise exported via the committed tests/red-manifest.json — same single
+# writer, same flag, published on red runs too — so task environments can
+# attribute inherited failures (tests/redManifest.ts); it never seeds greens.
+.local/

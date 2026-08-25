@@ -1,0 +1,33 @@
+{
+  "brand": {
+    "name": "NoBull Marketing",
+    "flagshipProperty": "The Law Firm Revenue Engine",
+    "visualBalance": {
+      "nobullPercent": "70-75",
+      "revenueEnginePercent": "25-30"
+    }
+  },
+  "colors": {
+    "crimson": "#8A292F",
+    "earth": "#524B3A",
+    "goldenrod": "#D5AC5C",
+    "libertyBlue": "#485696",
+    "eggshell": "#EEE8DC"
+  },
+  "typography": {
+    "primary": ["Crimson Pro", "Baskerville", "serif"],
+    "secondary": ["Sweet Sans Pro", "Arial", "sans-serif"],
+    "sweetSansRule": "Use only when licensed WOFF or WOFF2 files exist in the project."
+  },
+  "assetRules": {
+    "logo": "Use exact supplied SVG files only. Never redraw, recolor, crop, distort, rearrange, or regenerate.",
+    "bookCover": "Use exact supplied PNG only. Build mockup geometry around it; never regenerate or retype it.",
+    "referenceMockup": "Composition reference only. All claims and logos require verification."
+  },
+  "surfaceRules": {
+    "default": "Eggshell or warm white",
+    "primaryCTA": "Crimson with white text",
+    "darkCinematicSectionCount": 1,
+    "footer": "Crimson with exact reverse NoBull logo"
+  }
+}

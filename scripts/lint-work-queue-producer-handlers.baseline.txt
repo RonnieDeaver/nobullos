@@ -1,0 +1,12 @@
+# Dynamic work-queue producer sites whose queue name cannot be statically
+# resolved (see scripts/lint-work-queue-producer-handlers.ts). Every entry is
+# a deliberate pass-through whose CALLERS are scanned instead. Adding a new
+# entry here means "this site can never mint a queue name of its own" — if it
+# can, refactor it to a resolvable constant/literal instead of listing it.
+
+server/services/applyPipeline.ts :: resultType                       # enqueueApplyJob wrapper's own insert; callers are scanned via the enqueueApplyJob() anchor
+server/services/applyPipeline.ts :: applyType                        # enqueueApplyJobsForEvent maps DB work_result rows through caller-supplied handlerMapping values
+server/services/repairDispatcher.ts :: <spread/no queueName property> # enqueueRepairJob wrapper spreads params into enqueueToQueue; callers are scanned
+server/services/workQueueHandlers.ts :: queueName                    # deferIfDbPoolSaturated re-enqueues its typed queueName parameter; callers are scanned via the 3rd-arg anchor
+server/services/workQueueHandlers.ts :: opts.queueName               # submitRepairJob pass-through; callers are scanned via the submitRepairJob() anchor
+server/services/zoomStaleApplyEventSweep.ts :: params.queueName      # default-enqueue lambda forwards its caller's queueName; the sweep's own call site resolves it via applyQueueForEventType over the registered zoom_meeting_apply/zoom_transcript_apply constants (Task #3699)

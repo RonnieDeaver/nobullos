@@ -1,0 +1,73 @@
+I uploaded a ZIP named `nobull-replit-design-pack.zip` containing approved source assets and design instructions for the NoBull Marketing website redesign.
+
+Do not begin designing or editing the existing application yet.
+
+1. Locate the uploaded ZIP wherever Replit placed it.
+2. Create a NEW top-level staging directory named:
+
+   `design-source/nobull-revenue-engine-2026/`
+
+3. Extract the entire ZIP into that directory.
+4. Do not overwrite, rename, move, or delete any existing project file.
+5. Keep all files inside the new staging directory as immutable source originals.
+6. Read these files first:
+
+   - `design-source/nobull-revenue-engine-2026/00_READ_ME_FIRST.md`
+   - `design-source/nobull-revenue-engine-2026/02_DESIGN_DIRECTION.md`
+   - `design-source/nobull-revenue-engine-2026/03_ASSET_MANIFEST.md`
+   - `design-source/nobull-revenue-engine-2026/04_BRAND_TOKENS.json`
+
+7. Inspect the current application and identify:
+
+   - frontend framework
+   - actual static/public asset directory
+   - source-code asset directory
+   - typography setup
+   - current header/footer components
+   - current routes and design-system files
+
+8. Create a NEW documentation directory:
+
+   `docs/nobull-redesign/`
+
+9. Create `docs/nobull-redesign/IMPORT_REPORT.md` recording:
+
+   - where the uploaded ZIP was found
+   - where it was extracted
+   - detected framework
+   - detected static asset root
+   - detected source asset root
+   - existing files that might conflict
+   - whether licensed Sweet Sans Pro WOFF/WOFF2 files already exist
+   - the proposed canonical runtime paths for each approved asset
+
+10. Do not copy assets into runtime folders until the report is complete.
+11. After inspecting the project, create a NEW namespaced asset folder under the project's actual static asset root. Use this pattern:
+
+   `<detected-static-root>/nobull-redesign/`
+
+12. Copy, do not move, only the approved runtime assets into these canonical paths:
+
+   - `nobull-redesign/brand/nobull-logo-full-color.svg`
+   - `nobull-redesign/brand/nobull-logo-reverse.svg`
+   - `nobull-redesign/brand/nobull-icon-crimson.svg`
+   - `nobull-redesign/brand/nobull-icon-reverse.svg`
+   - `nobull-redesign/book/law-firm-revenue-engine-cover-exact.png`
+   - `nobull-redesign/references/homepage-direction-reference.png`
+
+13. Store the brand-guidelines PDF and working documentation under:
+
+   `docs/nobull-redesign/reference/`
+
+14. If the project has no static/public asset root, do not guess. Create a new source asset namespace at:
+
+   `src/assets/nobull-redesign/`
+
+   and record that decision in the import report.
+
+15. Never overwrite an existing file. If a collision exists, stop and report it before proceeding.
+16. Verify the copied files against `SHA256SUMS.txt`.
+17. Do not redraw, recolor, trace, crop, distort, rearrange, or replace any logo.
+18. Do not regenerate, retype, crop, or alter the supplied book cover.
+19. Do not treat the homepage reference's figures, ratings, testimonials, client marks, or trademark symbols as verified content.
+20. Do not start the redesign yet. Stop after completing the import, verification, and report, and show me the proposed canonical file paths.

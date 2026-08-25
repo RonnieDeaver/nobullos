@@ -1,0 +1,7 @@
+# lint-worktree-hygiene baseline — grandfathered tracked junk-pattern paths.
+#
+# Task #3794 shipped with ZERO tracked junk (Task #3790 removed it all), so
+# this file is intentionally empty. Add a path here ONLY to grandfather a
+# tracked file that matches a junk pattern and genuinely cannot be removed
+# yet — one path per line, with a comment explaining why. Untracked junk is
+# never baselined: `npm run clean:scratch` deletes it.

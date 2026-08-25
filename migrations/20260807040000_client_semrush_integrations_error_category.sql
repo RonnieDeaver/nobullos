@@ -1,0 +1,16 @@
+-- Workers/queues audit parity (E-F16 remainder) — typed failure reason for
+-- the Local Dominance / SEMrush client-integration sync rows.
+--
+-- client_semrush_integrations.error_message is free text (whatever the
+-- thrown error message was). Operators and dashboards cannot aggregate or
+-- route on it. This adds a machine-readable classification written by the
+-- localDominanceSyncWorker error paths alongside the existing free text
+-- (which is preserved unchanged), sharing the vocabulary already used by
+-- semrush_location_sync_state.error_category (classifyError):
+--   transient | timeout | rate_limit | server | not_found | unknown |
+--   missing_place_id | mapping_disabled | invalid_mapping | auth_config |
+--   malformed_payload
+--
+-- Additive + nullable: rows that never failed (or failed before this
+-- migration) have NULL; nothing backfills, nothing reads it as required.
+ALTER TABLE client_semrush_integrations ADD COLUMN IF NOT EXISTS error_category text;

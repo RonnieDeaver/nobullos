@@ -1,0 +1,13 @@
+-- Workers/queues audit parity (E-F06) — typed failure reason for the
+-- call-recording archive pipeline.
+--
+-- twilio_calls.archive_last_error is free text (whatever the thrown error
+-- message was). Operators and dashboards cannot aggregate or route on it.
+-- This adds a machine-readable classification written by recordFailure()
+-- alongside the existing free text (which is preserved unchanged):
+--   twilio_fetch_failed | object_storage_failed | transcription_failed |
+--   drive_failed | config_missing | timeout | db_error | unknown
+--
+-- Additive + nullable: rows that never failed (or failed before this
+-- migration) have NULL; nothing backfills, nothing reads it as required.
+ALTER TABLE twilio_calls ADD COLUMN IF NOT EXISTS archive_failure_reason varchar;

@@ -1,0 +1,69 @@
+{
+  // Repository-aware Knip configuration for the WARNING-ONLY periodic audit
+  // (`npm run audit:knip`, pinned knip@6.32.0). Policy, interpretation, and
+  // deletion protocol: KNIP_AUDIT.md. Findings NEVER gate a merge.
+  //
+  // Modeling notes (each non-obvious entry is tied to a real load mechanism —
+  // never an ignore added just to reach zero findings):
+  //  - website/src/*-client/main.ts: esbuild-bundled at generate time via
+  //    string-joined entryPoints in website/generate.ts (statically invisible
+  //    to import tracing; this is also what legitimately consumes `gsap`).
+  //  - scripts/**/*.{mjs,js}: Worker-/spawn-loaded operational scripts
+  //    (gate-lint-worker.mjs, regen-route-inventory.mjs, caseintake
+  //    generators, verification-335 smokes).
+  //  - scripts/**/*.d.mts: declaration siblings consumed by tsc's automatic
+  //    .mjs/.d.mts pairing (typecheck-time surface, no import statement).
+  //  - tests dynamic surfaces: hermetic DB bootstrap (node --import),
+  //    _probe/self-test (spawned), gate-lint fixtures (spawned as CLIs),
+  //    browser harnesses (vite-served), tests/**/*.mjs (resolve-hook
+  //    loaders/stubs/setup files).
+  //  - registration-block-discovered tests: tests/**/*.test.ts(x) — the
+  //    runner discovers suites per-file; there is no central import list.
+  "entry": [
+    // Application roots
+    "server/index.ts",
+    "client/src/main.tsx",
+    "client/index.html",
+    // Website generator + its esbuild client bundles
+    "website/generate.ts",
+    "website/src/home-client/main.ts",
+    "website/src/site-client/main.ts",
+    "website/src/calc-client/main.ts",
+    // Tests: runner, registration-block-discovered suites, dynamic surfaces
+    "tests/run-all.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.test.tsx",
+    "tests/**/*.mjs",
+    "tests/hermetic/bootstrap-db.ts",
+    "tests/_probe.ts",
+    "tests/self-test.ts",
+    "tests/helpers/gate-lint-fixtures/**/*.ts",
+    "tests/browser/**/*.{ts,tsx,html}",
+    // Operational / build / server scripts
+    "scripts/**/*.ts",
+    "scripts/**/*.mjs",
+    "scripts/**/*.js",
+    "scripts/**/*.d.mts",
+    "script/build.ts",
+    "server/scripts/**/*.ts",
+    // Config files
+    "drizzle.config.ts",
+    "vite.config.ts"
+  ],
+  "project": ["server/**", "client/src/**", "shared/**", "scripts/**", "script/**", "website/**", "tests/**"],
+  // Only justified non-application surfaces (sanctioned list — F12 spec):
+  // sandbox projects, agent skills/memory, generated website output, design
+  // sources, attached assets, scratch. Plus one correctness exclusion:
+  // tests/fixtures/import-cycles/** is a deliberately-cyclic fixture corpus
+  // for the cycle-tracer test — scanning it would inject FALSE positives
+  // into the cycles report.
+  "ignore": [
+    "artifacts/**",
+    ".agents/**",
+    "website/public/**",
+    "design-source/**",
+    "attached_assets/**",
+    ".local/**",
+    "tests/fixtures/import-cycles/**"
+  ]
+}

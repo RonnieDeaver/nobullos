@@ -1,0 +1,41 @@
+export const PRACTICE_AREA_OPTIONS = [
+  "Personal Injury",
+  "Family Law",
+  "Criminal Defense",
+  "General Criminal Law",
+  "Employment Law",
+  "Immigration",
+  "Estate Planning",
+  "Elder Law",
+  "Bankruptcy",
+  "Workers' Compensation",
+  "Medical Malpractice",
+  "Social Security Disability",
+  "DUI/DWI",
+  "Traffic Violations",
+  "Civil Litigation",
+  "Real Estate",
+  "Business Law",
+] as const;
+
+export type PracticeArea = typeof PRACTICE_AREA_OPTIONS[number];
+
+export const DEFAULT_SEARCH_TERMS: Record<string, string> = {
+  "Personal Injury": "personal injury lawyer near me",
+  "Family Law": "divorce lawyer near me",
+  "Criminal Defense": "criminal defense attorney near me",
+  "General Criminal Law": "criminal lawyer near me",
+  "Employment Law": "employment lawyer near me",
+  "Immigration": "immigration lawyer near me",
+  "Estate Planning": "estate planning attorney near me",
+  "Elder Law": "elder law attorney near me",
+  "Bankruptcy": "bankruptcy lawyer near me",
+  "Workers' Compensation": "workers comp lawyer near me",
+  "Medical Malpractice": "medical malpractice lawyer near me",
+  "Social Security Disability": "disability lawyer near me",
+  "DUI/DWI": "DUI lawyer near me",
+  "Traffic Violations": "traffic ticket lawyer near me",
+  "Civil Litigation": "civil litigation attorney near me",
+  "Real Estate": "real estate lawyer near me",
+  "Business Law": "business attorney near me",
+};

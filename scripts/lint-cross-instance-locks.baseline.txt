@@ -1,0 +1,53 @@
+# Baseline for scripts/lint-cross-instance-locks.ts (Task #2382, shrunk Task #2398).
+#
+# These files call setInterval(...) and were grandfathered at the Task #2363
+# audit snapshot. The Task #2398 re-audit graduated the genuinely-resolved
+# entries OUT of this list:
+#   - cross-instance-SAFE schedulers (work_queue SKIP-LOCKED claimers,
+#     dedupe-keyed enqueue producers, idempotent UPSERT/DELETE maintenance,
+#     purely in-process loops, and DB-cooldown-guarded emits) now carry an
+#     inline `// @cross-instance-safe: <reason>` annotation and pass via that.
+#   - genuinely-UNSAFE run-once jobs (semrushLocationAutoRetryWorker.ts,
+#     ris/risAutoPullScheduler.ts) now take `withWorkerSingletonLock(...)` and
+#     pass via lock-helper detection.
+#
+# What REMAINS here is the residue that is neither cleanly safe nor worth a
+# distributed lock: per-process in-memory alert/dedupe schedulers. On a
+# multi-instance autoscale deploy each instance keeps its OWN in-memory
+# cooldown/dedupe (alertResendGuard, in-process Sets/Maps), so each can emit
+# the same alert or aggregate over only its own slice. The blast radius is
+# duplicate *alert noise* (or per-instance aggregation skew), not duplicate
+# external writes or money — too low-harm to justify a Postgres advisory lock
+# and the serialization it imposes, but not honestly "safe" either. Revisit if
+# alert-dedup is ever centralized in the DB.
+#
+# Format: one <path> per line; trailing `# ...` comments are ignored. Prefer a
+# `// @cross-instance-safe: <reason>` annotation or `withWorkerSingletonLock`
+# over adding new entries here.
+
+# --- per-process in-memory alert / digest / notifier schedulers ---
+# Duplicate emits are bounded only by a per-instance in-memory cooldown
+# (alertResendGuard) — cross-instance duplication is possible but low-harm.
+server/services/bookingSchemaReadinessAlerts.ts        # in-memory cooldown; per-instance
+server/services/callAnalysisFailureSpikeAlerts.ts      # in-memory cooldown; per-instance
+server/services/callArchiveBacklogAlerts.ts            # in-memory cooldown; per-instance
+server/services/callArchiveStuckProcessingAlerts.ts    # in-memory cooldown; per-instance
+server/services/externalCallAuditAlerts.ts             # in-memory cooldown; per-instance
+server/services/frontAutoClosureStalledLoopAlerts.ts   # in-memory cooldown; per-instance
+server/services/frontHistoricalRecoveryFatalAlerts.ts  # in-memory cooldown; per-instance
+server/services/frontMirrorFreshnessAlerts.ts          # in-memory cooldown; per-instance
+server/services/frontPipelineStuckAlerts.ts            # in-memory cooldown; per-instance
+server/services/frontWebhookReceiverStalenessAlerts.ts # in-memory cooldown; per-instance
+server/services/healthDegradedAlerts.ts                # in-memory cooldown; per-instance
+server/services/importSuggestionsBacklogAlerts.ts      # in-memory cooldown; per-instance (mixed alert/enqueue)
+server/services/leaseChurnAlerts.ts                    # in-memory cooldown; per-instance
+server/services/matchSettingsAlertAutoRetry.ts         # per-row read-then-write retry, not atomic; per-instance
+server/services/queueDrainBacklogAlerts.ts             # in-memory cooldown; per-instance
+server/services/queueStarvationAlerts.ts               # in-memory cooldown; per-instance
+server/services/rateLimitAlertAutoRetry.ts             # in-memory cooldown; per-instance
+server/services/rateLimitAlertNotifier.ts              # in-memory cooldown; per-instance
+server/services/replitAuthBreakerStuckAlerts.ts        # in-memory cooldown; per-instance
+server/services/slackAuthBreakerStuckAlerts.ts         # in-memory cooldown; per-instance
+server/services/twilioWebhookCollisionAlerts.ts        # in-memory cooldown; per-instance
+
+# --- in-memory aggregation (per-instance skew, no shared write) ---

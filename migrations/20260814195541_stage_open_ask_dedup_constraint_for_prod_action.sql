@@ -1,0 +1,21 @@
+-- Task #4803 follow-on (owner-directed, 2026-08-14) — stage the open-ask
+-- duplicate backstop for a CEO-pressed production enablement.
+--
+-- 20260814125621_open_ask_dedup_hindsight.sql created
+-- client_open_asks_active_summary_uniq in dev, but production still holds
+-- pre-existing duplicate active rows, so Publish's schema validation fails
+-- on the CREATE UNIQUE INDEX there (Publish moves structure, never data
+-- cleanup). Staged rollout instead:
+--   1. (this file) drop the index in dev so the next Publish diff carries
+--      only the hindsight_checked_at column — no data-dependent DDL;
+--   2. the enable_open_ask_dedup_constraint prod action (CEO console)
+--      dedups production's active rows with the exact keeper semantics of
+--      the 125621 migration, then creates this same index in production;
+--   3. a follow-up migration + restored model entry re-anchor the index in
+--      the schema once production has it (dev re-aligned via the same
+--      action), closing the dev/prod drift window.
+-- The insert path (recordExtractedAsk) is safe while the index is absent:
+-- per-client advisory lock + locked re-check + targetless ON CONFLICT DO
+-- NOTHING — the index is the cross-writer backstop, not the primary dedup.
+-- destructive-approved: staged constraint rollout, owner-directed CEO-button plan 2026-08-14; drops ONLY an index (zero stored data, ~431-row table, rebuild is milliseconds), re-created in prod by the enable_open_ask_dedup_constraint action and re-anchored in dev by the follow-up migration; DROP INDEX IF EXISTS is idempotent for post-merge replay.
+DROP INDEX IF EXISTS client_open_asks_active_summary_uniq;

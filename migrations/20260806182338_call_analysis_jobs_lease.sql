@@ -1,0 +1,24 @@
+-- Workers/queues audit parity (E-F01/E-F02) — in-row lease for the
+-- call_analysis_jobs custom-table queue.
+--
+-- Before this migration the call-analysis pollers picked work with a plain
+-- SELECT-then-UPDATE (double-claimable across autoscale instances) and
+-- staleness was inferred from started_at against hard-coded cutoffs. These
+-- two nullable columns give the worker the same lease shape the call-archive
+-- pipeline uses on twilio_calls (archive_locked_until / archive_leased_at):
+--
+--   locked_until — lease expiry. Set by the atomic claim, extended by the
+--                  60s heartbeat, never extended past the canonical
+--                  call_analysis / call_analysis_slow processing ceiling
+--                  (queueMaxProcessing.ts). A row whose lease has expired is
+--                  reclaimable by recoverStaleJobs.
+--   leased_at    — epoch of the current claim. Set once by the claim SQL,
+--                  NEVER touched by the heartbeat, so time-since-claim and
+--                  the processing ceiling are measured from a stable origin.
+--
+-- Backward/rollback safety: both columns are nullable and additive. Rows
+-- claimed by pre-migration code (or after a rollback) simply have NULL
+-- leases; the stale-recovery predicate falls back to started_at + ceiling
+-- for NULL locked_until, so no row can stay permanently locked.
+ALTER TABLE call_analysis_jobs ADD COLUMN IF NOT EXISTS locked_until timestamp;
+ALTER TABLE call_analysis_jobs ADD COLUMN IF NOT EXISTS leased_at timestamp;

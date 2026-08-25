@@ -1,0 +1,22 @@
+# Baseline for scripts/lint-unbounded-caches.ts (Task #2899).
+# Audited snapshot of module-level written-to Maps that show no structural
+# bound but are safe: their key spaces are inherently bounded (fixed
+# registries, per-queue/per-table/per-worker keys) or they were audited in
+# Task #2897. New caches must be bounded by construction — do NOT add lines
+# here casually; prefer a cap/TTL-prune or a @bounded-cache-safe annotation.
+#
+# Format: <path>::<mapName>  # rationale
+
+server/services/killSwitches.ts::overrides                                  # keyed by fixed kill-switch names (finite, code-defined set)
+server/services/notifications/dispatcher.ts::channelMisconfiguredLastAlertMs # keyed by Slack channelId — small operator-configured set (rate-limit memo)
+server/services/pipelineObservability.ts::handlerDurations                  # keyed by handler name — fixed code-defined set of pipeline handlers
+server/services/pipelineObservability.ts::applyTargetDurations              # keyed by apply-target name — fixed code-defined set
+server/services/poolAuditRollups.ts::lastPruneByTable                       # keyed by audited table name — fixed code-defined set
+server/services/repairDispatcher.ts::handlers                               # registry keyed by repair type — fixed code-defined set, registered at startup
+server/services/replayFramework.ts::vendorFetchers                          # registry keyed by vendor name — fixed code-defined set, registered at startup
+server/services/retroactiveReprocessControl.ts::lastSkipLogAt               # keyed by queue name — fixed code-defined set (log-cooldown memo)
+server/services/semrushApi.ts::campaignLocationCache                        # keyed by SEMrush campaignId — bounded by the account's campaign count (~clients)
+server/services/workScheduler.ts::handlers                                  # registry keyed by queue task type — fixed code-defined set, registered at startup
+server/services/workScheduler.ts::missingHandlerWarnCooldowns               # keyed by task type — bounded by the set of task types ever enqueued (warn cooldown memo)
+server/services/workScheduler.ts::lastDispatchByQueue                       # keyed by queue name — fixed code-defined set
+server/services/workloadManager.ts::perWorkerMetrics                        # keyed by worker/queue name — fixed code-defined set

@@ -1,0 +1,64 @@
+# Task #1724 Phase 4.1 — Baseline of UNATTRIBUTED `getDb()` call sites
+# that pre-date the AST-level attribution lint guard.
+#
+# The lint guard (`scripts/lint-getdb-attribution.ts`) parses every TS/TSX
+# file in `server/` and `shared/` and asks, for each `getDb()` call:
+# is it lexically inside a callback passed to `withDbAttribution(...)`,
+# `withDbHoldLabel(...)`, or `setCurrentDbHoldLabel(...)`? Calls that
+# answer "no" are unattributed.
+#
+# This file lists the allowed number of unattributed call sites per file.
+# The lint fails when:
+#
+#   1. A new file appears with any unattributed `getDb()` call and is
+#      not listed here.
+#   2. A listed file's unattributed count exceeds its baselined number
+#      — i.e. a NEW unattributed call site was added inside an
+#      already-grandfathered file. (Wrap the new call in
+#      `withDbAttribution(...)`; do not just bump the count.)
+#   3. A listed file no longer calls `getDb()` (stale entry — remove).
+#
+# Format: `<path> <count>` per line. Bumping a count is the explicit
+# "I checked, the new call also runs inside an attributed caller scope"
+# escape hatch and should be exceptional. Comments (`#`) and blank
+# lines are ignored.
+#
+# Files with `getDb()` calls but zero unattributed call sites do NOT
+# appear here: leaving them out is *stricter* (any future unattributed
+# regression in those files will fail as a brand-new offender).
+
+server/routes/booking.ts 2
+server/routes/twilio.ts 26
+server/scripts/backfillTwilioConversationNormalization.ts 1
+server/services/activityFeedReview.ts 2
+server/services/auditRetention.ts 4
+server/services/conversationDedupe.ts 10
+server/services/frontBulkActions.ts 1
+server/services/frontFilterRules.ts 16
+server/services/frontPipelineMetrics.ts 1
+server/services/importGhostsSnapshot.ts 1
+server/services/importSuggestionsBacklogAlerts.ts 1
+server/services/invalidProductsGrowthAlerts.ts 1
+server/services/notifications/recipients.ts 8
+server/services/queueTimingThroughput.ts 1
+server/services/rateLimitNotificationRetention.ts 1
+server/services/semrushGhostCleanup.ts 1
+server/services/twilioService.ts 3
+server/services/zoomMessagesFeed.ts 3
+server/services/zoomReviewQueue.ts 17
+server/storage/activityStorage.ts 9
+server/storage/agentMatchSettingsStorage.ts 10
+server/storage/agentStorage.ts 39
+server/storage/bookingStorage.ts 45
+server/storage/clientStorage.ts 61
+server/storage/commandCenterStorage.ts 27
+server/storage/communicationStorage.ts 75
+server/storage/dailyJudgmentStorage.ts 18
+server/storage/reportStorage.ts 21
+server/storage/settingsStorage.ts 45
+server/storage/twilioStorage.ts 51
+server/storage/userSlackPreferencesStorage.ts 9
+server/storage/googleAdsStorage.ts 16
+server/storage/sheetsStorage.ts 46
+server/services/sheetsConnectors.ts 7
+server/services/frontAutoClosure.ts 4

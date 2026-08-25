@@ -1,0 +1,7 @@
+# Task #3841 — frozen grandfather list for the migrated-boilerplate sweepOnlyReason.
+# Each file below carries the verbatim no-reason boilerplate that the Task #3786
+# conversion stamped for pre-existing baseline entries. NEW sweep-only decisions
+# must state a real reason; this list only ever shrinks (replace the boilerplate
+# with a substantive sweepOnlyReason or gate the suite, then delete the line).
+# (empty — all 361 entries triaged by Task #4096: 352 promoted to the smoke gate,
+# 9 recorded substantive sweepOnlyReasons.)

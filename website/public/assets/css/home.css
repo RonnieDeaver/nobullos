@@ -1,0 +1,1102 @@
+/* ────────────────────────────────────────────────────────────
+   nobullmarketing.com — redesigned homepage styles.
+   Ported 1:1 from the approved canvas mockup
+   (artifacts/mockup-sandbox/src/components/mockups/nobull-homepage/_group.css).
+   The pinned Revenue Engine cinematic and its rec-* rule world are GONE —
+   Task #4837 owner rebuild replaced them with the normal-scrolling ENGINE
+   STORY bands (handoff → #system overview → components → recap) below.
+   Loaded ONLY by the homepage; subpages
+   keep site.css. Fonts: sweet-sans-pro via Adobe Typekit kit, Crimson Pro
+   via Google Fonts (both linked from the page head).
+   ──────────────────────────────────────────────────────────── */
+
+/* text-size-adjust: stop iOS/Android from inflating text in landscape —
+   the layout owns its type scale; pinch-zoom is unaffected. */
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;padding:0;-webkit-font-smoothing:antialiased}
+
+/* --gold-ink (Task #3904): accessibility-grade gold for TEXT/glyphs on the
+   light surfaces — brand gold #D5AC5C measures only ~2:1 on white/--warm/
+   --egg, far below the WCAG AA 4.5:1 text minimum. #7D5C1B keeps the brand
+   hue at 6.1:1 on white / 5.8:1 on --warm / 5.0:1 on --egg (computed).
+   --gold-pale (Task #3915): the same idea for small gold text on MID-dark
+   surfaces — bright gold is only 3.2:1 on --blue and 4.1:1 on --crimson,
+   so such text uses #EFD9AC (5.0:1 on --blue, 6.2:1 on --crimson,
+   computed; since the #4925 proof restructure retired the blue/crimson
+   case panels it serves the near-black surfaces' small tags, ~10:1 on
+   --ink). Bright --gold remains for text on truly DARK bands (book band,
+   flagship ink panel — ~9:1) and for decorative
+   rules/borders. --gold-bar is the tuned-firm gap-chart fill:
+   3.5:1 non-text on --warm, 3.7:1 under its white in-bar numeral. */
+.nb-page{--crimson:#8A292F;--earth:#524B3A;--gold:#D5AC5C;--gold-ink:#7D5C1B;--gold-pale:#EFD9AC;--gold-bar:#A87E22;--blue:#485696;--egg:#EEE8DC;--warm:#FAF8F4;--ink:#100D0B;--focus-ring:var(--gold-ink);--focus-ring-contrast:#fff;color:var(--earth);background:var(--egg);font-family:"sweet-sans-pro",Arial,sans-serif;font-weight:600;letter-spacing:.01em}.nb-page *{box-sizing:border-box}
+.nb-serif{font-family:"Crimson Pro",Baskerville,serif}
+.nb-wrap{max-width:1240px;margin:auto;padding-left:32px;padding-right:32px}
+
+/* ── HEADER — unmistakably NoBull ─────────────── */
+.nb-page :where(a[href],button,input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="link"],[tabindex]:not([tabindex="-1"])):focus-visible{outline:2px solid var(--focus-ring);outline-offset:3px;box-shadow:0 0 0 2px var(--focus-ring-contrast)}
+.nb-skip-link{position:fixed;inset:12px auto auto 12px;z-index:1000;max-width:calc(100vw - 24px);padding:12px 16px;transform:translateY(calc(-100% - 24px));background:var(--ink);color:#fff;font:700 12px/1.2 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.nb-skip-link:hover{color:#fff}
+.nb-skip-link:focus-visible{transform:translateY(0)}
+/* position:relative anchors the ≤850px dropdown menu panel; no desktop
+   layout effect. */
+.nb-header{background:var(--egg);border-bottom:1px solid var(--gold);position:relative}
+.nb-nav{height:70px;display:flex;align-items:center;justify-content:space-between;gap:28px}
+.nb-logo{width:156px;height:37px;object-fit:contain}
+.nb-links{display:flex;gap:30px;align-items:center;margin-left:auto}
+.nb-links a,.nb-link{color:var(--earth);text-decoration:none;font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase}
+/* text-transform (Task #4261): CTA sources carry the full house phrase
+   "Book a High Impact Revenue Session" in title case; the button chrome
+   uppercases it (matches site.css .nb-btn). */
+.nb-btn{display:inline-block;border:0;border-radius:2px;background:var(--crimson);color:#fff;padding:11px 16px;font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;cursor:pointer;white-space:nowrap;text-decoration:none;transition:transform .18s,background .18s}
+.nb-btn:hover{transform:translateY(-2px);background:#722228}
+.nb-btn:focus-visible{outline:2px solid var(--gold-ink);outline-offset:2px}
+/* Mobile-menu chrome — invisible on desktop (the ≤850px block reveals it). */
+.nb-nav-toggle{display:none}
+.nb-menu-cta{display:none}
+/* Book secondary slots (Task #5017): the outlined READ THE BOOK → CTA
+   joins the header beside the filled session ask. The desktop slot is
+   width-gated: Practice Areas Served expands the desktop row to 1150px,
+   while the book button + flex gap needs a separate 1400px gate and a wider
+   header cap. Below the book gate the header shows the session ask only; at
+   hamburger widths (≤1149px) the open-menu twin
+   (.nb-menu-book, styled in both hamburger blocks) carries the book CTA.
+   The hamburger block below prevents the longer first item from wrapping,
+   colliding with the logo, or overflowing. The book
+   slot is display:none in that band.)
+   Selectors are a.-prefixed: the .nb-btn-outline base below sets
+   display:inline-flex at the same 0,1,0 specificity, so bare class hides
+   would lose on source order. */
+a.nb-nav-book{display:none}
+a.nb-menu-book{display:none}
+@media(min-width:1400px){
+  .nb-nav{max-width:1440px}
+  a.nb-nav-book{display:inline-flex}
+}
+/* <picture> wrappers (responsive book cover) must not affect layout: the img
+   inside keeps sizing against the original flex/absolute parents. */
+.nb-picture{display:contents}
+
+/* ── HERO — true 50/50 light↔dark composition ── */
+.nb-hero-outer{position:relative;overflow:hidden;background:var(--egg)}
+.nb-hero{min-height:700px;display:grid;grid-template-columns:50% 50%;align-items:center;overflow:visible;position:relative}
+.nb-hero-copy{padding:72px 40px 80px 0;position:relative;z-index:6}
+
+.nb-eyebrow{display:flex;align-items:center;gap:13px;color:var(--earth);font-size:11.5px;font-weight:700;letter-spacing:.16em}
+.nb-rule{width:32px;height:2px;background:var(--gold);display:inline-block;flex-shrink:0}
+
+/* Headline — Sweet Sans Pro bold, commercially forceful */
+.nb-h1{font-family:"sweet-sans-pro",Arial,sans-serif;font-size:clamp(2.42rem,3.75vw,3.75rem);font-weight:800;line-height:.98;letter-spacing:-.015em;margin:22px 0 18px;max-width:620px}
+.nb-h1-l1{display:block;color:var(--blue)}
+.nb-h1-l2{display:block;color:var(--crimson)}
+.nb-h1-l3{display:block;color:var(--crimson)}
+
+.nb-lede{font-size:16px;line-height:1.72;max-width:500px;margin:0 0 26px;color:var(--earth);font-weight:600;opacity:.92}
+.nb-actions{display:flex;align-items:center;gap:16px 20px;flex-wrap:wrap}
+.nb-actions .nb-btn{padding:11px 14px}
+/* Session-explainer note under the CTA pair (Task #4923, owner brief §1
+   — what the session is, priced free; ledger #36/#37). */
+.nb-hero-note{margin:16px 0 0;max-width:520px;font-size:13px;line-height:1.7;color:rgba(82,75,58,.8)}
+.nb-text-btn{color:var(--earth);font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.nb-text-btn span{color:var(--crimson);font-size:17px}
+/* Outlined secondary button (Task #4816, owner feedback): the hero's SEE
+   THE SYSTEM link now reads as a real, clickable button beside the filled
+   session CTA — the quiet text link read as decoration, and the engine
+   story it opens (#system, Task #4837) is the page's core differentiator.
+   Same chrome family as
+   .nb-btn (radius, type scale, focus ring); transparent fill + earth
+   hairline keeps the crimson session CTA visually dominant. (.nb-text-btn
+   itself still serves the proof-band case-study links; the team band's
+   About-page roster link was dropped by Task #4979 when the full
+   roster moved in-band.) The #4165 hero trust line's .nb-trust/.nb-check rules
+   retired with the line itself (Task #4816) — the credibility rail below
+   carries both figures once. */
+.nb-btn-outline{display:inline-flex;align-items:center;gap:8px;border:1.5px solid rgba(82,75,58,.55);border-radius:2px;background:transparent;color:var(--earth);padding:10px 15px;font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap;text-decoration:none;transition:transform .18s,border-color .18s,background .18s}
+.nb-btn-outline span{color:var(--crimson);font-size:17px;line-height:1}
+.nb-btn-outline:hover{transform:translateY(-2px);border-color:var(--earth);background:rgba(82,75,58,.05)}
+.nb-btn-outline:focus-visible{outline:2px solid var(--gold-ink);outline-offset:2px}
+
+/* ── HERO RIGHT — the book's black-and-gold world ── */
+.nb-hero-right{position:relative;align-self:stretch;margin-right:calc((100vw - min(100vw,1240px))/-2 - 32px);overflow:visible;z-index:1}
+
+/* Machinery — dense, high contrast, narrow controlled fade beginning near center */
+.nb-machinery{position:absolute;inset:0;overflow:hidden;background:#000;
+  mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0,0,0,.5) 8%, rgba(0,0,0,.92) 16%, #000 24%, #000 100%),
+    linear-gradient(180deg, transparent 0%, #000 8%, #000 100%);
+  mask-composite:intersect}
+/* Desktop backdrop is the full-resolution WebP re-encode of the approved
+   machinery PNG (Task #4127, scripts/generate-marketing-hero-variants.ts) —
+   same art, ~85% smaller; the PNG stays committed as the derivation source. */
+.nb-machinery-img{position:absolute;inset:0;background:url('../../nobull-redesign/brand/machinery-hero.webp') center/cover no-repeat}
+/* Cinematic grade: gold rim upper-right, restrained crimson lower recesses, true black right edge */
+.nb-machinery-ambient{position:absolute;inset:0;background:
+  radial-gradient(ellipse 55% 45% at 78% 18%, rgba(213,172,92,.12) 0%, transparent 58%),
+  radial-gradient(ellipse 45% 40% at 20% 85%, rgba(138,41,47,.14) 0%, transparent 55%),
+  radial-gradient(ellipse 60% 62% at 52% 52%, transparent 30%, rgba(0,0,0,.45) 100%),
+  linear-gradient(90deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.55) 100%),
+  linear-gradient(0deg, rgba(0,0,0,.5) 0%, transparent 42%)}
+/* Physical dark floor surface the book stands on */
+.nb-floor{position:absolute;bottom:0;left:0;right:0;height:34%;background:linear-gradient(0deg,#000 0%,rgba(10,8,6,.85) 40%,transparent 100%);z-index:2}
+/* One or two restrained schematic details entering the light side */
+.nb-sch-line{position:absolute;height:1px;z-index:5;pointer-events:none}
+.nb-sch-a{width:120%;left:-24%;top:34%;background:linear-gradient(90deg,transparent 0%,rgba(213,172,92,0) 26%,rgba(213,172,92,.25) 48%,rgba(213,172,92,.45) 72%,transparent 100%)}
+.nb-sch-b{width:100%;left:-8%;bottom:38%;background:linear-gradient(90deg,transparent 0%,rgba(250,248,244,.05) 30%,rgba(213,172,92,.22) 62%,transparent 100%)}
+
+/* ── BOOK — premium physical object, 65–75% hero height, crosses the boundary ── */
+.nb-book-stage{
+  position:absolute;
+  z-index:8;
+  left:16%;
+  top:50%;
+  transform:translateY(-50%) perspective(1000px) rotateY(-14deg) rotateX(1deg);
+  width:288px;
+  filter:
+    drop-shadow(22px 28px 22px rgba(0,0,0,.8))
+    drop-shadow(-4px 0 20px rgba(213,172,92,.16))
+    drop-shadow(0 0 10px rgba(138,41,47,.1))}
+/* Fore-edge pages */
+.nb-book-stage::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  right:-19px;
+  top:10px;
+  width:26px;
+  height:91%;
+  background:repeating-linear-gradient(0deg,#cec5b0 0 2px,#f0e9d8 3px 5px);
+  transform:skewY(-3.5deg) scaleX(.75);
+  border-radius:0 3px 3px 0}
+/* Spine + board thickness */
+.nb-book-stage::after{
+  content:"";
+  position:absolute;
+  z-index:-2;
+  inset:8px -32px -5px 12px;
+  background:linear-gradient(90deg,#0c0a08 0%,#2a2014 55%,#0c0a08 100%);
+  transform:skewY(-4deg);
+  opacity:.8}
+.nb-book{display:block;width:100%;height:auto}
+/* The cover is a link into /free-chapters/ (Task #4262 — book-funnel entry).
+   Affordance stays subtle: a touch more gold rim light on hover/focus; a
+   visible gold outline for keyboard focus only. Geometry untouched. */
+.nb-book-stage{transition:filter .25s ease}
+.nb-book-stage:hover,.nb-book-stage:focus-visible{filter:
+  drop-shadow(22px 28px 22px rgba(0,0,0,.8))
+  drop-shadow(-4px 0 24px rgba(213,172,92,.36))
+  drop-shadow(0 0 12px rgba(138,41,47,.12))}
+.nb-book-stage:focus-visible{outline:2px solid var(--gold);outline-offset:10px}
+/* Connection line (Task #4262, owner doc §3) — quiet serif caption on the
+   dark floor beneath the cover, aligned to the book stage's x-range. */
+.nb-book-caption{position:absolute;z-index:9;left:16%;bottom:4.5%;width:288px;margin:0;text-align:center;font-family:"Crimson Pro",Baskerville,serif;font-style:italic;font-weight:400;font-size:13.5px;line-height:1.55;letter-spacing:.01em;color:rgba(250,248,244,.72)}
+/* Contact shadow on the floor */
+.nb-book-shadow{
+  position:absolute;
+  z-index:7;
+  left:11%;
+  bottom:17%;
+  width:320px;
+  height:50px;
+  background:radial-gradient(ellipse 55% 50% at 50% 100%,rgba(0,0,0,.9) 0%,transparent 68%);
+  filter:blur(9px);
+  transform:perspective(500px) rotateX(62deg) scaleY(.55)}
+/* Restrained reflection beneath */
+.nb-book-reflect{
+  position:absolute;
+  z-index:7;
+  left:16%;
+  bottom:8%;
+  width:288px;
+  height:56px;
+  background:linear-gradient(0deg,rgba(213,172,92,.08) 0%,transparent 100%);
+  transform:perspective(1000px) rotateY(-14deg) scaleY(-1);
+  opacity:.4;
+  filter:blur(2px)}
+
+/* ── CREDIBILITY RAIL — press logos + outcome aggregates in ONE compact
+   hairline-framed band (Task #4816, owner feedback; merged from the #4261
+   press strip + metrics pair so the authority moment costs one glance and
+   the engine section starts ~two screens sooner — the cinematic then, the
+   #4837 engine story now). #4261's outcome-first order
+   and wording rules are unchanged — the four aggregates still open the
+   argument before The Gap makes it — and home-client/statsBand.ts still
+   counts them up on entry (the [data-stats-band] hook rode along). Band
+   rhythm: hero (egg) → rail (warm, hairline-framed like the old press
+   strip) → gap (warm; the rail's bottom hairline draws the divider).
+   (History: #3999 parked the metrics after the cinematic; #4261 moved
+   them above it outcome-first; #3907 built the count-up — metricStat()'s
+   static $/M spans stay outside the counted digits, and the digits are
+   right-aligned tabular inline-blocks so statsBand can pin each one's
+   final width and the gold "+" and labels never move while values sweep
+   0→final.) ── */
+.nb-cred{background:var(--warm);border-top:1px solid rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.06);padding:26px 0 36px}
+.nb-cred-press{display:flex;justify-content:center;align-items:center;gap:clamp(24px,3.4vw,48px);flex-wrap:wrap}
+.nb-press-strip-label{font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.2em;color:var(--earth);opacity:.65;padding-right:clamp(4px,1vw,14px);border-right:1px solid var(--gold)}
+/* Logo height rides 2.62vw between the 851px hamburger edge (22.3px) and
+   ~1145px (30px cap) so the label + all five logos always hold ONE line in
+   the mid band — the five PNGs' aspect ratios sum to ≈20.96×height, so the
+   old fixed 30px row (≈629px of logos alone) overflowed the wrap at mid
+   viewports and stranded the last logo. ≥1150px renders exactly as before. */
+.nb-press-logo{height:clamp(22px,2.62vw,30px);width:auto;opacity:.75;filter:grayscale(1);transition:opacity .18s ease,filter .18s ease}
+.nb-press-logo:hover{opacity:1;filter:grayscale(0)}
+/* Last two logos ride as one unbreakable pair (gap:inherit matches the
+   press row's own gap, so single-line spacing stays uniform) — a flex wrap
+   can never orphan a lone logo. */
+.nb-press-pair{display:flex;align-items:center;gap:inherit}
+/* Metrics row — compact scale of the #4261 standalone band (figures step
+   down from the old 3.5rem so the whole rail holds ~180–220px; the
+   clamp's 2.6vw midband also absorbs the 851–1239px column squeeze the
+   retired ≤1239 media rule used to handle — "1,000,000+" at the 1.9rem
+   floor is ~184px against the narrowest 851px column's ~196px). */
+.nb-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);row-gap:44px;margin-top:32px}
+.nb-metric{position:relative;text-align:center;padding:0 16px}
+/* Gradient-fade hairlines between stats (replaces the old full-height gold
+   border): quieter, and they no longer collide with the taller figures. */
+.nb-metric::after{content:"";position:absolute;top:14%;bottom:14%;right:0;width:1px;background:linear-gradient(180deg,transparent,var(--gold) 32%,var(--gold) 68%,transparent)}
+.nb-metric:last-child::after{content:none}
+.nb-metric strong{display:block;color:var(--crimson);font:600 clamp(1.9rem,2.6vw,2.4rem)/1.06 "Crimson Pro",serif;white-space:nowrap}
+.nb-count{display:inline-block;text-align:right;font-variant-numeric:lining-nums tabular-nums}
+.nb-metric-plus{display:inline-block;margin-left:.06em;color:var(--gold)}
+.nb-metric-label{display:block;margin-top:10px;font-size:10.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--earth);opacity:.75}
+/* Visually-hidden utility (a11y/no-JS): pairs accessible text with
+   aria-hidden visuals — the metric count-ups' complete stat
+   ("1,000,000+") and the gap band's full model summary (Task #3949). */
+.nb-vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ── PROOF — complete inline flagship + supporting stories (Task #5068;
+   Task #4925 replaced the #3915/#4261 four-slide slider) ──
+   ONE deep Presti flagship panel (ink world — the band's proof moment)
+   over two detailed supporting cards (white, on the egg band). The served
+   markup is the complete presentation for every visitor: no controls, no
+   modes, no client module. Panel text colors are contrast-picked per
+   background — see the --gold-pale note at the top of this file. */
+.nb-proof{padding:88px 0;background:var(--egg)}
+.nb-proof-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px 48px;margin-bottom:46px}
+.nb-label{color:var(--gold-ink);font-size:12px;font-weight:700;letter-spacing:.16em}
+.nb-proof h2{font-size:clamp(3rem,4.6vw,4.7rem);line-height:.94;font-weight:400;margin:27px 0 0;color:var(--earth);max-width:13em}
+/* Result-first flagship (ink): firm → outcome → an asymmetric evidence field
+   with the signed-case total as the focal result → short client excerpt.
+   Gold remains evidence accent (~9:1 on ink), not decoration. */
+.nb-flag{background:var(--ink);color:var(--egg);padding:64px 68px}
+.nb-flag .nb-label{color:var(--gold)}
+.nb-flag a{color:#fff}
+.nb-flag .nb-text-btn span{color:var(--gold)}
+.nb-flag-identity{margin-top:28px}
+.nb-flag-firm{margin:0 0 7px;font:600 18px/1.3 "sweet-sans-pro",Arial,sans-serif;color:var(--egg)}
+.nb-flag-headline{max-width:920px;margin:24px 0 42px;font:400 clamp(2.8rem,5vw,4.8rem)/.96 "Crimson Pro",serif;color:var(--egg);letter-spacing:-.025em}
+.nb-flag-results{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr);align-items:stretch;margin:0;border-top:1px solid rgba(213,172,92,.32);border-bottom:1px solid rgba(213,172,92,.32)}
+.nb-flag-primary{grid-column:2;grid-row:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:30px 0 30px clamp(36px,4vw,60px);border-left:1px solid rgba(213,172,92,.28)}
+.nb-flag-primary b{display:block;white-space:nowrap;font:400 clamp(5.6rem,8.5vw,8rem)/.8 "Crimson Pro",serif;letter-spacing:-.04em;color:var(--gold)}
+.nb-flag-primary span,.nb-flag-evidence span{display:block;font:700 9.5px/1.35 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;color:rgba(238,232,220,.8)}
+.nb-flag-primary span{margin-top:14px;font-size:11px;color:var(--egg)}
+.nb-flag-primary p{width:min(100%,220px);margin:22px 0 0;padding-top:12px;border-top:1px solid rgba(213,172,92,.42);font:700 10px/1.35 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.16em;color:var(--gold)}
+.nb-flag-supporting{grid-column:1;grid-row:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));min-width:0}
+.nb-flag-evidence{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:34px clamp(22px,3vw,42px) 34px 0}
+.nb-flag-evidence+.nb-flag-evidence{padding-left:clamp(22px,3vw,42px);border-left:1px solid rgba(213,172,92,.2)}
+.nb-flag-evidence b{display:block;font:400 clamp(2.6rem,4vw,3.4rem)/1 "Crimson Pro",serif;color:var(--gold)}
+.nb-flag-evidence span{max-width:18em;margin-top:10px}
+.nb-flag-quote{max-width:760px;margin:34px 0 0;border-left:1px solid var(--gold);padding-left:20px}
+.nb-flag-quote p{margin:0 0 12px;font:italic 400 17px/1.55 "Crimson Pro",serif;color:rgba(238,232,220,.88)}
+.nb-flag-quote footer{font:700 10.5px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;color:var(--gold)}
+/* Supporting receipts (2-up, warm white on egg): one result headline and
+   exactly two figures per firm, balanced to a shared card height. */
+.nb-supports{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:26px;margin-top:26px}
+.nb-sup{min-width:0;padding:42px 46px;display:flex;flex-direction:column}
+.nb-sup h3{max-width:12ch;font:400 clamp(2.1rem,3vw,3rem)/.98 "Crimson Pro",serif;letter-spacing:-.02em;margin:20px 0 34px}
+.nb-slide-light{background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.07);color:var(--earth)}
+/* Per-card system tag (kept from the #4261 slider vocabulary): names which
+   system produced the card's result — CASEGEN™ on the marketing support,
+   THE COMPLETE ENGINE on the flagship + expansion. Pale gold on ink,
+   gold-ink on the light cards (contrast note at the top of this file). */
+.nb-slide-sys{align-self:flex-start;margin:0 0 16px;padding:6px 10px;border:1px solid currentColor;font:700 9.5px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.14em;color:var(--gold-pale)}
+.nb-flag .nb-slide-sys{width:fit-content}
+.nb-slide-light .nb-slide-sys{color:var(--gold-ink)}
+.nb-sup-cells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px;margin-top:auto;padding-top:24px;border-top:1px solid rgba(125,92,27,.28)}
+.nb-sup-cells b{display:block;font:400 clamp(2.35rem,4vw,3rem)/1 "Crimson Pro",serif;color:var(--earth)}
+.nb-sup-cells span{display:block;margin-top:7px;font:700 10px/1.35 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.12em;color:var(--gold-ink)}
+.nb-sup-cells em{display:block;margin-top:6px;font:700 10px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.1em;color:var(--crimson);font-style:normal}
+/* ── Post-proof foot (Task #4261, owner doc §4; disclosure cut to the
+   brief's two-sentence form by Task #4925): the unified session CTA
+   directly after the case cards, then the How Results Are Measured
+   disclosure — quiet, data-notes register, gold evidence rule. (The complete
+   First Lead Records strip remains on the About page.) ── */
+.nb-proof-foot{margin-top:56px;text-align:center}
+.nb-measure{margin:44px auto 0;max-width:780px;text-align:left;border-top:1px solid rgba(125,92,27,.28);padding-top:26px}
+.nb-measure h3{margin:0 0 12px;font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.15em;color:var(--gold-ink)}
+.nb-measure p{margin:0;font-size:13.5px;line-height:1.7;color:rgba(82,75,58,.92)}
+.nb-measure a{color:var(--crimson)}
+
+/* ── Testimonials — endless rows (Task #3997; retired by the #4925
+   restructure's static curated set, restored by Task #4980 owner
+   reversal) ── The served grids below are the complete no-JS /
+   prefers-reduced-motion presentation. home-client/testimonialsMarquee.ts
+   stamps data-testi-mode="marquee" on the section for motion-allowed
+   visitors, and every marquee rule keys off that attribute — a mode
+   marker, never viewport width, so JS-off and reduced-motion visitors
+   keep the complete static grids. Marquee card widths are fixed px/vw so
+   the loop period never depends on font or image load timing. The
+   restructure's trimmed band padding and 16px review-text floor stay. */
+.nb-testimonials{padding:76px 0;background:var(--warm);text-align:center}
+.nb-eyebrow-center{justify-content:center}
+.nb-testimonials h2{font-size:clamp(28px,3.2vw,42px);margin:16px 0 44px}
+.nb-client-testimonial{max-width:860px;margin:0 auto 44px;padding:28px 34px;background:var(--egg);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);text-align:left}
+.nb-client-testimonial [data-featured-content]{display:flex;flex-direction:column;justify-content:center;min-height:var(--featured-quote-min-height,18rem)}
+.nb-client-testimonial p{margin:0;font:italic 400 clamp(18px,2vw,22px)/1.5 "Crimson Pro",serif;color:var(--earth)}
+.nb-client-testimonial p+p{margin-top:14px}
+.nb-client-testimonial footer{margin-top:18px;font:700 10px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink)}
+.nb-featured-testimonial-toggle[hidden]{display:none}
+.nb-featured-testimonial-toggle{display:block;margin:18px 0 0;padding:0;border:0;border-bottom:1px solid currentColor;background:transparent;color:var(--earth);font:700 10px/1.5 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.nb-featured-testimonial-toggle:hover{color:var(--gold-ink)}
+.nb-featured-testimonial-toggle:focus-visible{outline:2px solid var(--gold-ink);outline-offset:4px}
+.nb-marquee-videos{margin-bottom:36px}
+.nb-marquee-quotes+.nb-marquee-quotes{margin-top:22px}
+.nb-video-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.nb-video-card{position:relative;display:block;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 14px 40px rgba(0,0,0,.10)}
+.nb-video-card img{display:block;width:100%;height:100%;object-fit:cover;aspect-ratio:16/10}
+.nb-video-play{position:absolute;top:50%;left:50%;width:56px;height:56px;margin:-28px 0 0 -28px;display:grid;place-items:center;background:rgba(8,7,5,.72);color:#fff;border:1px solid var(--gold);border-radius:50%;font-size:18px;padding-left:4px;transition:transform .18s ease}
+.nb-video-card:hover .nb-video-play{transform:scale(1.08)}
+.nb-video-name{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgba(8,7,5,.82));color:#fff;font:700 12px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-align:left}
+/* Equal-height quote cards: flex column + footer pushed to the card floor
+   (base rules, so static grids AND marquee tracks get aligned footers). */
+.nb-quote-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;text-align:left}
+.nb-review{margin:0;padding:28px 30px;background:var(--egg);border:1px solid rgba(0,0,0,.07);display:flex;flex-direction:column}
+.nb-review .nb-stars{color:var(--gold-ink);letter-spacing:.2em;font-size:14px}
+.nb-review p{margin:12px 0 14px;font-size:16px;line-height:1.6}
+.nb-review footer{margin-top:auto;font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--earth)}
+/* Marquee mode: each row becomes a masked viewport (soft edge fades) and its
+   grid becomes a flex track the client tween translates; cloned cards
+   (aria-hidden, tabindex-excluded) provide the seamless wrap. */
+.nb-testimonials[data-testi-mode="marquee"] .nb-marquee{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.nb-testimonials[data-testi-mode="marquee"] .nb-video-grid,.nb-testimonials[data-testi-mode="marquee"] .nb-quote-grid{display:flex;width:max-content;gap:22px;max-width:none;margin:0;will-change:transform}
+.nb-testimonials[data-testi-mode="marquee"] .nb-video-card{width:min(380px,78vw);flex:0 0 auto}
+.nb-testimonials[data-testi-mode="marquee"] .nb-review{width:min(430px,84vw);flex:0 0 auto}
+
+/* ── The Book ── */
+.nb-book-sec{background:#0b0a08;color:#fff;padding:88px 0;position:relative;overflow:hidden}
+.nb-book-sec::before{content:"";position:absolute;left:50%;top:-180px;transform:translateX(-50%);width:720px;height:720px;background:radial-gradient(circle,rgba(213,172,92,.14),transparent 62%);pointer-events:none}
+.nb-book-grid{display:grid;grid-template-columns:38% 62%;align-items:center;gap:0;position:relative}
+.nb-book-visual{display:flex;justify-content:center}
+.nb-book-visual img{width:min(300px,80%);height:auto;box-shadow:0 34px 70px rgba(0,0,0,.6),0 0 0 1px rgba(213,172,92,.25);transform:rotate(-2deg)}
+.nb-book-copy{padding-left:56px}
+.nb-book-copy .nb-label{color:var(--gold)}
+.nb-book-copy h2{font-size:clamp(2.6rem,4vw,4.1rem);font-weight:400;line-height:.98;margin:22px 0 20px;color:#fff}
+.nb-book-copy h2 em{font-style:italic;color:var(--gold)}
+.nb-book-copy p{font-size:16px;line-height:1.65;max-width:520px;color:rgba(255,255,255,.86);margin-bottom:30px}
+/* Store availability: retain the matched-pair wordmark art, but present each
+   store as a clearly non-interactive Coming Soon notice until its canonical
+   product page exists. The row wraps at every width so neither notice can be
+   clipped by the section. */
+.nb-book-actions{display:flex;flex-wrap:wrap;gap:12px 16px}
+.nb-store-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:min(220px,100%);min-height:86px;max-width:100%;padding:10px 16px 9px;border:1px solid rgba(213,172,92,.42);background:rgba(255,255,255,.035)}
+.nb-store-btn img{height:auto;width:auto;max-height:42px;max-width:100%;display:block;opacity:.76}
+.nb-store-status{font:700 10px/1.2 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.nb-book-cta{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:var(--ink);padding:16px 24px;font-size:12px;margin-bottom:20px}
+.nb-book-cta:hover{background:#E2BF78;color:var(--ink)}
+.nb-book-cta span{color:var(--ink)}
+
+/* ── Team — FULL 18-person roster band (Task #4979 owner directive,
+   superseding the #4926 §10 five-person compression + its About roster
+   link): this static grid (6 → 2 → 1 columns; the named six lead the
+   first row) is the complete served presentation for EVERY visitor —
+   Task #5011 retired the #4979/#4903 endless wall (owner verdict: it
+   didn't look good; the band never scrolls or drifts). JS only
+   collapses the grid to its first two rows — the data-team-collapsed
+   family below; module: home-client/teamReveal.ts. Still NO in-band
+   CTA. ── */
+.nb-team{padding:80px 0 72px;background:var(--egg);text-align:center}
+.nb-team h2{font-size:clamp(28px,3.2vw,42px);margin:16px 0 48px}
+.nb-team-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;text-align:left}
+.nb-team-card{background:#fff;border:1px solid rgba(0,0,0,.07);padding:0 0 18px;box-shadow:0 12px 34px rgba(0,0,0,.07);min-width:0}
+/* ^ min-width:0 (Task #4980 follow-through): the 6-col static grid's 1fr
+   tracks otherwise refuse to shrink below each card's content minimum at
+   851–1000px widths, h-scrolling the whole page (headless-verified at
+   875px; since Task #5011 every visitor gets this grid — the wall that
+   once hid it from motion visitors is retired). */
+.nb-team-card img{display:block;width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;object-position:top;filter:grayscale(.15)}
+.nb-team-card h3{font:600 1.25rem "Crimson Pro",serif;margin:15px 18px 3px;color:var(--earth)}
+.nb-team-role{display:block;margin:0 18px;font:700 9.5px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--gold-ink)}
+/* Collapsed-grid disclosure (Task #5011 — the #4979/#4903 endless wall
+   RETIRED, owner verdict: it didn't look good; the band never scrolls
+   or drifts for any visitor now): home-client/teamReveal.ts stamps
+   data-team-collapsed="1" on the section for JS-enabled visitors and
+   appends the Meet the Full Team toggle button below the grid. EVERY
+   card-hiding rule keys off that attribute — a JS-set state marker,
+   never viewport width alone — so no-JS visitors always get the
+   complete 18-card grid; the width queries only translate "first two
+   rows" into each breakpoint's column count (6-col → 12 cards, 2-col →
+   4, 1-col → 2; those boundaries live in the shared 850px/520px blocks
+   below, beside the .nb-team-grid column rules they mirror — keep them
+   in lockstep). display:none keeps hidden cards out of the tab order
+   and the accessibility tree. Expanding swaps the attribute for
+   data-team-expanded="1", whose only styling is the chevron flip plus
+   a one-shot rise on the newly revealed cards — both gated on
+   prefers-reduced-motion: no-preference; no loops, nothing
+   scroll-linked. */
+.nb-team[data-team-collapsed="1"] .nb-team-grid .nb-team-card:nth-child(n+13){display:none}
+.nb-team-reveal{display:inline-flex;align-items:center;gap:10px;margin-top:36px;padding:15px 30px;background:none;border:1px solid var(--gold-ink);color:var(--gold-ink);font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s}
+.nb-team-reveal:hover{background:var(--gold-ink);color:#fff}
+.nb-team-reveal:focus-visible{outline:2px solid var(--gold-ink);outline-offset:2px}
+.nb-team-reveal-chevron{font-size:13px;line-height:1}
+.nb-team[data-team-expanded="1"] .nb-team-reveal-chevron{transform:rotate(180deg)}
+@media (prefers-reduced-motion: no-preference){
+  .nb-team-reveal-chevron{transition:transform .22s ease}
+  .nb-team[data-team-expanded="1"] .nb-team-grid .nb-team-card:nth-child(n+13){animation:nb-team-rise .45s ease both}
+}
+@media (prefers-reduced-motion: no-preference) and (max-width:850px){
+  .nb-team[data-team-expanded="1"] .nb-team-grid .nb-team-card:nth-child(n+5){animation:nb-team-rise .45s ease both}
+}
+@media (prefers-reduced-motion: no-preference) and (max-width:520px){
+  .nb-team[data-team-expanded="1"] .nb-team-grid .nb-team-card:nth-child(n+3){animation:nb-team-rise .45s ease both}
+}
+@keyframes nb-team-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* (The Task #4926 brief-§11 session-offer band that sat between team and
+   fit was REMOVED by Task #5016, owner request — its rule family left at
+   every breakpoint with it. Team flows straight into fit: two egg bands
+   adjacent, accepted band-removal seam.) */
+
+/* ── Fit — brief §12 verdict cards (Task #4926), re-homed from the closing
+   band. The shared .nb-qual-card family (gold-vs-crimson pair + glyph
+   rail) keeps its rules in the CLOSING section below — presentation
+   unchanged, only the owning band moved. ── */
+.nb-fit{padding:76px 0 80px;background:var(--egg);text-align:center}
+.nb-fit h2{font-size:clamp(28px,3.2vw,42px);margin:0}
+
+/* ── FAQ — six buying questions (Task #4926, brief §13). The #4261
+   contact band + homepage form are DELETED (the footer Contact link is
+   the message route), so the disclosure list stands as its own band. ── */
+.nb-faq-sec{padding:80px 0;background:var(--warm);text-align:center}
+.nb-faq-sec h2{font-size:clamp(28px,3.2vw,42px);margin:16px 0 0}
+.nb-faq-sec .nb-faq{max-width:780px;margin:38px auto 0}
+.nb-faq{margin-top:34px;text-align:left}
+.nb-faq-item{border-bottom:1px solid rgba(0,0,0,.12)}
+.nb-faq-item summary{cursor:pointer;list-style:none;padding:20px 34px 20px 2px;font:600 1.3rem "Crimson Pro",serif;color:var(--earth);position:relative}
+.nb-faq-item summary::-webkit-details-marker{display:none}
+.nb-faq-item summary::after{content:"+";position:absolute;right:6px;top:50%;transform:translateY(-50%);color:var(--gold-ink);font:400 22px "Crimson Pro",serif}
+.nb-faq-item[open] summary::after{content:"–"}
+.nb-faq-item p{margin:0 0 22px;padding-right:40px;font-size:16px;line-height:1.65}
+
+/* ── FIT VERDICTS ───────────────────────────────────────────── */
+/* Verdict cards — serving the nb-fit band since Task #4926 (shared
+   classes, unchanged presentation): two-up under the band's H2, 44px
+   off it, stacking at ≤1000px. */
+.nb-qual-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:960px;margin:44px auto 0;text-align:left}
+.nb-qual-card{background:#fff;border:1px solid rgba(0,0,0,.08);border-top:3px solid var(--gold);padding:30px 34px 26px;box-shadow:0 14px 40px rgba(0,0,0,.06)}
+.nb-qual-not{border-top-color:var(--crimson)}
+/* Verdict heads wear their side's ink (the duel's LEAKY/TUNED logic). */
+.nb-qual-not .nb-label{color:var(--crimson)}
+.nb-qual-card ul{list-style:none;margin:14px 0 0;padding:0}
+.nb-qual-card li{display:flex;gap:12px;align-items:flex-start;font-size:16px;line-height:1.55;padding:10px 0;border-top:1px solid rgba(0,0,0,.06)}
+/* One glyph rail for both cards: matched size/weight, centered in a fixed
+   column, line-height tuned to the row text's 22.5px first line so ✓ and ✕
+   sit level (the ✕ was an unstyled span before Task #4033). */
+.nb-qual-card .nb-check,.nb-qual-card .nb-cross{flex:none;width:18px;text-align:center;font-size:15px;line-height:1.5;font-weight:700}
+/* ✓ ink lives here since Task #4816 — it used to inherit from the hero
+   trust line's base .nb-check rule, retired with that line. */
+.nb-qual-card .nb-check{color:var(--gold-ink)}
+.nb-qual-card .nb-cross{color:var(--crimson)}
+/* Two-up fill balance (Task #4168): the not-fit verdicts run shorter than
+   the fit column's, which left ~60px of dead floor under the crosses at
+   desktop. Airier not-fit rows spread the same copy across the shared card
+   height (fill tuning only — same glyph rail, same hairline rhythm, zero
+   copy). Stacked cards drop the tuning: they no longer share a floor. */
+@media(min-width:1001px){
+  .nb-qual-not ul{margin-top:18px}
+  .nb-qual-not li{padding:16px 0}
+}
+/* ── HOMEPAGE CONVERSION HUB ─────────────────────────────────
+   The final title/copy and both real actions are one deliberate close:
+   booking leads in DOM and grid order, with contact as the alternative.
+   Square borders and flat fills extend the established brand system without
+   adding a second visual language. */
+#booking,#contact{scroll-margin-top:86px}
+.nb-conversion{padding:92px 0 104px;background:var(--warm);border-top:1px solid rgba(82,75,58,.16)}
+.nb-conversion-close{max-width:800px;margin:0 auto 56px;text-align:center}
+.nb-bull{width:48px;height:48px;object-fit:contain;margin:0 0 23px}
+.nb-conversion-close h2{margin:0;color:var(--earth);font-size:clamp(2.2rem,5vw,5rem);font-weight:400;line-height:.95}
+.nb-close-lede{max-width:640px;margin:15px auto 0;font:italic 400 clamp(1.1rem,1.6vw,1.3rem)/1.5 "Crimson Pro",Baskerville,serif;color:var(--earth);text-wrap:balance}
+.nb-conversion-close .nb-rule{display:block;margin:30px auto 16px}
+.nb-close-subline{max-width:620px;margin:0 auto;font-size:16.5px;line-height:1.7}
+.nb-conversion-grid{display:grid;grid-template-columns:minmax(280px,.84fr) minmax(0,1.16fr);align-items:start;gap:28px}
+.nb-conversion-booking,.nb-conversion-contact{min-width:0;border-radius:0}
+.nb-conversion-booking{padding:46px 42px;background:var(--ink);color:#fff}
+.nb-conversion-heading{margin:0 0 30px;text-align:left}
+.nb-conversion-heading h3{margin:0;font-size:clamp(2rem,3.5vw,3.45rem);font-weight:400;line-height:1.05}
+.nb-conversion-booking .nb-conversion-heading h3{color:#fff}
+.nb-conversion-heading p{margin:14px 0 0;max-width:650px;font-size:16px;line-height:1.65}
+.nb-conversion-booking .nb-conversion-heading p{color:rgba(255,255,255,.82)}
+.nb-booking-handoff{padding-top:28px;border-top:1px solid rgba(213,172,92,.52)}
+.nb-booking-promise{max-width:520px;margin:0;color:#fff;font-size:clamp(1.3rem,2vw,1.65rem);font-weight:400;line-height:1.35}
+.nb-booking-facts{display:grid;gap:0;margin:28px 0 34px;padding:0;list-style:none}
+.nb-booking-facts li{padding:19px 0;border-top:1px solid rgba(255,255,255,.15)}
+.nb-booking-facts li:last-child{border-bottom:1px solid rgba(255,255,255,.15)}
+.nb-booking-facts strong,.nb-booking-facts span{display:block}
+.nb-booking-facts strong{color:#fff;font-size:14px;line-height:1.5}
+.nb-booking-facts span{margin-top:5px;color:rgba(255,255,255,.76);font-size:14px;line-height:1.55}
+.nb-booking-cta{width:100%;min-height:52px;justify-content:center;text-align:center;white-space:normal}
+.nb-booking-external{margin:13px 0 0;color:rgba(255,255,255,.72);font-size:12px;line-height:1.5;text-align:center}
+.nb-conversion-noscript{margin:18px 0 0;color:rgba(255,255,255,.82);font-size:13px;line-height:1.5;text-align:center}
+.nb-conversion-contact{padding:38px;background:var(--egg);border:1px solid rgba(82,75,58,.2)}
+.nb-conversion-contact .nb-conversion-heading h3{color:var(--earth)}
+.nb-contact-form{position:relative;min-width:0;margin:0}
+.nb-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 24px}
+.nb-contact-grid>div{min-width:0}
+.nb-contact-grid label{display:block;margin-bottom:8px;color:var(--earth);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.nb-contact-grid input,.nb-contact-grid textarea{display:block;width:100%;min-width:0;border:1px solid rgba(82,75,58,.42);border-radius:0;background:#fff;color:var(--ink);font-family:"sweet-sans-pro",Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.5}
+.nb-contact-grid input{height:52px;padding:11px 13px}
+.nb-contact-grid textarea{min-height:180px;padding:13px;resize:vertical}
+.nb-contact-grid input:hover,.nb-contact-grid textarea:hover{border-color:var(--earth)}
+.nb-contact-message{grid-column:1/-1}
+.nb-contact-required{margin:10px 0 0;color:rgba(82,75,58,.86);font-size:13px}
+.nb-contact-turnstile{display:flex;min-height:65px;margin-top:22px;align-items:center;justify-content:center}
+.nb-contact-actions{margin-top:24px;text-align:center}
+.nb-contact-actions .nb-btn{min-width:190px;min-height:48px}
+.nb-contact-actions .nb-btn:disabled{cursor:wait;opacity:.58;transform:none}
+.nb-contact-status{display:none;max-width:680px;margin:18px auto 0;padding:14px 18px;font-size:14px;line-height:1.5;text-align:center}
+.nb-contact-status[data-kind="ok"]{display:block;background:#e8f1e4;color:#2f5d30}
+.nb-contact-status[data-kind="err"]{display:block;background:#f7e4e4;color:#8a292f}
+.hp-field{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;opacity:0}
+
+/* ── GAP — The Million Dollar Gap (Task #3904 redesign; model + payoff
+   reworked Task #3936; copy de-duped + hierarchy rebalanced Task #3949;
+   compressed into two desktop columns + gain-framed payoff Task #3991).
+   One shared-axis duel chart PAIRED with its payoff receipt in two
+   columns (.nb-gap-cols, ≥851px — chart leads left, receipt totals it on
+   the right, and both columns ANIMATE IN TOGETHER, Task #4030, so the
+   band reads in one sweep): crimson leaky-firm bars
+   grow left, gold tuned-firm bars grow right, both scaled to the same
+   500-lead axis so the drop-off is SEEN; per-stage labels ride centered
+   above each bar pair (the old 170px center spine column is gone — bars
+   keep their length at half width). Dashed "ghost" segments + captions
+   mark the leaky firm's per-stage shortfall AGAINST THE TUNED FIRM
+   (never against 100% conversion), and each leaky value label sits in
+   the reserved --numslot gap between the solid fill's tip and the
+   ghost's start — the number labels the crimson total achieved, so the
+   dashed outline never encloses it (Task #4030); the receipt totals the
+   duel — the 6×
+   multiple, $200,000 vs $1,200,000 at the stated case value — then
+   lands the money moment reading top-to-bottom as "AN EXTRA /
+   $1,000,000 / FROM THE SAME LEAD FLOW" in gold-ink (gain-framed since
+   Task #3991: the tuned firm's upside, so it carries the tuned side's
+   ink — the crimson "gap / OPENED ENTIRELY AFTER THE LEAD" loss framing
+   is retired). The failure→fix trade rows were FOLDED into the chart
+   captions (Task #4166), and the closer under the lone gold rule is the
+   handoffs BRIDGE (Task #4259, owner direction — it replaced the #3949
+   fuel/engine kicker): serif kicker naming where the gap lives + a sans
+   body naming Marketing/Intake/Sales as the Law Firm Revenue Engine.
+   Since Task #4259 the H2 PRICES the gap and the lede walks leads-in →
+   cases-out for both firms (superseding the #3949 numbers-land-once rule
+   for the headline figures — the receipt still proves the figure the H2
+   poses), each stage label carries its responsible system (.nb-gap-sys),
+   and the .nb-vh summary speaks numbers + attributions to screen readers
+   while .nb-gap-cols (chart AND receipt) stays aria-hidden. Markup ships
+   the COMPLETE final state — home-client/gapDuel.ts animates it only
+   when motion is allowed (reduced-motion / JS-off stay static). ── */
+.nb-gap{padding:72px 0 72px;background:var(--warm);text-align:center;overflow:hidden}
+.nb-gap h2{font-size:clamp(28px,3.2vw,42px);font-weight:400;color:var(--earth);margin:16px 0 14px}
+/* The spec's leads-in → cases-out argument (Task #4259; formerly a
+   one-sentence setup) — still the serif whisper tight under the H2, with
+   generous air below so the two-column duel stays the centerpiece. */
+.nb-gap-lede{max-width:780px;margin:0 auto;font:italic 400 clamp(1.2rem,1.7vw,1.4rem)/1.45 "Crimson Pro",Baskerville,serif;color:var(--earth);text-wrap:balance}
+/* Two-column stage (Task #3991): evidence | money story, centers aligned. */
+.nb-gap-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(44px,5vw,76px);align-items:center;max-width:1100px;margin:44px auto 0;text-align:left}
+.nb-gap-duel{min-width:0}
+.nb-gap-duel-head{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:baseline;margin-bottom:10px}
+.nb-gap-side{font-size:12px;font-weight:700;letter-spacing:.16em}
+.nb-gap-side-leaky{color:var(--crimson)}
+.nb-gap-side-tuned{color:var(--gold-ink);text-align:right}
+.nb-gap-duel-tag{font-size:10px;font-weight:700;letter-spacing:.16em;color:rgba(82,75,58,.85);text-align:center;white-space:nowrap}
+.nb-gap-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px 10px;align-items:start;padding:12px 0 14px;border-top:1px solid rgba(0,0,0,.07)}
+.nb-gap-stage{grid-column:1/-1;order:-1;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(82,75,58,.85);text-align:center}
+/* Stage→system attribution (Task #4259): each duel row names the system
+   responsible for its stage — a gold-ink product tag over the stage label. */
+.nb-gap-sys{display:block;margin-bottom:4px;font-size:9.5px;letter-spacing:.18em;color:var(--gold-ink)}
+.nb-gap-cell{min-width:0}
+/* --numslot (Task #4030): reserved gap between a leaky fill's tip and its
+   dashed shortfall ghost — the "100"/"20" value labels live in it (the
+   number keeps its fill + 12px offset below), so each number reads as the
+   label of the solid crimson amount and is never enclosed by the dashed
+   outline. Ghost LENGTH stays exactly var(--g); only its start moves. */
+.nb-gap-bar{position:relative;height:32px;background:rgba(82,75,58,.06);--numslot:56px}
+.nb-gap-fill{position:absolute;top:0;bottom:0;width:var(--w)}
+.nb-gap-fill-leaky{right:0;background:var(--crimson);transform-origin:100% 50%}
+.nb-gap-fill-tuned{left:0;background:var(--gold-bar);transform-origin:0 50%}
+.nb-gap-ghost{position:absolute;top:6px;bottom:6px;right:calc(var(--w) + var(--numslot));width:var(--g);background:rgba(138,41,47,.10);border:1px dashed rgba(138,41,47,.45);border-right:0}
+.nb-gap-num{position:absolute;top:50%;transform:translateY(-50%);font:600 clamp(1.15rem,1.35vw,1.4rem) "Crimson Pro",serif;line-height:1;color:var(--earth);white-space:nowrap;font-variant-numeric:tabular-nums}
+.nb-gap-cell-leaky .nb-gap-num{right:calc(var(--w) + 12px)}
+.nb-gap-cell-tuned .nb-gap-num{left:calc(var(--w) + 12px)}
+.nb-gap-num-in{color:#fff}
+.nb-gap-cell-leaky .nb-gap-num-in{right:auto;left:14px}
+.nb-gap-cell-tuned .nb-gap-num-in{left:auto;right:14px}
+.nb-gap-leak{display:block;margin-top:7px;font:italic 600 12.5px "Crimson Pro",serif;letter-spacing:.02em;color:var(--crimson)}
+.nb-gap-payoff{min-width:0;text-align:center}
+.nb-gap-payoff-row{display:flex;align-items:center;justify-content:center;gap:18px}
+.nb-gap-multiple{font:600 clamp(2.5rem,3vw,3.3rem) "Crimson Pro",serif;line-height:1;color:var(--gold-ink)}
+.nb-gap-payoff-cap{margin:12px 0 0;font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--earth)}
+/* Payoff receipt lines (Task #3936; reframed Task #3991): the revenue duel
+   echoes the chart's side colors (crimson leaky / gold-ink tuned, both AA
+   on --warm), then the money moment lands LARGEST in gold-ink — "AN EXTRA
+   $1,000,000 FROM THE SAME LEAD FLOW" is the tuned firm's upside, not a
+   loss figure, so crimson would contradict the framing. */
+.nb-gap-payoff-money{margin:26px 0 0;display:flex;align-items:baseline;justify-content:center;gap:14px;flex-wrap:wrap;font:600 clamp(1.25rem,1.6vw,1.55rem) "Crimson Pro",serif;line-height:1.1;font-variant-numeric:lining-nums tabular-nums}
+.nb-gap-money-leaky{color:var(--crimson)}
+.nb-gap-money-tuned{color:var(--gold-ink)}
+.nb-gap-money-vs{font:700 10.5px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:rgba(82,75,58,.85)}
+/* The AN EXTRA cap opens the money moment — extra air above groups the
+   three lines (cap / figure / cap) into one readable sentence. */
+.nb-gap-payoff-lead{margin-top:34px}
+.nb-gap-payoff-gap{margin:8px 0 0;font:600 clamp(2.7rem,3.8vw,4rem) "Crimson Pro",serif;line-height:1;color:var(--gold-ink);font-variant-numeric:lining-nums tabular-nums}
+/* Failure→fix trades — FOLDED (Task #4166; the #4031 ledger strip is
+   retired): the four leak names now ride the duel chart's own shortfall
+   captions (.nb-gap-leak, two names per caption) and the band's .nb-vh
+   summary closes on them; the fix answers left visible copy — the engine
+   story's component sections walk every fix (Task #4837). No
+   .nb-gap-trades rules remain; do not rebuild the strip. */
+/* Closer — the handoff DIAGNOSIS line (Task #4923, owner brief
+   2026-08-18 §3: the band ends on the sentence that opened the deleted
+   standalone handoff band. The #4816 "lives in the handoffs" kicker
+   retired with that band — as had the #3949 fuel/engine kicker and the
+   #4259 bridge BODY before it — so nothing pre-narrates the #system
+   overview directly below): upright serif caps, a verdict rather than
+   an aside, with only HANDOFFS in oxblood — the failure mark, exactly
+   as the old band's head styled it. Keeps the #3991 treatment —
+   centered under a lone gold rule echoing the eyebrow that opened the
+   band (the on-page "Illustrative model…" note was removed in Task
+   #3936; the lede's "Picture two firms" cue carries that label — claim
+   ledger row 19). */
+.nb-gap-close{margin:56px 0 0}
+.nb-gap-close .nb-rule{display:block;margin:0 auto 26px}
+.nb-gap-kicker{font-size:clamp(1.65rem,2.6vw,2.3rem);line-height:1.3;font-style:normal;font-weight:400;color:var(--ink);margin:0;text-wrap:balance}
+.nb-gap-kick-hand{color:var(--crimson);font-weight:600}
+
+/* (The score strip that sat here — Task #4120 scoreboard band,
+   reworked #4166/#4259/#4816/#4925 — was REMOVED wholesale by Task
+   #4987, owner decision: the homepage no longer names the score at
+   all; it lives on /calculator/ only. Its whole dotted rule family
+   left with it, including the tablet/phone overrides and the
+   strip-tail calculator-CTA rung. The strip's bottom hairline drew
+   the old warm→warm seam against the testimonials band; the surviving
+   egg proof band → warm testimonials joint is a natural tone step and
+   needs no replacement hairline.) */
+
+/* ════════════════════════════════════════════════════════════
+   PRODUCT SECTION (#system) — Task #4992 owner funnel redesign
+   (attached_assets/Pasted-Here-is-the-complete-version-I-would-hand-
+   to-the-design_1787066887433.txt). ONE continuous top-down funnel
+   object, not three product cards: three stacked, touching,
+   angle-edged stages — CaseGen/MARKETING on warm ivory (100% wide) →
+   CaseIntake/INTAKE on deep burgundy (~84%) → CaseConvert/SALES on
+   dark navy (~68%) — inside one continuous gold border, terminating in
+   the smaller gold-edged SIGNED CASES plaque (~44%): the result the
+   engine produces, not a fourth stage. Replaces the #4837/#4923/#4924
+   engine story wholesale — the charcoal overview family, the
+   component-section families (sticky 01/02/03 index, the shared
+   diagram language, per-component receipts + the note below them), and
+   the near-black customization family are deleted here and at every
+   breakpoint below; the static guard suite bans those retired class
+   stems from this file.
+
+   Geometry: two nested clip-path trapezoids. .nb-fn-body carries the
+   gold ground and the outer polygon (100% → 52% across three equal
+   rows, so the stage seams land at exactly 84% and 68%); .nb-fn-stack
+   repeats the same polygon inset by the rim width, so the sliver of
+   gold left visible IS the continuous border — unbroken around the
+   whole object by construction. The stack is a 3-equal-row grid: that
+   is what pins the seams to the ladder percentages regardless of copy
+   height. ≤850px swaps in the brief's gentler mobile ladder
+   (100/94/88 → 82, plaque 70%) with shallower angles.
+
+   Surface: each stage carries a large translucent numeral and an
+   engraved emblem BEHIND the copy (both decorative), soft downward
+   lighting via top-lit stage gradients + inset joint bevels, and the
+   section ground holds a faint engineering grid fading toward the
+   band edges.
+
+   Motion contract (home-client/engineStory.ts): normal scrolling gives
+   the stage nearest the reading zone a warm, single-stage focus while
+   the other two gently recede; upward scrolling reverses that focus.
+   Outside the funnel range, the rules return to their FULLY-LIT
+   fallbacks. Only the motion-allowed module writes --fn-veil /
+   --fn-lume, so JS-off and reduced-motion visitors always see the
+   complete readable section. CSS never keys on the module's data
+   attributes: those are query handles plus the QA stamp only. ── */
+.nb-funnel{position:relative;background:var(--warm);text-align:center;padding:18px 0 92px}
+/* Faint engineering grid — ~3% ink hairlines on a 56px module, masked
+   toward the edges so the seams with the gap band above and the proof
+   band below stay quiet. */
+.nb-funnel::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:repeating-linear-gradient(0deg,rgba(16,13,11,.03) 0 1px,transparent 1px 56px),repeating-linear-gradient(90deg,rgba(16,13,11,.03) 0 1px,transparent 1px 56px);-webkit-mask-image:radial-gradient(ellipse 84% 76% at 50% 46%,#000 40%,transparent 100%);mask-image:radial-gradient(ellipse 84% 76% at 50% 46%,#000 40%,transparent 100%)}
+.nb-funnel .nb-wrap{position:relative}
+.nb-fn-head{font-size:clamp(2.4rem,4.2vw,3.9rem);line-height:1.06;font-weight:400;color:var(--ink);margin:22px 0 0;text-wrap:balance}
+
+/* The funnel object (max 960px). The drop-shadow rides this PARENT so
+   it traces the children's clipped silhouettes — funnel + plaque read
+   as one machined piece sitting on the page. */
+.nb-fn-object{max-width:960px;margin:54px auto 0;filter:drop-shadow(0 30px 44px rgba(16,13,11,.17)) drop-shadow(0 6px 14px rgba(16,13,11,.1))}
+.nb-fn-body{position:relative;background:linear-gradient(180deg,#E9CD8B,var(--gold) 26%,var(--gold-bar) 74%,#8F681B);clip-path:polygon(0 0,100% 0,76% 100%,24% 100%)}
+.nb-fn-stack{display:grid;grid-template-rows:repeat(3,1fr);clip-path:polygon(3.4px 3px,calc(100% - 3.4px) 3px,calc(76% - 3.4px) calc(100% - 3px),calc(24% + 3.4px) calc(100% - 3px))}
+
+/* Stage grounds — the brief's warm-ivory → deep-burgundy → dark-navy
+   progression (the burgundy and navy are darkened literals from the
+   --crimson / --blue families; every ink below holds ≥AA on its
+   ground). Downward lighting: each ground runs light→dark top-to-
+   bottom, with a pale catch-light at the top joint and shade pooling
+   at the bottom — the subtle bevel that makes the joints read as
+   machined seams rather than stacked cards. */
+.nb-fn-stage{position:relative;padding:56px 24px 60px;overflow:hidden;scroll-margin-block-start:24px}
+.nb-fn-s1{background:linear-gradient(180deg,#FBF7ED,#F3EBD8 55%,#EAE0C6);color:var(--crimson);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -18px 30px rgba(82,75,58,.12)}
+.nb-fn-s2{background:linear-gradient(180deg,#71292F,#612127 55%,#511B21);color:var(--egg);box-shadow:inset 0 1px 0 rgba(239,217,172,.28),inset 0 -18px 30px rgba(16,13,11,.3)}
+.nb-fn-s3{background:linear-gradient(180deg,#2B3254,#232A49 55%,#1B213C);color:var(--egg);box-shadow:inset 0 1px 0 rgba(239,217,172,.24),inset 0 -20px 32px rgba(6,8,18,.4)}
+
+/* Scroll-focus surfaces (engineStory.ts): ::before is the warm-gold wash
+   on the active stage; ::after is the restrained readable veil on its
+   peers. The lit fallbacks (0) keep the served state final without JS. */
+.nb-fn-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 88% 130% at 50% -18%,rgba(233,205,139,.55),transparent 62%);opacity:var(--fn-lume,0)}
+.nb-fn-stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:rgba(10,8,6,.52);opacity:var(--fn-veil,0)}
+
+/* Translucent numerals + engraved emblems — surface texture BEHIND the
+   copy (aria-hidden in the markup). currentColor inherits each stage's
+   ink so the engraving matches its ground; the paired light-under /
+   dark-over shadows are the deboss. Horizontal insets step inward per
+   stage so both stay inside the narrowing visible trapezoid. */
+.nb-fn-num{position:absolute;top:50%;transform:translateY(-50%);left:7%;font:600 clamp(110px,16vw,168px)/1 "Crimson Pro",Baskerville,serif;letter-spacing:-.03em;color:currentColor;opacity:.11;pointer-events:none;user-select:none}
+.nb-fn-art{position:absolute;top:50%;transform:translateY(-50%);right:7%;width:clamp(88px,12vw,136px);color:currentColor;opacity:.2;pointer-events:none}
+.nb-fn-art svg{display:block;width:100%;height:auto;filter:drop-shadow(0 1px 0 rgba(255,255,255,.28)) drop-shadow(0 -1px 1px rgba(16,13,11,.32))}
+.nb-fn-s1 .nb-fn-num{opacity:.09}
+.nb-fn-s1 .nb-fn-art{opacity:.16}
+.nb-fn-s2 .nb-fn-num{left:13.5%}
+.nb-fn-s2 .nb-fn-art{right:13.5%}
+.nb-fn-s3 .nb-fn-num{left:20%}
+.nb-fn-s3 .nb-fn-art{right:20%}
+
+/* Copy column: small dept label → product name → serif outcome
+   headline → ONE compact capability line (the brief's whole per-stage
+   hierarchy — deliberately no body paragraphs). Max-widths narrow with
+   the ladder so text clears the angled edges. */
+.nb-fn-copy{position:relative;margin:0 auto;max-width:74%}
+.nb-fn-s2 .nb-fn-copy{max-width:60%}
+.nb-fn-s3 .nb-fn-copy{max-width:48%}
+.nb-fn-dept{margin:0;font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.3em}
+.nb-fn-s1 .nb-fn-dept{color:var(--gold-ink)}
+.nb-fn-s2 .nb-fn-dept,.nb-fn-s3 .nb-fn-dept{color:var(--gold-pale)}
+.nb-fn-name{margin:12px 0 0;font:600 clamp(1.5rem,2.2vw,2.05rem)/1 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.06em}
+.nb-fn-s1 .nb-fn-name{color:var(--crimson)}
+.nb-fn-s2 .nb-fn-name,.nb-fn-s3 .nb-fn-name{color:var(--warm)}
+.nb-fn-headline{margin:14px 0 0;font-size:clamp(1.55rem,2.5vw,2.3rem);line-height:1.16;font-weight:400;text-wrap:balance}
+.nb-fn-s1 .nb-fn-headline{color:#6E2126}
+.nb-fn-caps{margin:16px auto 0;font:700 12.5px/1.7 "sweet-sans-pro",Arial,sans-serif;letter-spacing:.09em;text-wrap:balance}
+.nb-fn-s1 .nb-fn-caps{color:rgba(138,41,47,.92)}
+.nb-fn-s2 .nb-fn-caps,.nb-fn-s3 .nb-fn-caps{color:rgba(238,232,220,.85)}
+
+/* SIGNED CASES plaque — the funnel's output slot, not a fourth stage:
+   narrower than the funnel mouth, on the engraved deep-gold ground
+   (gold-ink family, so the warm-ivory label holds AA — bright --gold
+   stays decorative: the bevel ring, catch-light, and resting halo).
+   It stays cohesive and readable while the stage focus moves above. */
+.nb-fn-plaque{position:relative;width:44%;margin:-1px auto 0;padding:24px 18px 26px;background:linear-gradient(180deg,#B98F2F,#8F681B 20%,#7D5C1B 58%,#6C4E13);border:1px solid rgba(239,217,172,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.32),inset 0 0 0 3px rgba(107,78,19,.55),inset 0 -12px 20px rgba(58,40,8,.42),0 0 34px rgba(213,172,92,.5),0 0 10px rgba(233,205,139,.55)}
+.nb-fn-plaque-label{font:700 clamp(14px,1.7vw,19px) "sweet-sans-pro",Arial,sans-serif;letter-spacing:.3em;color:#F6F0E2;text-shadow:0 1px 0 rgba(58,40,8,.5)}
+
+/* Section ask — 64–72px below the plaque, the section's ONLY CTA and
+   the page's fifth booking slot (label is the brief's YOUR variant of
+   the unified session ask; .nb-btn uppercases it). */
+.nb-fn-cta{margin:68px auto 0}
+.nb-fn-cta-head{margin:0;font-size:clamp(1.85rem,2.9vw,2.6rem);line-height:1.15;font-weight:400;color:var(--ink);text-wrap:balance}
+.nb-btn.nb-fn-book{margin-top:30px}
+
+/* ── FOOTER — entirely NoBull ── */
+.nb-footer{background:var(--crimson);color:#fff;padding:65px 0 22px}
+.nb-footer-grid{display:grid;grid-template-columns:3fr repeat(3,1fr);gap:45px;padding-bottom:62px}
+.nb-footer .nb-logo{object-fit:contain;object-position:left}
+.nb-footer h4{font:700 11px "sweet-sans-pro",Arial,sans-serif;letter-spacing:.15em;margin:4px 0 20px}
+.nb-footer a{display:block;color:#fff;text-decoration:none;font-size:12px;line-height:2.25;opacity:.84}
+/* Footer conversion pair: a filled warm-white session action is visually
+   primary against crimson; the book remains a quiet outlined secondary.
+   Both re-assert their button boxes against the footer column-link rule. */
+.nb-footer-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.nb-footer-actions a{margin-top:0}
+.nb-footer a.nb-footer-session{display:inline-flex;align-items:center;justify-content:center;opacity:1;font-size:10.5px;line-height:normal;padding:11px 14px;background:#fff;color:var(--crimson)}
+.nb-footer a.nb-footer-session:hover{opacity:1;background:var(--gold-pale);color:var(--crimson)}
+.nb-footer a.nb-btn-outline{display:inline-flex;opacity:1;font-size:11px;line-height:normal;margin-top:22px;padding:11px 16px;border-color:rgba(255,255,255,.55);color:#fff}
+.nb-footer-actions a.nb-btn-outline{margin-top:0}
+.nb-footer a.nb-btn-outline span{color:var(--gold-pale)}
+.nb-footer a.nb-btn-outline:hover{opacity:1;border-color:#fff;background:rgba(255,255,255,.08);color:#fff}
+.nb-footer-bottom{border-top:1px solid rgba(255,255,255,.35);padding-top:19px;text-align:center;color:rgba(255,255,255,.7);font-size:11px}
+.nb-footer-bottom a{display:inline;color:#fff;opacity:.84}
+
+/* ── RESPONSIVE ── */
+/* (The old 851–1239px .nb-metric strong rule retired with the standalone
+   metrics band, Task #4816 — the credibility rail's base clamp handles
+   the whole ≥851px range; see the rail comment.) */
+/* 851–1000px — team grid only: 6 columns at these widths squeeze 126–
+   176px cards so long names (two-word surnames) graze the card edges.
+   Stepping from 6 to 3 columns doubles each card's width, giving names
+   comfortable side clearance at 851–1000px under reduced-motion
+   emulation. Body sections other than the team grid are unaffected.
+   Collapsed rows lockstep (Task #5011): 3-col grid means the first two
+   rows hold 6 cards (n+7). */
+@media(min-width:851px) and (max-width:1000px){
+  .nb-team-grid{grid-template-columns:repeat(3,1fr)}
+  .nb-team[data-team-collapsed="1"] .nb-team-grid .nb-team-card:nth-child(n+7){display:none}
+}
+@media (prefers-reduced-motion: no-preference) and (min-width:851px) and (max-width:1000px){
+  .nb-team[data-team-expanded="1"] .nb-team-grid .nb-team-card:nth-child(n+7){animation:nb-team-rise .45s ease both}
+}
+/* 851–1149px — header only: Practice Areas Served expands the desktop row
+   (logo + 4 links + session CTA + wrap padding) beyond 1120px intrinsically.
+   Gap-only tightening would crush the link text, so the existing accessible
+   hamburger treatment covers the full 320–1149px range. Body-section
+   breakpoints are unchanged; 1150px+ renders the full desktop nav cleanly. */
+@media(min-width:851px) and (max-width:1149px){
+  .nb-nav-cta{margin-left:auto}
+  .nb-links{display:none}
+  .nb-nav-toggle{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:44px;height:44px;padding:0;background:none;border:0;cursor:pointer}
+  .nb-nav-toggle span{display:block;width:22px;height:2px;background:var(--earth);border-radius:1px;transition:transform .18s,opacity .18s}
+  .nb-menu-open .nb-nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .nb-menu-open .nb-nav-toggle span:nth-child(2){opacity:0}
+  .nb-menu-open .nb-nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .nb-header.nb-menu-open .nb-links{display:flex;flex-direction:column;align-items:stretch;gap:0;position:absolute;top:100%;left:0;right:0;margin:0;padding:8px 0 16px;background:var(--egg);border-bottom:1px solid var(--gold);box-shadow:0 22px 40px rgba(16,13,11,.16);z-index:60}
+  .nb-header.nb-menu-open .nb-links a{display:block;padding:14px 22px;font-size:13px}
+  .nb-header.nb-menu-open .nb-links a.nb-menu-cta{display:block;margin:10px 22px 2px;padding:16px 18px;text-align:center;font-size:11px;color:#fff}
+  .nb-header.nb-menu-open .nb-links a.nb-menu-book{display:block;margin:8px 22px 2px;padding:15px 18px;text-align:center;font-size:11px}
+}
+/* Qualification duel stacks at ≤1000px (Task #4168; the cards serve the
+   nb-fit band since Task #4926) — as a two-up the 851–1000px range
+   squeezed the cards to ~385–425px and every fit bullet double-wrapped.
+   Stacked, the cards hold a 640px column so most bullets keep one line.
+   Above 1000px the grid's 960px cap means the two-up is already at its
+   full desktop card width. */
+@media(max-width:1000px){
+  .nb-qual-grid{grid-template-columns:1fr;max-width:640px}
+  /* (The product funnel needs no rules here — its clamps and
+     percentage ladder are fluid straight down to the ≤850px ladder
+     swap.) */
+}
+/* The long footer primary needs a full-width brand row before the desktop
+   four-column grid can hold both actions side by side. Navigation remains
+   three equal columns below it until the existing two-column breakpoint. */
+@media(min-width:851px) and (max-width:1230px){
+  .nb-footer-grid{grid-template-columns:repeat(3,1fr)}
+  .nb-footer-grid>div:first-child{grid-column:1/-1}
+}
+@media(max-width:850px){
+  .nb-wrap{padding-left:22px;padding-right:22px}
+  .nb-nav{height:62px}
+  .nb-nav-cta{margin-left:auto}
+  /* Hamburger replaces the inline links; the open menu panel reuses .nb-links
+     (wired in home.js — initMobileNav). */
+  .nb-links{display:none}
+  .nb-nav-toggle{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:44px;height:44px;padding:0;background:none;border:0;cursor:pointer}
+  .nb-nav-toggle span{display:block;width:22px;height:2px;background:var(--earth);border-radius:1px;transition:transform .18s,opacity .18s}
+  .nb-menu-open .nb-nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .nb-menu-open .nb-nav-toggle span:nth-child(2){opacity:0}
+  .nb-menu-open .nb-nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .nb-header.nb-menu-open .nb-links{display:flex;flex-direction:column;align-items:stretch;gap:0;position:absolute;top:100%;left:0;right:0;margin:0;padding:8px 0 16px;background:var(--egg);border-bottom:1px solid var(--gold);box-shadow:0 22px 40px rgba(16,13,11,.16);z-index:60}
+  .nb-header.nb-menu-open .nb-links a{display:block;padding:14px 22px;font-size:13px}
+  .nb-header.nb-menu-open .nb-links a.nb-menu-cta{display:block;margin:10px 22px 2px;padding:16px 18px;text-align:center;font-size:11px;color:#fff}
+  .nb-header.nb-menu-open .nb-links a.nb-menu-book{display:block;margin:8px 22px 2px;padding:15px 18px;text-align:center;font-size:11px}
+  .nb-hero{display:block}
+  .nb-hero-copy{padding:56px 0 20px}
+  /* The mobile art is a composed teaser, not a second hero viewport. Its
+     fluid ceiling lets the book keep its physical presence through tablet
+     portrait while moving visitors into the credibility rail much sooner. */
+  .nb-hero-right{height:clamp(276px,45vw,382px);margin:0 -22px;overflow:hidden}
+  /* Phones fetch the compressed WebP derivative of the same approved art
+     (scripts/generate-marketing-hero-variants.ts), not the 1.9MB PNG. */
+  .nb-machinery-img{background-image:url('../../nobull-redesign/brand/machinery-hero-mobile.webp');background-position:54% 46%}
+  .nb-floor{height:46%}
+  .nb-book-stage{width:clamp(140px,24vw,194px);left:50%;top:42%;transform:translate(-50%,-50%) perspective(1000px) rotateY(-14deg) rotateX(1deg)}
+  .nb-book-shadow{left:50%;bottom:20%;width:clamp(175px,34vw,250px);transform:translateX(-50%) perspective(500px) rotateX(62deg) scaleY(.55)}
+  .nb-book-reflect{left:50%;bottom:10%;width:clamp(140px,24vw,194px);transform:translateX(-50%) perspective(1000px) rotateY(-14deg) scaleY(-1)}
+  .nb-book-caption{left:50%;bottom:3.5%;width:min(82%,260px);transform:translateX(-50%);font-size:12.5px}
+  /* AS SEEN ON stacks deliberately: centered label on its own line (the
+     desktop right-border divider would dangle alone — swapped for a short
+     centered gold rule echoing .nb-rule), then centered logo rows. 20px
+     logos + the .nb-press-pair glue keep every logo row at ≥2 logos at any
+     width down to 320px ([5] ≥528px, [3,2] ≥385px, [2,3] to 320px). */
+  .nb-cred{padding:20px 0 30px}
+  .nb-cred-press{gap:14px 16px}
+  .nb-press-strip-label{flex-basis:100%;text-align:center;border-right:0;padding-right:0}
+  .nb-press-strip-label::after{content:"";display:block;width:32px;height:2px;background:var(--gold);margin:9px auto 0}
+  .nb-press-logo{height:20px}
+  /* WCAG 2.5.8 / HIG touch sizing — width-gated so desktop stays identical. */
+  .nb-btn,.nb-actions .nb-btn{padding:16px 18px}
+  .nb-btn-outline{padding:15px 18px}
+  .nb-text-btn{padding:10px 0}
+  .nb-conversion{padding:72px 0 82px}
+  .nb-conversion-close{margin-bottom:42px}
+  .nb-conversion-grid{grid-template-columns:1fr;gap:24px}
+  .nb-conversion-booking{padding:36px 24px}
+  .nb-conversion-contact{padding:44px 28px}
+  .nb-conversion-heading{min-height:0}
+  .nb-contact-grid{grid-template-columns:1fr}
+  .nb-contact-message{grid-column:auto}
+  /* 2-up band: column-gap 0 keeps the mid-row hairline centered between
+     cells (cell padding provides the visual gap); even cells drop theirs. */
+  .nb-metric-grid{grid-template-columns:1fr 1fr;gap:40px 0;margin-top:28px}
+  .nb-metric strong{font-size:clamp(2rem,6vw,2.6rem)}
+  .nb-metric:nth-child(2n)::after{content:none}
+  /* Proof: signed cases move first at tablet widths, followed by the two
+     supporting receipts; the supporting case-study cards also stack. */
+  .nb-flag{padding:44px 32px}
+  .nb-flag-results{grid-template-columns:1fr}
+  .nb-flag-primary{grid-column:1;grid-row:1;padding:28px 0 30px;border-left:0;border-bottom:1px solid rgba(213,172,92,.24)}
+  .nb-flag-primary b{font-size:clamp(5.5rem,16vw,7.5rem)}
+  .nb-flag-supporting{grid-column:1;grid-row:2}
+  .nb-supports{grid-template-columns:1fr;gap:22px}
+  .nb-sup{padding:38px 30px}
+  .nb-client-testimonial{padding:24px 26px;margin-bottom:36px}
+  .nb-client-testimonial [data-featured-content]{min-height:var(--featured-quote-min-height,23rem)}
+  .nb-video-grid{grid-template-columns:1fr;gap:18px;max-width:560px;margin-left:auto;margin-right:auto}
+  .nb-quote-grid{gap:18px}
+  .nb-marquee-quotes+.nb-marquee-quotes{margin-top:18px}
+  .nb-testimonials[data-testi-mode="marquee"] .nb-video-grid,.nb-testimonials[data-testi-mode="marquee"] .nb-quote-grid{gap:18px}
+  .nb-footer-grid{grid-template-columns:1fr 1fr}
+  .nb-footer-grid>div:first-child{grid-column:1/-1}
+  .nb-footer a{padding:5px 0}
+  /* Touch sizing for both footer conversion actions. */
+  .nb-footer a.nb-footer-session,.nb-footer a.nb-btn-outline{min-height:44px;padding:15px 18px}
+  .nb-footer-bottom a{display:inline-block;padding:8px 4px}
+  .nb-book-grid{grid-template-columns:1fr;gap:44px}
+  .nb-book-copy{padding-left:0}
+  .nb-team-grid{grid-template-columns:1fr 1fr;gap:16px}
+  /* Collapsed rows ↔ columns lockstep (Task #5011): 2-col grid here, so
+     the first two rows = 4 cards. */
+  .nb-team[data-team-collapsed="1"] .nb-team-grid .nb-team-card:nth-child(n+5){display:none}
+  /* Gap columns stack (Task #3991): chart → receipt → closer (the
+     handoff diagnosis line since Task #4923 — the #4259 kicker and its
+     bridge body are retired; the trades ledger folded away in Task
+     #4166). */
+  .nb-gap-cols{display:block}
+  .nb-gap-payoff{margin:52px 0 0}
+  .nb-gap-close{margin:48px 0 0}
+  /* Gap duel stacks: stage label above, leaky bar then tuned bar, BOTH
+     anchored left (the center seam is gone); color carries side identity. */
+  .nb-gap-duel-head{grid-template-columns:1fr 1fr;gap:8px}
+  .nb-gap-duel-tag{display:none}
+  .nb-gap-row{grid-template-columns:1fr;gap:8px;padding:15px 0}
+  .nb-gap-stage{order:-1;text-align:left}
+  .nb-gap-bar{height:28px}
+  .nb-gap-num{font-size:1.25rem}
+  .nb-gap-fill-leaky{right:auto;left:0;transform-origin:0 50%}
+  /* Left-anchored mirror of the desktop --numslot geometry (Task #4030):
+     the ghost starts a slot past the fill's tip; the number (fill + 10px)
+     sits inside that slot, outside the dashed outline. */
+  .nb-gap-ghost{right:auto;left:calc(var(--w) + var(--numslot))}
+  .nb-gap-cell-leaky .nb-gap-num{right:auto;left:calc(var(--w) + 10px)}
+  .nb-gap-cell-leaky .nb-gap-num-in{left:auto;right:12px}
+  /* ── PRODUCT SECTION ≤850 (Task #4992, owner brief mobile rules):
+     the funnel STAYS a top-down funnel — same stage order, gentler
+     ladder (100/94/88 → 82, plaque 70%) with shallower angles;
+     capability lines may wrap onto two centered lines; the full
+     message stays visible with nothing behind hover or tap. Copy
+     columns widen into the gentler trapezoid; numerals and emblems
+     scale down and step in less. */
+  .nb-funnel{padding:14px 0 74px}
+  .nb-fn-head{font-size:clamp(2.1rem,6.4vw,2.6rem)}
+  .nb-fn-object{margin-top:44px}
+  .nb-fn-body{clip-path:polygon(0 0,100% 0,91% 100%,9% 100%)}
+  .nb-fn-stack{clip-path:polygon(3.1px 3px,calc(100% - 3.1px) 3px,calc(91% - 3.1px) calc(100% - 3px),calc(9% + 3.1px) calc(100% - 3px))}
+  .nb-fn-stage{padding:40px 18px 44px}
+  .nb-fn-num{left:4.5%;font-size:clamp(72px,18vw,110px)}
+  .nb-fn-art{right:4.5%;width:clamp(64px,11vw,96px);opacity:.14}
+  .nb-fn-s2 .nb-fn-num{left:7.5%}
+  .nb-fn-s2 .nb-fn-art{right:7.5%}
+  .nb-fn-s3 .nb-fn-num{left:10.5%}
+  .nb-fn-s3 .nb-fn-art{right:10.5%}
+  .nb-fn-copy{max-width:86%}
+  .nb-fn-s2 .nb-fn-copy{max-width:80%}
+  .nb-fn-s3 .nb-fn-copy{max-width:74%}
+  .nb-fn-plaque{width:70%}
+  .nb-fn-cta{margin-top:64px}
+}
+/* Short, narrow landscapes need the same contained interlude rather than a
+   portrait composition forced into the remaining viewport height. */
+@media(max-width:850px) and (max-height:560px) and (orientation:landscape){
+  .nb-hero-copy{padding-top:34px;padding-bottom:16px}
+  .nb-hero-right{height:min(238px,62vh)}
+  .nb-book-stage{width:clamp(104px,16vw,136px);top:38%}
+  .nb-book-shadow{bottom:18%;width:clamp(144px,28vw,210px)}
+  .nb-book-reflect{bottom:9%;width:clamp(104px,16vw,136px);height:42px}
+  .nb-book-caption{bottom:3%;font-size:11.5px;line-height:1.4}
+}
+@media(max-width:520px){
+  .nb-h1{font-size:2.3rem}
+  .nb-actions{align-items:flex-start;flex-direction:column;gap:18px}
+  .nb-nav-cta{display:none}
+  .nb-metric-grid{grid-template-columns:1fr;gap:34px}
+  /* 11vw keeps "1,000,000+" inside a 320px viewport (WCAG 1.4.10 reflow). */
+  .nb-metric strong{font-size:clamp(2rem,11vw,2.6rem)}
+  .nb-metric::after{content:none}
+  .nb-flag{padding:34px 22px}
+  .nb-sup{padding:30px 22px}
+  .nb-flag-headline{font-size:clamp(2.45rem,12vw,3.3rem);margin-bottom:30px}
+  .nb-flag-primary{padding:24px 0 26px}
+  .nb-flag-primary b{font-size:clamp(4.9rem,26vw,6.3rem)}
+  .nb-flag-supporting{grid-template-columns:1fr}
+  .nb-flag-evidence{padding:22px 0}
+  .nb-flag-evidence+.nb-flag-evidence{padding-left:0;border-top:1px solid rgba(213,172,92,.2);border-left:0}
+  .nb-flag-evidence b{font-size:clamp(2.5rem,13vw,3.1rem)}
+  .nb-flag-primary span,.nb-flag-evidence span{font-size:9px;letter-spacing:.11em}
+  .nb-sup-cells{gap:20px}
+  .nb-video-grid{gap:16px}
+  .nb-quote-grid{grid-template-columns:1fr}
+  .nb-footer-grid{grid-template-columns:1fr}
+  .nb-footer-grid>div:first-child{grid-column:auto}
+  .nb-footer-actions{flex-direction:column}
+  .nb-footer-actions a{width:100%;white-space:normal;text-align:center}
+  .nb-footer-actions a span{flex:none}
+  .nb-book-sec{padding:72px 0}
+  #booking,#contact{scroll-margin-top:72px}
+  .nb-conversion{padding:60px 0 68px}
+  .nb-conversion-close{margin-bottom:34px}
+  .nb-conversion-close h2{font-size:2.35rem}
+  .nb-conversion-close .nb-rule{margin-top:24px;margin-bottom:14px}
+  .nb-conversion-booking{padding:34px 24px}
+  .nb-conversion-contact{padding:36px 20px}
+  .nb-conversion-heading{margin-bottom:24px}
+  .nb-conversion-heading h3{font-size:2rem}
+  .nb-booking-handoff{padding-top:24px}
+  .nb-booking-facts{margin:22px 0 28px}
+  .nb-contact-actions .nb-btn{width:100%;white-space:normal}
+  .nb-team-grid{grid-template-columns:1fr}
+  /* Collapsed rows ↔ columns lockstep (Task #5011): 1-col grid here, so
+     the first two rows = 2 cards. */
+  .nb-team[data-team-collapsed="1"] .nb-team-grid .nb-team-card:nth-child(n+3){display:none}
+  .nb-faq-item p{padding-right:0}
+  .nb-gap-num{font-size:1.1rem}
+  .nb-gap-bar{height:24px}
+  .nb-qual-card{padding:24px 20px}
+  .nb-gap{padding:60px 0 56px}
+  /* Product funnel tightens with the small-screen band rhythm (#4992).
+     Caps hold the brief's ≤2 centered lines on phones: smaller type +
+     a wider text box, still clear of the shallow angles (the clipped
+     bottom spans run ~94/88/82%, so 92/86/80% copy widths fit). */
+  .nb-funnel{padding:10px 0 64px}
+  .nb-fn-stage{padding:34px 14px 38px}
+  .nb-fn-copy{max-width:92%}
+  .nb-fn-s2 .nb-fn-copy{max-width:86%}
+  .nb-fn-s3 .nb-fn-copy{max-width:80%}
+  .nb-fn-caps{font-size:10.5px;letter-spacing:.05em;line-height:1.62}
+  /* The long booking label stays on ONE line inside a 320–390px frame:
+     tighter tracking beats wrapping a button. */
+  .nb-btn.nb-fn-book{font-size:10.5px;letter-spacing:.08em;padding:11px 14px}
+  .nb-fn-plaque{padding:20px 14px 22px}
+  .nb-fit .nb-qual-grid{gap:18px;margin:32px auto 0}
+}
+
+@media(max-width:380px){
+  /* Narrower than the unified session CTA's one-line minimum (hero,
+     proof, and closing carry "Book a High Impact Revenue Session" and
+     the product funnel its YOUR variant — the five-slot budget since
+     Task #4992): let pills wrap into balanced
+     centered lines instead of
+     dragging a page-wide horizontal scrollbar. Short labels (READ THE
+     BOOK →, the #5017 hero/footer secondary) still render one line —
+     wrapping only engages when needed. */
+  .nb-btn,.nb-btn-outline{white-space:normal;text-wrap:balance;text-align:center;line-height:1.6}
+  .nb-conversion .nb-wrap{padding-left:12px;padding-right:12px}
+  .nb-conversion-booking{padding-left:18px;padding-right:18px}
+  .nb-conversion-contact{padding-left:10px;padding-right:10px}
+}
+
+@media (max-width:380px){
+  .nb-book-cta{font-size:10.5px;letter-spacing:.1em;padding:14px 16px}
+}

@@ -1,0 +1,6 @@
+/* Task #3372 harness CSS: the Vite root is this harness directory, so
+   Tailwind v4's automatic source detection would only scan the harness.
+   Point it at the real client source so every utility used by the
+   components under test (e.g. overflow-y-auto) is generated. */
+@import "../../../client/src/index.css";
+@source "../../../client/src";

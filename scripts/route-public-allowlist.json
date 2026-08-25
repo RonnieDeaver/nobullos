@@ -1,0 +1,394 @@
+{
+  "$comment": "Task #4180 \u2014 owner-reviewed frozen allow-list for OBSERVED-PUBLIC routes (routes whose registration carries no recognized auth middleware, per tests/route-inventory.ts). 'observed_public' means the static parser saw no auth middleware in the registration \u2014 many entries below ARE protected by in-handler checks the parser cannot see (X-Cron-Key, HMAC signatures, capability tokens, spread `...guard` arrays, custom middleware references). Enforced by scripts/lint-route-classification.ts: any net-new observed-public route not listed here fails the gate. Adding an entry here is an L3 change requiring owner approval (Architecture Governor); removing entries (routes deleted or given real middleware) is always allowed and REQUIRED when they go stale. Classes: signed_webhook_in_handler | machine_token_in_handler | capability_token | oauth_callback | custom_middleware_unrecognized | intentional_public.",
+  "entries": [
+    {
+      "method": "GET",
+      "path": "/api/ads-os/cron/clickup-health",
+      "class": "machine_token_in_handler",
+      "reason": "X-Cron-Key checked in handler (fail closed when unset)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ads-os/cron/refresh-pacing",
+      "class": "machine_token_in_handler",
+      "reason": "X-Cron-Key checked in handler (fail closed when unset)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ats/portal/:token",
+      "class": "capability_token",
+      "reason": "candidate portal \u2014 unguessable token in URL is the credential"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ats/portal/:token/submit",
+      "class": "capability_token",
+      "reason": "candidate portal token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ats/portal/:token/complete-screening",
+      "class": "capability_token",
+      "reason": "candidate portal token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ats/portal/:token/complete-video",
+      "class": "capability_token",
+      "reason": "candidate portal token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ats/portal/:token/video-upload-url",
+      "class": "capability_token",
+      "reason": "candidate portal token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ats/portal/:token/submit-video",
+      "class": "capability_token",
+      "reason": "candidate portal token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/stripe/webhook",
+      "class": "signed_webhook_in_handler",
+      "reason": "Stripe signature verified in handler"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/google-calendar/callback",
+      "class": "oauth_callback",
+      "reason": "OAuth redirect target \u2014 state validated in handler"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/:slug/recurrence/preview-availability",
+      "class": "intentional_public",
+      "reason": "public booking page availability preview (read-only, slug-scoped)"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/booking/:id",
+      "class": "custom_middleware_unrecognized",
+      "reason": "isAuthenticatedOrSignedCancel middleware (session OR signed cancel token) \u2014 parser does not recognize custom middleware references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ceo-tools/call-analysis/:analysisId",
+      "class": "custom_middleware_unrecognized",
+      "reason": "inline dual-auth middleware: Bearer \u21d2 requireCeoToolsAuth, else session + requireTeamLead"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/clickup/callback",
+      "class": "oauth_callback",
+      "reason": "OAuth redirect target \u2014 state validated in handler"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/clickup",
+      "class": "signed_webhook_in_handler",
+      "reason": "ClickUp webhook \u2014 verification in handler"
+    },
+    {
+      "method": "GET",
+      "path": "/share/file/:token",
+      "class": "capability_token",
+      "reason": "client file share link \u2014 token is the credential"
+    },
+    {
+      "method": "POST",
+      "path": "/api/comms/incoming/:token",
+      "class": "capability_token",
+      "reason": "incoming-webhook bookmark token (min length checked, IP rate-limited)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/comms/webhook/livekit",
+      "class": "signed_webhook_in_handler",
+      "reason": "LiveKit webhook \u2014 API-key/secret signature verified, fail closed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/front/callback",
+      "class": "oauth_callback",
+      "reason": "OAuth redirect target \u2014 state validated in handler"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/zoom/callback",
+      "class": "oauth_callback",
+      "reason": "OAuth redirect target \u2014 state validated in handler"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/conversation-dedupe-conflicts",
+      "class": "custom_middleware_unrecognized",
+      "reason": "spread `...guard` = isAuthenticated + requireTeamLead \u2014 parser cannot see spread middleware arrays"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/conversation-dedupe-conflicts/resolve",
+      "class": "custom_middleware_unrecognized",
+      "reason": "spread `...guard` = isAuthenticated + requireTeamLead"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "class": "intentional_public",
+      "reason": "health probe endpoint (fail-soft summary, no client data)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/history",
+      "class": "intentional_public",
+      "reason": "health history for status surfaces"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/history/export",
+      "class": "intentional_public",
+      "reason": "health history export"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/heatmaps/:snapshotId/geojson",
+      "class": "capability_token",
+      "reason": "public heatmap share \u2014 per-object ACL claim enforced (401 otherwise)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/heatmaps/:snapshotId/meta",
+      "class": "capability_token",
+      "reason": "public heatmap share \u2014 per-object ACL claim enforced"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/front/webhook",
+      "class": "signed_webhook_in_handler",
+      "reason": "Front webhook \u2014 HMAC verification in handler"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/ghl/marketplace-webhook",
+      "class": "signed_webhook_in_handler",
+      "reason": "GHL Marketplace webhook \u2014 Ed25519 signature over raw body and configured location scope verified in handler; fail closed when trust configuration is unavailable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/zoom/webhook",
+      "class": "signed_webhook_in_handler",
+      "reason": "Zoom webhook \u2014 signature + url_validation challenge handled in handler"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcu/practice-areas",
+      "class": "intentional_public",
+      "reason": "MCU public reference data"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mcu/evaluate",
+      "class": "intentional_public",
+      "reason": "MCU public evaluation endpoint (original-app behavior)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/config/maptiler-key",
+      "class": "intentional_public",
+      "reason": "public map key for embedded/shared map views"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ceo-pulse/share/:token",
+      "class": "capability_token",
+      "reason": "share-link token is the credential"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ceo-pulse-charts/:monthKey/chart-:index.png",
+      "class": "intentional_public",
+      "reason": "chart images referenced by shared report views",
+      "external_caller": "server-rendered CEO Pulse letter HTML \u2014 URLs embedded by resolveChartPlaceholders (server/services/chartImageGenerator.ts); fetched by the viewer's browser when rendering the letter"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ceo-pulse-charts/:monthKey/image-:slot",
+      "class": "intentional_public",
+      "reason": "Task #4293 \u2014 uploaded supporting images for shared briefs; same published-pulse gate as the chart route (unpublished \u21d2 404 unless an authenticated CEO previews a draft), extension resolved only from stored metadata",
+      "external_caller": "public brief share page and server-rendered letter HTML \u2014 URLs embedded by resolveImagePlaceholders (server/services/ceoPulseSupportingImages.ts); fetched by the viewer's browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/report-import",
+      "class": "machine_token_in_handler",
+      "reason": "Bearer CEO_TOOLS_API_TOKEN or x-webhook-secret validated BEFORE any write (audit A-002); hard-fails in prod when unconfigured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/share/:token",
+      "class": "capability_token",
+      "reason": "public report share link \u2014 token is the credential"
+    },
+    {
+      "method": "GET",
+      "path": "/api/demo-report",
+      "class": "intentional_public",
+      "reason": "marketing demo report (no client data)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/rev-ai",
+      "class": "signed_webhook_in_handler",
+      "reason": "Rev.ai callback \u2014 Authorization secret compared timing-safe, fail closed when unset"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/roadmap",
+      "class": "intentional_public",
+      "reason": "public roadmap view"
+    },
+    {
+      "method": "GET",
+      "path": "/api/phase-settings",
+      "class": "intentional_public",
+      "reason": "phase settings consumed by public report views"
+    },
+    {
+      "method": "POST",
+      "path": "/api/twilio/webhooks/voice-twiml-browser",
+      "class": "signed_webhook_in_handler",
+      "reason": "Twilio TwiML App voice URL \u2014 Twilio signature validation handled for webhook family in-handler/limiter path"
+    },
+    {
+      "method": "POST",
+      "path": "/api/twilio/webhooks/voice-whisper",
+      "class": "signed_webhook_in_handler",
+      "reason": "Twilio whisper webhook \u2014 same family as voice-twiml-browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/twelvelabs/webhook",
+      "class": "signed_webhook_in_handler",
+      "reason": "TL-Signature HMAC over raw body + bounded replay window; fail closed when secret unset"
+    },
+    {
+      "method": "POST",
+      "path": "/api/website/inquiry",
+      "class": "intentional_public",
+      "reason": "marketing website contact form (rate-limited)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/website/inquiry/config",
+      "class": "intentional_public",
+      "reason": "bounded read-only Turnstile site-key configuration for the public marketing contact form"
+    },
+    {
+      "method": "GET",
+      "path": "/api/email/unsubscribe",
+      "class": "capability_token",
+      "reason": "Task #4334 \u2014 per-recipient unsubscribe capability token ({sendId}.{random128}, constant-time compare); GET only renders the confirm page, never suppresses"
+    },
+    {
+      "method": "POST",
+      "path": "/api/email/unsubscribe",
+      "class": "capability_token",
+      "reason": "Task #4334 \u2014 unsubscribe redemption (same capability token; RFC 8058 one-click POST target)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/sendgrid-events",
+      "class": "signed_webhook_in_handler",
+      "reason": "Task #4334 \u2014 SendGrid signed event webhook (ECDSA P-256 over timestamp+rawBody, SENDGRID_WEBHOOK_PUBLIC_KEY, fail-closed 503 when unset)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/book/checkout/catalog",
+      "class": "intentional_public",
+      "reason": "Task #5097 \u2014 public book-commerce package catalog (read-only; no client data; bookCheckoutLimiter IP-keyed)",
+      "external_caller": "Paid-book funnel browser (checkout UI is delivered separately from this server-side engine)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/checkout/start",
+      "class": "intentional_public",
+      "reason": "Task #5097 \u2014 public checkout initiation; creates contact+session, returns capability resumeToken; bookCheckoutLimiter IP-keyed",
+      "external_caller": "Paid-book funnel browser (checkout UI is delivered separately from this server-side engine)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/checkout/resume",
+      "class": "capability_token",
+      "reason": "Task #5097 \u2014 resumeToken (256-bit domain-separated HMAC output) in body is the credential; generic 404/410 on miss"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/checkout/contact",
+      "class": "capability_token",
+      "reason": "Task #5097 \u2014 resumeToken capability token; email must match original; SMS consent not claimable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/checkout/totals",
+      "class": "capability_token",
+      "reason": "Task #5097 \u2014 resumeToken capability token; authoritative server-side quote via Stripe Tax; U.S.-only"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/checkout/payment-intent",
+      "class": "capability_token",
+      "reason": "Task #5097 \u2014 resumeToken capability token; uses stored unexpired quote; returns only clientSecret + server totals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/journey/start",
+      "class": "capability_token",
+      "reason": "Task #5103 \u2014 completed-checkout resumeToken is the credential; creates or replays a buyer application under the dedicated book limiter"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/journey/submit",
+      "class": "capability_token",
+      "reason": "Task #5103 \u2014 signed, expiring application token is the credential; strict bounded answers under the dedicated book limiter"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/journey/status",
+      "class": "capability_token",
+      "reason": "Task #5103 \u2014 signed, expiring application token is the credential; returns routing and privacy-safe mirrored appointment facts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/delivery/exchange",
+      "class": "capability_token",
+      "reason": "Task #5098 \u2014 one-time paid-book capability is supplied only in the request body and exchanged for a short-lived HttpOnly browser session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/book/delivery/resend",
+      "class": "intentional_public",
+      "reason": "Task #5098 \u2014 generic, rate-limited paid-book access resend; response never reveals whether an email/order exists",
+      "external_caller": "Paid-book buyer who needs a replacement access message"
+    },
+    {
+      "method": "GET",
+      "path": "/api/book/delivery/assets",
+      "class": "capability_token",
+      "reason": "Task #5098 \u2014 short-lived HttpOnly paid-book browser-session capability; returns safe asset metadata only"
+    },
+    {
+      "method": "GET",
+      "path": "/api/book/delivery/order-status",
+      "class": "capability_token",
+      "reason": "Task #5104 \u2014 short-lived HttpOnly paid-book browser-session capability; returns a privacy-minimized order and launch-safe fulfillment projection"
+    },
+    {
+      "method": "GET",
+      "path": "/api/book/delivery/download/:assetId",
+      "class": "capability_token",
+      "reason": "Task #5098 \u2014 short-lived HttpOnly paid-book browser-session capability; rechecks live entitlement before streaming a private object"
+    }
+  ]
+}

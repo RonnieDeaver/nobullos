@@ -1,0 +1,396 @@
+{
+  "$comment": "Task #4180 — frozen baseline of files that DIRECTLY import each vendor SDK package (import/export-from/require/dynamic import of the package or any subpath). Task #4193 — vendors with 'detection': 'host' are fetch-based (no npm SDK): their files are the frozen set that references the vendor API host(s) in code (comments masked). Enforced by scripts/lint-vendor-confinement.ts: a net-new importer/host-caller outside this baseline fails the gate — route new vendor calls through the vendor's owning adapter instead. Existing importers are grandfathered (no forced refactor, per audits/architecture-governor-hardening-epic-approval.md). Task #4249 — vendors with 'envVars' also confine files that reference those vendor-URL env-var names in code (env-built URLs never show a literal host). Adding a file here is an L3 change requiring owner approval; removing stale entries (file deleted or no longer importing) is required shrink-only maintenance. 'adapter' is the designated owning adapter (informational; null = no canonical adapter designated yet — owner decision deferred, baseline frozen only). Task #5008 — every files/hosts/envVars entry must carry a matching per-entry record in the vendor's 'approvals' map (key file:<path> / host:<host> / env:<NAME> -> owner-approval reference); the lint fails on any unapproved entry and on any orphan approval, so baseline GROWTH (including regenerated output) is mechanically loud while shrinks stay free.",
+  "vendors": {
+    "openai": {
+      "adapter": "server/services/ai/openAiClient.ts",
+      "envVars": [
+        "AI_INTEGRATIONS_OPENAI_BASE_URL"
+      ],
+      "files": [
+        "scripts/generate-integration-reliability-inventory.ts",
+        "server/services/adsOs/config.ts",
+        "server/services/ai/openAiClient.ts"
+      ],
+      "approvals": {
+        "file:scripts/generate-integration-reliability-inventory.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/adsOs/config.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/ai/openAiClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "env:AI_INTEGRATIONS_OPENAI_BASE_URL": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "twilio": {
+      "adapter": "server/services/twilioService.ts",
+      "files": [
+        "scripts/remediate-twilio-failures.ts",
+        "scripts/verify-task-944c-voice-webhooks.ts",
+        "server/routes/twilio.ts",
+        "server/services/twilioService.ts",
+        "tests/twilio-429-retry.test.ts",
+        "tests/twilio-api-compliance.test.ts",
+        "tests/twilio-browser-calling-endpoints.test.ts",
+        "tests/twilio-events-sse-e2e.test.ts",
+        "tests/twilio-messaging-service-sid.test.ts",
+        "tests/twilio-sms-status-callback.test.ts",
+        "tests/twilio-sms-webhook-signature-e2e.test.ts"
+      ],
+      "approvals": {
+        "file:scripts/remediate-twilio-failures.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:scripts/verify-task-944c-voice-webhooks.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/routes/twilio.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/twilioService.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-429-retry.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-api-compliance.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-browser-calling-endpoints.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-events-sse-e2e.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-messaging-service-sid.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-sms-status-callback.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twilio-sms-webhook-signature-e2e.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "stripe": {
+      "adapter": "server/stripeClient.ts",
+      "files": [
+        "server/stripeClient.ts",
+        "tests/new-integration-probes-classification.test.ts",
+        "tests/stripe-api-version-pin.test.ts"
+      ],
+      "approvals": {
+        "file:server/stripeClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/new-integration-probes-classification.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/stripe-api-version-pin.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "twelvelabs-js": {
+      "adapter": "server/services/videoAnalysis.ts",
+      "files": [
+        "scripts/analyze-loom-crm.ts",
+        "scripts/analyze-screenshare.ts",
+        "server/services/videoAnalysis.ts",
+        "tests/twelvelabs-webhook.test.ts"
+      ],
+      "approvals": {
+        "file:scripts/analyze-loom-crm.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:scripts/analyze-screenshare.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/videoAnalysis.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/twelvelabs-webhook.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "livekit-server-sdk": {
+      "adapter": "server/routes/comms/shared.ts",
+      "envVars": [
+        "LIVEKIT_SERVER_URL"
+      ],
+      "files": [
+        "scripts/generate-integration-reliability-inventory.ts",
+        "server/routes/comms/calls.ts",
+        "server/routes/comms/shared.ts",
+        "server/services/livekitRecording.ts",
+        "tests/comms-calls.test.ts"
+      ],
+      "approvals": {
+        "file:scripts/generate-integration-reliability-inventory.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/routes/comms/calls.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/routes/comms/shared.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/livekitRecording.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/comms-calls.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "env:LIVEKIT_SERVER_URL": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "@google-cloud/bigquery": {
+      "adapter": "server/services/ris/bigQueryClient.ts",
+      "files": [
+        "server/services/ris/bigQueryClient.ts"
+      ],
+      "approvals": {
+        "file:server/services/ris/bigQueryClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "@google-cloud/storage": {
+      "adapter": "server/replit_integrations/object_storage/objectStorage.ts",
+      "files": [
+        "server/replit_integrations/object_storage/audit.ts",
+        "server/replit_integrations/object_storage/objectAcl.ts",
+        "server/replit_integrations/object_storage/objectStorage.ts"
+      ],
+      "approvals": {
+        "file:server/replit_integrations/object_storage/audit.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/replit_integrations/object_storage/objectAcl.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/replit_integrations/object_storage/objectStorage.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "@upstash/redis": {
+      "adapter": "server/services/cache/redisCache.ts",
+      "files": [
+        "server/services/cache/redisCache.ts",
+        "tests/lint-redis-cache-env-detection.test.ts"
+      ],
+      "approvals": {
+        "file:server/services/cache/redisCache.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/lint-redis-cache-env-detection.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "@replit/object-storage": {
+      "adapter": "server/replit_integrations/object_storage/objectStorage.ts",
+      "files": [
+        "server/routes/twilio.ts"
+      ],
+      "approvals": {
+        "file:server/routes/twilio.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "google-auth-library": {
+      "adapter": "server/services/googleCalendarIntegration.ts",
+      "files": [
+        "server/services/googleCalendarIntegration.ts"
+      ],
+      "approvals": {
+        "file:server/services/googleCalendarIntegration.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "front": {
+      "adapter": "server/services/frontIntegration.ts",
+      "detection": "host",
+      "hosts": [
+        "frontapp.com"
+      ],
+      "files": [
+        "server/services/frontAnalyticsClient.ts",
+        "server/services/frontHistoricalRecovery.ts",
+        "server/services/frontIntegration.ts",
+        "server/services/frontWebhookIngestion.ts",
+        "tests/front-analytics-coverage-fix.test.ts",
+        "tests/front-analytics-per-message-enumeration.test.ts",
+        "tests/front-analytics-search-fallback.test.ts",
+        "tests/front-applied-conv-materializer.test.ts",
+        "tests/front-auth-breaker.test.ts",
+        "tests/front-auth-rotation-race-recovery.test.ts",
+        "tests/front-email-thread-content-fallback.test.ts",
+        "tests/front-historical-recovery-observability.test.ts",
+        "tests/front-probe-badge-durable.test.ts",
+        "tests/front-rate-limit-pacing.test.ts",
+        "tests/front-recovery-dedupe-key.test.ts",
+        "tests/front-rematch-unmatched-backlog.test.ts",
+        "tests/integrations-all-status-front-fields.test.ts",
+        "tests/integrations-front-last-sync-error-route.test.ts",
+        "tests/prod-action-rematch-unmatched-backlog.test.ts"
+      ],
+      "approvals": {
+        "file:server/services/frontAnalyticsClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/frontHistoricalRecovery.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/frontIntegration.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/frontWebhookIngestion.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-analytics-coverage-fix.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-analytics-per-message-enumeration.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-analytics-search-fallback.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-applied-conv-materializer.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-auth-breaker.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-auth-rotation-race-recovery.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-email-thread-content-fallback.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-historical-recovery-observability.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-probe-badge-durable.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-rate-limit-pacing.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-recovery-dedupe-key.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/front-rematch-unmatched-backlog.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/integrations-all-status-front-fields.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/integrations-front-last-sync-error-route.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/prod-action-rematch-unmatched-backlog.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:frontapp.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "zoom": {
+      "adapter": "server/services/zoomIntegration.ts",
+      "detection": "host",
+      "hosts": [
+        "api.zoom.us",
+        "zoom.us/oauth"
+      ],
+      "files": [
+        "server/services/zoomIntegration.ts",
+        "tests/integrations-all-status-zoom-fields.test.ts",
+        "tests/new-integration-probes-classification.test.ts",
+        "tests/oauth-refresh-cross-process-lease-per-provider.test.ts",
+        "tests/prod-actions-zoom-s2s-cutover.test.ts",
+        "tests/zoom-auth-confirm-before-trip.test.ts",
+        "tests/zoom-auth-expiry-gate.test.ts",
+        "tests/zoom-auth-gate-durable.test.ts",
+        "tests/zoom-auth-recovery.test.ts",
+        "tests/zoom-reconnect-clears-scope-gates.test.ts",
+        "tests/zoom-revai-fallback.test.ts",
+        "tests/zoom-s2s-oauth.test.ts",
+        "tests/zoom-selfheal-next-attempt.test.ts",
+        "tests/zoom-terminal-rotation-recheck.test.ts",
+        "tests/zoom-token-keepalive.test.ts",
+        "tests/zoom-transcript-unavailable-sweep.test.ts"
+      ],
+      "approvals": {
+        "file:server/services/zoomIntegration.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/integrations-all-status-zoom-fields.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/new-integration-probes-classification.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/oauth-refresh-cross-process-lease-per-provider.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/prod-actions-zoom-s2s-cutover.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-auth-confirm-before-trip.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-auth-expiry-gate.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-auth-gate-durable.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-auth-recovery.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-reconnect-clears-scope-gates.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-revai-fallback.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-s2s-oauth.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-selfheal-next-attempt.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-terminal-rotation-recheck.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-token-keepalive.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-transcript-unavailable-sweep.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:api.zoom.us": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:zoom.us/oauth": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "semrush": {
+      "adapter": "server/services/semrushApi.ts",
+      "detection": "host",
+      "hosts": [
+        "api.semrush.com",
+        "oauth.semrush.com"
+      ],
+      "files": [
+        "server/routes/heatmap.ts",
+        "server/services/semrushApi.ts",
+        "tests/integration-disconnect-forensics.test.ts",
+        "tests/integrations-all-status-semrush-fields.test.ts",
+        "tests/oauth-refresh-cross-process-lease-per-provider.test.ts",
+        "tests/semrush-auth-breaker.test.ts",
+        "tests/semrush-keepalive-rotation-contract.test.ts",
+        "tests/semrush-key-mode-rejection-alert.test.ts",
+        "tests/semrush-terminal-rotation-recheck.test.ts",
+        "tests/semrush-wipe-audit.test.ts"
+      ],
+      "approvals": {
+        "file:server/routes/heatmap.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/semrushApi.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/integration-disconnect-forensics.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/integrations-all-status-semrush-fields.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/oauth-refresh-cross-process-lease-per-provider.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/semrush-auth-breaker.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/semrush-keepalive-rotation-contract.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/semrush-key-mode-rejection-alert.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/semrush-terminal-rotation-recheck.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/semrush-wipe-audit.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:api.semrush.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:oauth.semrush.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "clickup": {
+      "adapter": "server/services/clickUpClient.ts",
+      "detection": "host",
+      "hosts": [
+        "api.clickup.com"
+      ],
+      "files": [
+        "server/services/adsOs/clickUpTasks.ts",
+        "server/services/clickUpClient.ts",
+        "server/services/clickUpIntegration.ts"
+      ],
+      "approvals": {
+        "file:server/services/adsOs/clickUpTasks.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/clickUpClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/clickUpIntegration.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:api.clickup.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "rev.ai": {
+      "adapter": "server/services/revAiClient.ts",
+      "detection": "host",
+      "hosts": [
+        "api.rev.ai"
+      ],
+      "files": [
+        "server/services/revAiClient.ts",
+        "tests/ats-portal-submit-video-dedupe.test.ts",
+        "tests/ats-portal-submit-video-lock-race.test.ts",
+        "tests/ats-transcription-callback-flow.test.ts",
+        "tests/ats-transcription-sweep.test.ts",
+        "tests/revai-callback-route.test.ts",
+        "tests/zoom-revai-fallback.test.ts"
+      ],
+      "approvals": {
+        "file:server/services/revAiClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/ats-portal-submit-video-dedupe.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/ats-portal-submit-video-lock-race.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/ats-transcription-callback-flow.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/ats-transcription-sweep.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/revai-callback-route.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/zoom-revai-fallback.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:api.rev.ai": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "google-ads": {
+      "adapter": "server/services/googleAdsIntegration.ts",
+      "detection": "host",
+      "hosts": [
+        "googleads.googleapis.com"
+      ],
+      "files": [
+        "server/services/adsOs/googleAdsClient.ts",
+        "server/services/googleAdsIntegration.ts",
+        "server/services/googleAdsLabelMutate.ts",
+        "tests/google-ads-env-mint-platform-surfaces.test.ts"
+      ],
+      "approvals": {
+        "file:server/services/adsOs/googleAdsClient.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/googleAdsIntegration.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/googleAdsLabelMutate.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/google-ads-env-mint-platform-surfaces.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:googleads.googleapis.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "maptiler": {
+      "adapter": null,
+      "detection": "host",
+      "hosts": [
+        "api.maptiler.com"
+      ],
+      "scanRoots": [
+        "server",
+        "shared",
+        "scripts",
+        "tests",
+        "client/src"
+      ],
+      "files": [
+        "client/src/components/HexGridMap.tsx",
+        "client/src/components/InteractiveHeatmap.tsx",
+        "server/embedCsp.ts"
+      ],
+      "approvals": {
+        "file:client/src/components/HexGridMap.tsx": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:client/src/components/InteractiveHeatmap.tsx": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/embedCsp.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:api.maptiler.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    },
+    "slack-webhook": {
+      "adapter": "server/services/adsOs/slackWebhook.ts",
+      "detection": "host",
+      "hosts": [
+        "hooks.slack.com"
+      ],
+      "envVars": [
+        "SLACK_WEBHOOK_URL"
+      ],
+      "files": [
+        "scripts/generate-integration-reliability-inventory.ts",
+        "server/services/adsOs/alertsNotify.ts",
+        "server/services/adsOs/config.ts",
+        "server/services/adsOs/slackWebhook.ts",
+        "tests/ads-os-alerts-notify-clientlog.test.ts"
+      ],
+      "approvals": {
+        "file:scripts/generate-integration-reliability-inventory.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/adsOs/alertsNotify.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/adsOs/config.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:server/services/adsOs/slackWebhook.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "file:tests/ads-os-alerts-notify-clientlog.test.ts": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "host:hooks.slack.com": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied",
+        "env:SLACK_WEBHOOK_URL": "grandfathered 2026-08-18 at ratchet hardening (Task #5008) — pre-existing frozen entry, no new approval implied"
+      }
+    }
+  }
+}

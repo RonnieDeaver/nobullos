@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "heatmap_snapshots_client_loc_camp_date_idx" ON "heatmap_snapshots" USING btree ("client_id","location_id","campaign_id","report_date");

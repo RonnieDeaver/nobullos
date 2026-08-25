@@ -1,0 +1,15 @@
+# lint-react-hooks exhaustive-deps baseline (Task #2806).
+# One `<file>:<line>` per row, relative to repo root. `#` starts a comment.
+# These are PRE-EXISTING react-hooks/exhaustive-deps hits grandfathered when
+# the report-only pass was introduced. Burn this list down; never add to it
+# without a comment naming why and who owns removing it.
+# Regenerate: npx tsx scripts/lint-react-hooks.ts --exhaustive-deps --update-baseline
+
+# (Burned down 2026-08-11: the composite-import useCallback hit formerly
+# pinned at ReportForm.tsx:1653 is no longer reported after the upstream
+# import-smear repair + autosave-hook hoist restructured that region.)
+
+# (Burned down 2026-08-12: the ReportForm.tsx autosave version-tick memo
+# now subscribes via useSyncExternalStore on the aggregator's cached
+# snapshot — no version-tick state at all, no lint exception needed.
+# The baseline is fully empty.)

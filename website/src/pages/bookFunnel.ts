@@ -1,0 +1,501 @@
+// /book/ — focused paid-book sales page, first-half funnel shell (Task #5100).
+//
+// This page deliberately owns its chrome and assets. It does not inherit the
+// main marketing navigation or site.js because the paid journey has one job:
+// explain the book and move a ready reader to the focused purchase-options
+// handoff at /book/checkout/. The existing /free-chapters/ reader stays a
+// separate path and is never used as a fallback.
+
+import {
+  GAP_MODEL,
+  LEADS_GENERATED,
+  PRESTI,
+  REVIEWS_GENERATED,
+} from "../proof";
+import { PageDef, assetV, dimsAttr, esc } from "../html";
+
+const BOOK_COVER = "nobull-redesign/brand/front-cover.jpg";
+const BOOK_COVER_WEBP =
+  "nobull-redesign/brand/law-firm-revenue-engine-cover.webp";
+const BOOK_COVER_MOBILE =
+  "nobull-redesign/brand/law-firm-revenue-engine-cover-mobile.webp";
+const HERO_ART = "nobull-redesign/brand/machinery-hero.webp";
+const HERO_ART_MOBILE =
+  "nobull-redesign/brand/machinery-hero-mobile.webp";
+
+interface OptionalBookVideo {
+  src: string;
+  poster: string;
+  title: string;
+}
+
+/**
+ * Optional sales media stays disabled until a real, approved asset set exists.
+ * The renderer returns no markup when the feature is off or its poster is
+ * absent, so the committed page never ships an empty player or fake thumbnail.
+ */
+const OPTIONAL_AUTHOR_VIDEO: OptionalBookVideo | null = null;
+
+function requiredDims(publicPath: string): string {
+  const attrs = dimsAttr(publicPath);
+  if (!attrs) {
+    throw new Error(`Required book-funnel asset is missing or unreadable: ${publicPath}`);
+  }
+  return attrs;
+}
+
+function renderOptionalAuthorVideo(r: string): string {
+  const video = OPTIONAL_AUTHOR_VIDEO;
+  if (!video || !dimsAttr(video.poster)) return "";
+  return `
+      <aside class="bf-video" aria-label="${esc(video.title)}">
+        <video controls preload="none" poster="${r}${video.poster}">
+          <source src="${r}${video.src}">
+        </video>
+      </aside>`;
+}
+
+function purchaseLink(
+  label: string,
+  className: string,
+  packageCode = "digital",
+): string {
+  return `<a class="${className}" href="checkout/?package=${packageCode}" data-book-purchase data-package-intent="${packageCode}">${label}<span aria-hidden="true">→</span></a>`;
+}
+
+const learningPoints = [
+  "Why more lead volume does not automatically produce more retained matters.",
+  "How to recognize the Million-Dollar Gap inside a law firm.",
+  "Why Marketing must be controlled before Intake can be judged fairly.",
+  "Why Intake must be controlled before Sales can be judged fairly.",
+  "How CaseGen, CaseIntake, and CaseConvert work in a fixed sequence.",
+  "How to replace inconsistent, unmeasurable “winging it” with a process.",
+  "How to tune Marketing, Intake, and Sales around the firm you actually want to build.",
+  "How to evaluate the complete result in attributable top-line revenue.",
+] as const;
+
+export const bookFunnelPage: PageDef = {
+  path: "book/",
+  title: "The Law Firm Revenue Engine — 2026 Digital Edition | NoBull Marketing",
+  desc:
+    "The Law Firm Revenue Engine shows law-firm owners how Marketing, Intake, and Sales work as one connected system. Explore the $4.99 digital offer and currently available formats.",
+  priority: "0.9",
+  bodyClass: "bf-body",
+  chrome: false,
+  headExtra: (r) => `
+<link rel="preconnect" href="https://use.typekit.net" crossorigin>
+<link rel="stylesheet" href="https://use.typekit.net/hve0rhv.css">
+<link rel="preload" as="image" type="image/webp" href="${r}${BOOK_COVER_MOBILE}" media="(max-width: 760px)">
+<link rel="preload" as="image" type="image/webp" href="${r}${BOOK_COVER_WEBP}" media="(min-width: 761px)">
+<link rel="preload" as="image" type="image/webp" href="${r}${HERO_ART_MOBILE}" media="(max-width: 760px)">
+<link rel="preload" as="image" type="image/webp" href="${r}${HERO_ART}" media="(min-width: 761px)">
+<link rel="stylesheet" href="${r}assets/css/book.css${assetV()}">`,
+  bodyEnd: (r) =>
+    `<script src="${r}assets/js/book.js${assetV()}" defer></script>`,
+  render: (r) => `
+<!--
+THESIS: A serious field guide reveals the revenue path law-firm reports split apart; it refuses the generic all-dark, urgency-first funnel.
+OWN-WORLD: NoBull eggshell and warm paper, Earth editorial type, Crimson actions, Goldenrod evidence rules, and one contained engine-black exhibit.
+STORY: Name the offer, expose the handoff problem, model the gap, explain the fixed system, show what the reader will learn, then return to purchase.
+FIRST VIEWPORT: Focused logo bar over a 50/50 light hero; the offer and $4.99 action sit left, while the exact cover stands inside contained hero artwork right.
+FORM: Brief-pinned editorial field guide with one deliberate system band; established NoBull world, no alternate concept seed required.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<a class="nb-skip-link bf-skip" href="#main">Skip to book details</a>
+<div class="bf-page" data-book-funnel>
+  <header class="bf-header" data-site-header-contract="focused-funnel">
+    <div class="bf-wrap bf-header-inner">
+      <a class="bf-logo-link" href="${r || "./"}" aria-label="NoBull Marketing home">
+        <img class="bf-logo" src="${r}nobull-redesign/brand/nobull-logo-full-color.svg" alt="NoBull Marketing — The Law Firm Experts"${requiredDims("nobull-redesign/brand/nobull-logo-full-color.svg")}>
+      </a>
+      <p class="bf-header-trust">Written exclusively for law firms <span aria-hidden="true">·</span> One-time purchase <span aria-hidden="true">·</span> No subscription</p>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="bf-hero" data-book-hero>
+      <div class="bf-wrap bf-hero-grid">
+        <div class="bf-hero-copy">
+          <h1>More Leads<br><em>Aren’t Enough.</em></h1>
+          <p class="bf-hero-lede">The Law Firm Revenue Engine shows law-firm owners how Marketing, Intake, and Sales work as one connected system — and how to turn qualified opportunities into retained matters and attributable top-line revenue.</p>
+          <p class="bf-byline">The 2026 digital edition by Ronnie Deaver</p>
+          <div class="bf-offer" aria-label="Digital book offer">
+            <div>
+              <span>Direct digital edition</span>
+              <strong data-book-digital-price>$4.99</strong>
+            </div>
+            <p>One-time purchase. No subscription.</p>
+          </div>
+          ${purchaseLink("Choose the Digital Edition — $4.99", "bf-btn bf-hero-cta")}
+          <p class="bf-microcopy">Continue to the server-owned purchase handoff. No payment or format is assumed from this page.</p>
+        </div>
+
+        <figure class="bf-hero-visual" data-book-hero-visual>
+          <div class="bf-machinery" aria-hidden="true">
+            <picture>
+              <source media="(max-width: 760px)" type="image/webp" srcset="${r}${HERO_ART_MOBILE}">
+              <img src="${r}${HERO_ART}" alt=""${requiredDims(HERO_ART)}>
+            </picture>
+            <span class="bf-machinery-grade"></span>
+            <span class="bf-schematic bf-schematic-a"></span>
+            <span class="bf-schematic bf-schematic-b"></span>
+          </div>
+          <div class="bf-book-object">
+            <picture>
+              <source media="(max-width: 760px)" type="image/webp" srcset="${r}${BOOK_COVER_MOBILE}">
+              <source type="image/webp" srcset="${r}${BOOK_COVER_WEBP}">
+              <img src="${r}${BOOK_COVER}" alt="The Law Firm Revenue Engine by Ronnie Deaver — book cover"${requiredDims(BOOK_COVER)}>
+            </picture>
+          </div>
+          <figcaption>A practical guide to the complete new-client revenue path.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="bf-proof" aria-label="NoBull experience and book utility">
+      <div class="bf-wrap bf-proof-grid">
+        <div class="bf-proof-intro">
+          <span class="bf-proof-rule" aria-hidden="true"></span>
+          <p>Built from the same law-firm growth work NoBull measures from first click to signed case.</p>
+        </div>
+        <dl>
+          <div>
+            <dt>${esc(LEADS_GENERATED.label)}</dt>
+            <dd>${esc(LEADS_GENERATED.stat)}</dd>
+          </div>
+          <div>
+            <dt>${esc(REVIEWS_GENERATED.label)}</dt>
+            <dd>${esc(REVIEWS_GENERATED.stat)}</dd>
+          </div>
+          <div class="bf-proof-utility">
+            <dt>Made for</dt>
+            <dd>Law-firm owners</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="bf-problem">
+      <div class="bf-wrap bf-problem-grid">
+        <div class="bf-section-copy">
+          <h2>A lead is only the beginning.</h2>
+          <p class="bf-lede">Law firms often track leads, consultations, and retained matters as separate departmental numbers. But the financial result belongs to the complete system.</p>
+          <p>Every new opportunity enters through one of two doors: an inbound call, or an inbound form that requires an outbound call to continue the sales process. What happens next determines whether that opportunity becomes revenue.</p>
+          <p>Marketing creates the opportunity. Intake answers, follows up, qualifies, and removes friction. Sales replaces “winging it” with a consistent process the firm can measure and improve.</p>
+        </div>
+        <div class="bf-path" aria-label="The new-client revenue path">
+          <div class="bf-path-entry">
+            <span>Inbound call</span>
+            <b>or</b>
+            <span>Inbound form <small>→ outbound call</small></span>
+          </div>
+          <div class="bf-path-arrow" aria-hidden="true">↓</div>
+          <ol>
+            <li><span>01</span>Intake</li>
+            <li><span>02</span>Consultation</li>
+            <li><span>03</span>Retained matter</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="bf-gap">
+      <div class="bf-wrap">
+        <div class="bf-gap-heading">
+          <div>
+            <h2><span>The Million-Dollar Gap</span>Comparable opportunity.<br>Radically different revenue.</h2>
+          </div>
+          <p>This illustrative model holds lead volume and average case value constant. The difference appears in what the firm does through Intake and Sales.</p>
+        </div>
+
+        <div class="bf-gap-model">
+          <article class="bf-firm bf-firm-leaky">
+            <header>
+              <span>LEAKY REVENUE PATH</span>
+              <h3>Firm A</h3>
+            </header>
+            <dl>
+              <div><dt>Qualified leads</dt><dd>${esc(GAP_MODEL.leads)}</dd></div>
+              <div><dt>Consultations</dt><dd>${esc(GAP_MODEL.leaky.consults)}</dd></div>
+              <div><dt>Signed cases</dt><dd>${esc(GAP_MODEL.leaky.cases)}</dd></div>
+              <div class="bf-revenue"><dt>Attributable revenue</dt><dd>${esc(GAP_MODEL.leaky.revenue)}</dd></div>
+            </dl>
+          </article>
+
+          <div class="bf-gap-difference" aria-label="${esc(GAP_MODEL.gap)} modeled revenue gap">
+            <span>The gap</span>
+            <strong>${esc(GAP_MODEL.gap)}</strong>
+          </div>
+
+          <article class="bf-firm bf-firm-tuned">
+            <header>
+              <span>TUNED REVENUE PATH</span>
+              <h3>Firm B</h3>
+            </header>
+            <dl>
+              <div><dt>Qualified leads</dt><dd>${esc(GAP_MODEL.leads)}</dd></div>
+              <div><dt>Consultations</dt><dd>${esc(GAP_MODEL.tuned.consults)}</dd></div>
+              <div><dt>Signed cases</dt><dd>${esc(GAP_MODEL.tuned.cases)}</dd></div>
+              <div class="bf-revenue"><dt>Attributable revenue</dt><dd>${esc(GAP_MODEL.tuned.revenue)}</dd></div>
+            </dl>
+          </article>
+        </div>
+        <p class="bf-model-note">Illustrative model using a ${esc(GAP_MODEL.caseValue)} average case value. It is not a client result or income guarantee.</p>
+      </div>
+    </section>
+
+    <section class="bf-engine" aria-labelledby="engine-heading">
+      <div class="bf-wrap">
+        <div class="bf-engine-heading">
+          <h2 id="engine-heading">Three systems.<br><em>One financial result.</em></h2>
+          <p>The complete revenue path depends on sequence. Each stage receives the opportunity from the stage before it, strengthens the handoff, and makes the next result measurable.</p>
+        </div>
+
+        <ol class="bf-engine-track">
+          <li>
+            <span class="bf-engine-number">01</span>
+            <div>
+              <p>Marketing</p>
+              <h3>CaseGen</h3>
+              <ul>
+                <li>Create and control qualified demand.</li>
+                <li>Measure what produces the right opportunities.</li>
+              </ul>
+            </div>
+          </li>
+          <li>
+            <span class="bf-engine-number">02</span>
+            <div>
+              <p>Intake</p>
+              <h3>CaseIntake</h3>
+              <ul>
+                <li>Answer faster, follow up consistently, and remove friction.</li>
+                <li>Turn more qualified opportunities into completed consultations.</li>
+              </ul>
+            </div>
+          </li>
+          <li>
+            <span class="bf-engine-number">03</span>
+            <div>
+              <p>Sales</p>
+              <h3>CaseConvert</h3>
+              <ul>
+                <li>Stop winging consultations.</li>
+                <li>Create a sales process the firm can track and improve.</li>
+              </ul>
+            </div>
+          </li>
+        </ol>
+
+        <div class="bf-engine-outcome">
+          <span>CaseGen → CaseIntake → CaseConvert</span>
+          <strong>Signed Cases → Top-Line Revenue</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="bf-inside" id="inside-the-book">
+      <div class="bf-wrap bf-inside-grid">
+        <div class="bf-inside-heading">
+          <h2><span>Inside the Book</span>See the system your current reports are missing.</h2>
+          <p>The book follows the complete path in sequence. It is written to help an owner see where control is missing before adding more tactics or more lead volume.</p>
+          ${purchaseLink("Get the Book — $4.99", "bf-btn bf-inside-cta")}
+          <p class="bf-microcopy">One book purchase. One secure checkout. No subscription.</p>
+        </div>
+
+        <ol class="bf-learning-list">
+${learningPoints
+  .map(
+    (point, index) => `          <li>
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <p>${esc(point)}</p>
+          </li>`,
+  )
+  .join("\n")}
+        </ol>
+      </div>
+      ${renderOptionalAuthorVideo(r)}
+    </section>
+
+    <section class="bf-author-proof" aria-labelledby="author-proof-heading">
+      <div class="bf-wrap bf-author-proof-grid">
+        <div class="bf-author">
+          <div class="bf-author-photo">
+            <img src="${r}nobull-redesign/team/ronnie2.jpg" alt="Ronnie Deaver" loading="lazy" decoding="async"${requiredDims("nobull-redesign/team/ronnie2.jpg")}>
+          </div>
+          <div>
+            <h2 id="author-proof-heading">Written by Ronnie Deaver.</h2>
+            <p>Ronnie is the founder of NoBull Marketing. This book puts the complete new-client revenue path into one practical reading experience for law-firm leaders.</p>
+            <p class="bf-author-note">The book is designed to help readers ask better questions of their Marketing, Intake, and Sales systems — not to promise a particular result.</p>
+          </div>
+        </div>
+
+        <figure class="bf-case-evidence">
+          <figcaption>Source-approved client evidence</figcaption>
+          <h3>${esc(PRESTI.firm)}</h3>
+          <p>${esc(PRESTI.label)}</p>
+          <dl>
+${PRESTI.stats
+  .slice(0, 3)
+  .map(
+    ([label, value]) => `            <div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`,
+  )
+  .join("\n")}
+          </dl>
+          <blockquote>
+            <p>“${esc(PRESTI.quote.text)}”</p>
+            <footer>— ${esc(PRESTI.quote.name)}, ${esc(PRESTI.quote.firm)}</footer>
+          </blockquote>
+          <p class="bf-evidence-note">Published client evidence is attributed to the Revenue Engine sales deck. Individual results vary; this is not a guarantee.</p>
+        </figure>
+      </div>
+    </section>
+
+    <section class="bf-fit">
+      <div class="bf-wrap bf-fit-grid">
+        <div>
+          <h2>For owners who want control, not another pile of tactics.</h2>
+          <p>This is for owners, managing partners, and leaders responsible for new-client revenue — especially firms already investing in demand but unable to explain what happens between the first inquiry and a signed case.</p>
+        </div>
+        <div class="bf-fit-lists">
+          <div>
+            <h3>It is for you if you want to:</h3>
+            <ul>
+              <li>See the complete path, rather than a disconnected set of reports.</li>
+              <li>Find the handoffs that limit consultations and signed cases.</li>
+              <li>Build a measurable process your firm can improve.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>It is not a fit if you want:</h3>
+            <ul>
+              <li>A single shortcut that replaces operational discipline.</li>
+              <li>Marketing alone to repair every downstream problem.</li>
+              <li>A promise of a specific financial outcome.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bf-formats" id="formats" aria-labelledby="formats-heading">
+      <div class="bf-wrap">
+        <div class="bf-formats-heading">
+          <h2 id="formats-heading">Start reading now. Choose the format that fits.</h2>
+          <p>The Digital Edition is always the straightforward starting point. Additional formats only appear when the secure checkout says they are available.</p>
+        </div>
+        <div class="bf-format-grid" data-book-catalog aria-live="polite">
+          <article class="bf-format-card bf-format-digital" data-package="digital">
+            <p class="bf-format-label">Digital Edition</p>
+            <h3 data-book-digital-name>Digital Edition</h3>
+            <p class="bf-format-price" data-book-digital-price>$4.99</p>
+            <p>The direct digital offer. Checkout confirms current access and order details before payment.</p>
+            ${purchaseLink("Get the Digital Edition", "bf-btn bf-format-cta")}
+          </article>
+        </div>
+        <p class="bf-format-note">One-time purchase. The checkout confirms the final order details before payment. No format is added unless you choose it.</p>
+      </div>
+    </section>
+
+    <section class="bf-delivery" aria-labelledby="delivery-heading">
+      <div class="bf-wrap bf-delivery-grid">
+        <div>
+          <h2 id="delivery-heading">Clear access. Separate next steps.</h2>
+          <p class="bf-delivery-lede">No payment is taken on this sales page. The purchase handoff shows what can be ordered now before asking for buyer information.</p>
+        </div>
+        <dl class="bf-delivery-list">
+          <div>
+            <dt>Digital delivery</dt>
+            <dd>The direct purchase flow must state the available file format and access method before payment. If those details are not shown, the direct offer is not yet available.</dd>
+          </div>
+          <div>
+            <dt>Format availability</dt>
+            <dd>Audio or physical delivery is shown only when an eligible collection is available in checkout. Shipping details are confirmed there before payment.</dd>
+          </div>
+          <div>
+            <dt>Support and terms</dt>
+            <dd>For an order question, <a href="${r}#contact">contact NoBull</a>. Privacy and applicable terms are available before you complete a purchase.</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="bf-faq" aria-labelledby="faq-heading">
+      <div class="bf-wrap bf-faq-grid">
+        <div>
+          <h2 id="faq-heading">Before you buy.</h2>
+          <p>Short answers to the questions that should be clear before a purchase.</p>
+        </div>
+        <div class="bf-faq-list">
+          <details>
+            <summary>What does the $4.99 purchase include?</summary>
+            <p>The offer is the Digital Edition of The Law Firm Revenue Engine as a one-time purchase with no recurring subscription. Checkout is the source of truth for current availability; this sales page does not process payment.</p>
+          </details>
+          <details>
+            <summary>What digital files are included?</summary>
+            <p>The secure checkout identifies the currently available digital file format before payment. No unlisted file format is promised or added to your order.</p>
+          </details>
+          <details>
+            <summary>Are audio and print included?</summary>
+            <p>Not with the Digital Edition. If another collection is available, it appears from the secure checkout catalog with its current order and shipping details.</p>
+          </details>
+          <details>
+            <summary>How are audiobook and print orders delivered?</summary>
+            <p>Those details apply only if an eligible collection appears. Checkout states the available formats, U.S. shipping cost, and physical-order details before payment; otherwise no audio or print offer is available here.</p>
+          </details>
+          <details>
+            <summary>Does buying the book include a High-Impact Revenue Session?</summary>
+            <p>No. The book purchase is independent. A High-Impact Revenue Session is a separate, free working session with NoBull’s Head of Sales that reviews the firm’s real numbers and revenue goals.</p>
+          </details>
+          <details>
+            <summary>Is an Intake Audit part of the purchase?</summary>
+            <p>No. Any Intake Audit is separate from paid book access and is not included with a book purchase. Qualification and requested firm information are handled separately.</p>
+          </details>
+          <details>
+            <summary>Does the book guarantee a result?</summary>
+            <p>No. The book is a practical guide for evaluating and improving a system. Results depend on the firm, its decisions, its data, and its implementation.</p>
+          </details>
+          <details>
+            <summary>What is the refund or replacement policy?</summary>
+            <p>The terms shown by the seller at checkout govern the order. A retailer purchase follows that retailer’s policy. Physical replacement does not apply unless an eligible physical collection is offered and purchased. For a specific question, <a href="${r}#contact">contact NoBull before purchasing</a>.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="bf-close" aria-labelledby="book-close-heading">
+      <div class="bf-wrap bf-close-inner">
+        <div>
+          <h2 id="book-close-heading">Read the complete revenue path before you spend more to feed it.</h2>
+          <p>Start with the Digital Edition for $4.99. There is no subscription, no timer, and no obligation beyond the book you choose.</p>
+        </div>
+        <div>
+          ${purchaseLink("Choose the Digital Edition — $4.99", "bf-btn bf-close-cta")}
+          <a class="bf-close-support" href="${r}#contact">Need help with an order? Contact NoBull <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bf-footer">
+    <div class="bf-wrap bf-footer-inner">
+      <a href="${r || "./"}" aria-label="NoBull Marketing home">
+        <img src="${r}nobull-redesign/brand/nobull-logo-full-color.svg" alt="NoBull Marketing"${requiredDims("nobull-redesign/brand/nobull-logo-full-color.svg")}>
+      </a>
+      <p>© 2026 NoBull Marketing. All rights reserved.</p>
+      <nav aria-label="Book purchase support">
+        <a href="${r}privacy/">Privacy</a>
+        <a href="${r}terms/">Terms</a>
+        <a href="${r}shipping-returns/">Shipping &amp; Returns</a>
+        <a href="${r}#contact">Contact</a>
+        <a href="#formats">Formats</a>
+      </nav>
+    </div>
+  </footer>
+
+  <div class="bf-sticky" data-book-sticky aria-hidden="true" inert>
+    <span><b>The Digital Edition</b> · One-time purchase</span>
+    ${purchaseLink("Get the Book — $4.99", "bf-btn")}
+  </div>
+</div>`,
+};

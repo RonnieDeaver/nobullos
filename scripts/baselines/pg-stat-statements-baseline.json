@@ -1,0 +1,26 @@
+{
+  "$schema": "./pg-stat-statements-baseline.schema.json",
+  "comment": [
+    "Task #1724 Phase 4.4 — Baseline snapshot of pg_stat_statements,",
+    "consumed by scripts/pg-stat-statements-regression.ts.",
+    "",
+    "Each entry pins the mean execution time we consider 'normal' for a",
+    "specific query shape. The nightly job compares the live numbers",
+    "against this baseline and posts the top 5 regressions (ranked by",
+    "(new_mean - baseline_mean) * new_calls) to the queue-health Slack",
+    "channel.",
+    "",
+    "Refresh procedure (operator):",
+    "  npx tsx scripts/pg-stat-statements-regression.ts --update-baseline",
+    "and commit the diff. See PG_STAT_STATEMENTS_REGRESSION.md.",
+    "",
+    "The list is intentionally empty on first commit — pg_stat_statements",
+    "is in shared_preload_libraries but the extension is not yet created",
+    "on the deployed primary (see PROD_REMEDIATION.md). The script is",
+    "graceful when the extension is missing and when the baseline is",
+    "empty; first refresh will populate it."
+  ],
+  "capturedAt": null,
+  "minCalls": 50,
+  "queries": []
+}

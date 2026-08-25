@@ -1,0 +1,6 @@
+# lint-react-hooks grandfathered violations (Task #2798).
+# One `<file>:<line>` per row, relative to repo root. `#` starts a comment.
+# A row here means a KNOWN rules-of-hooks violation is deliberately shipped —
+# each entry must carry a comment explaining why and who owns removing it.
+# The baseline is empty and should stay empty: rules-of-hooks violations are
+# whole-page crashes (see Task #2791 / ConversationHub), not style debt.

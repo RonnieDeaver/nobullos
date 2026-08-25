@@ -1,0 +1,13 @@
+-- Task #4008 — retire the platform-managed Google Ads connection.
+--
+-- Every Google Ads surface (Ads OS pulls AND Ads Hygiene / Discover
+-- Customers / campaign sync) now mints access tokens from the
+-- GOOGLE_ADS_CLIENT_ID / GOOGLE_ADS_CLIENT_SECRET / GOOGLE_ADS_REFRESH_TOKEN
+-- env trio (server/services/adsOs/googleAdsClient.ts), so the stored
+-- credential singleton is dead weight. The production row has been
+-- auth-dead since 2026-07-27 (its refresh token was minted under a
+-- different OAuth client than the current shared client-id/secret pair).
+--
+-- Customer discovery (`google_ads_customers`, including sync toggles) and
+-- all campaign/keyword/hygiene/audit data tables are deliberately preserved.
+DROP TABLE IF EXISTS google_ads_connection;

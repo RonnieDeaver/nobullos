@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <rect width="160" height="40" rx="4" fill="#111111"/>
+  <text x="12" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" letter-spacing="-0.5" fill="#D4A017">No</text>
+  <text x="44" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" letter-spacing="-0.5" fill="#ffffff">Bull</text>
+  <text x="88" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#888888">OS</text>
+</svg>

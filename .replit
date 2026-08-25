@@ -1,0 +1,93 @@
+modules = ["nodejs-20", "web", "python-3.11", "postgresql-16"]
+run = "npm run dev"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["ffmpeg", "unzip"]
+
+[env]
+PORT = "5000"
+
+[deployment]
+deploymentTarget = "vm"
+build = ["sh", "-c", "./scripts/predeploy.sh && npm run build"]
+run = ["node", "./dist/index.cjs"]
+
+[workflows]
+runButton = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOOKING_FEATURE_FLAGS_CACHE_TTL_MS=200 npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+owner = "NoBull OS Control Plane"
+purpose = "Primary interactive application runtime"
+retirementTrigger = "Replace only through an owner-approved runtime cutover"
+slotBudget = "runtime-1-of-3"
+
+[[workflows.workflow]]
+name = "Validate"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run gate"
+
+[workflows.workflow.metadata]
+isValidation = true
+owner = "NoBull OS Control Plane"
+purpose = "Canonical routine validation gate"
+retirementTrigger = "Replace only through an owner-approved gate cutover"
+slotBudget = "control-2-of-3"
+
+[[workflows.workflow]]
+name = "Long validation"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run validate:long -- --request .local/runs/long-validation-request.json"
+
+[workflows.workflow.metadata]
+outputType = "console"
+owner = "NoBull OS Control Plane"
+purpose = "Explicit reviewed long-control runner"
+retirementTrigger = "Remove when long-control evidence is retired by owner decision"
+slotBudget = "control-3-of-3"
+
+[agent]
+mockupState = "FULLSTACK"
+integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_log_in_with_replit:2.0.0", "javascript_object_storage:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+FRONT_REDIRECT_URI = "https://reports.nobullmarketing.com/api/integrations/front/callback"
+ZOOM_REDIRECT_URI = "https://reports.nobullmarketing.com/api/integrations/zoom/callback"
+
+[userenv.production]
+GOOGLE_ADS_REDIRECT_URI = "https://reports.nobullmarketing.com/api/integrations/google-ads/callback"
+CLICKUP_REDIRECT_URI = "https://reports.nobullmarketing.com/api/integrations/clickup/callback"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 1200000
+
+[objectStorage]
+defaultBucketID = "replit-objstore-ab8a045f-75ea-4b90-8a19-16d0c3cc82e9"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 23636
+externalPort = 3000

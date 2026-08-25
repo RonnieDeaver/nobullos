@@ -1,0 +1,26 @@
+-- Migration 0102 — Front coverage denominator floor excess (Task #2795).
+--
+-- The Front Console headline showed >100% (e.g. 207,388 of 206,256) because
+-- the per-month `front_total_messages` denominator undercounts the true message
+-- universe in two ways:
+--
+--   1. Current-month staleness: the denominator is a snapshot enumerated early
+--      in the month; webhook ingestion keeps adding messages while the snapshot
+--      ages, so the live numerator (appliedIntoNobull) overtakes it.
+--
+--   2. Denominator source is a lower bound: Front Analytics Reports exclude
+--      messages imported via the Import Message endpoint; Front search excludes
+--      conversations Front no longer returns (deleted/spam/imported). Both
+--      undercounting sources mean local rows can exceed the enumerated total.
+--
+-- The fix: at every denominator write the stored value is clamped upward to
+-- max(Front-enumerated count, local unique-message count) — since we hold
+-- verified proof those messages exist.  The excess (local - Front-enumerated)
+-- is stored here so the Advanced operator panel can surface a per-month
+-- reconciliation note ("imported messages" / "no-longer-returned conversations")
+-- without an extra query.
+--
+-- Additive nullable column — publish-safe and metadata-only on PG16 (no table
+-- rewrite; existing rows read NULL = "floor not yet computed / no excess").
+ALTER TABLE front_analytics_monthly_coverage
+  ADD COLUMN IF NOT EXISTS denominator_floor_excess INTEGER;

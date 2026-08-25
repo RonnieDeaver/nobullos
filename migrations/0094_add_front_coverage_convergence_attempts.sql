@@ -1,0 +1,23 @@
+-- Migration 0094 — Front coverage convergence (Task #2434).
+--
+-- The `reach_front_coverage_full_message_grain` prod-action (Task #1920)
+-- never converged: a finalized month that can never reach 100%-of-messages
+-- — either genuinely nothing more to fetch, or a plan-limited month whose
+-- denominator is permanently conversation-grain (Front returns 403 "plan
+-- does not give you access to that time period" for the Analytics / search
+-- endpoints that would produce message grain) — stayed sub-floor / wrong
+-- grain forever, so the sweep re-counted it on every self-heal tick.
+--
+-- This counter adds a convergence budget. `reachFrontCoverageFullForMonth`
+-- resets it to 0 on any progress; on a clean (non-error, non-auth-blocked)
+-- drive that makes no progress it is set straight to the cap (proven
+-- unreachable); a transient non-auth recovery error increments it
+-- (bounded). Once it reaches the cap the sweep excludes the month so the
+-- action converges. Auth-blocked drives never touch it (auth-down is not
+-- unreachable).
+--
+-- Additive NOT NULL column with a constant DEFAULT 0 — publish-safe and
+-- metadata-only on PG16 (no table rewrite; existing rows read 0 =
+-- "zero convergence attempts").
+ALTER TABLE front_analytics_monthly_coverage
+  ADD COLUMN IF NOT EXISTS coverage_convergence_attempts integer NOT NULL DEFAULT 0;

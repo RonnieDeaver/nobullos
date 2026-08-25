@@ -1,0 +1,8 @@
+# lint-async-correctness baseline (Task #3817).
+# `<file> <rule> <count>` — the frozen pre-existing violation allowance for that
+# (file, rule) pair. The gate fails when a pair's count EXCEEDS its allowance
+# (new violation) or DROPS BELOW it (ratchet: regenerate so fixed debt cannot
+# silently refill). Burn this down; never hand-raise a count — fix the code or
+# annotate intentional fire-and-forget with the `void` operator instead.
+# Regenerate: npx tsx scripts/lint-async-correctness.ts --update-baseline
+

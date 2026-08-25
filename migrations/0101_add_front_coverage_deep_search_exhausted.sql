@@ -1,0 +1,28 @@
+-- Migration 0101 — Front coverage deep-search exhaustion marker (Task #2745).
+--
+-- The Front Console "Bring it to 100%" logged-% headline stalled at ~54.3%
+-- because ~81k messages of ingest gap sat in a handful of *in-plan* months
+-- (front_analytics_status='ok', analytics_plan_limited_at IS NULL,
+-- message-grain denominator, coverage_convergence_attempts at the cap) that
+-- no driver drained: `reachFrontCoverageFullForMonth` had already retired
+-- them via the Task #2434/#2482 convergence budget ("budget spent ⇒ nothing
+-- left to fetch"), while the plan-limited recovery driver skips
+-- non-plan-limited months. The budget, however, can be spent by grain-only
+-- re-measures / recovery passes that never actually ran the deep
+-- `/conversations/search` + per-message walk, so a spent budget alone is not
+-- proof the deep search was exhausted.
+--
+-- This nullable timestamp is a SEPARATE terminal signal proving the deep walk
+-- actually ran to exhaustion. `reachFrontCoverageFullForMonth` SETS it on an
+-- `unreachable` convergence outcome (clean drive, materializer done) that
+-- still leaves a residual ingest gap, and CLEARS it on any `progress` outcome
+-- so a revived month re-opens. `shouldSweepFrontCoverageMonth` keeps a
+-- message-grain, non-plan-limited, budget-exhausted month a candidate (reach
+-- re-runs the deep walk) UNTIL this marker is set, then retires it so the
+-- action converges; the residual is reported honestly in the console's
+-- `searchExhaustedRemainder` bucket, excluded from reachable work.
+--
+-- Additive nullable column — publish-safe and metadata-only on PG16 (no table
+-- rewrite; existing rows read NULL = "deep search not yet proven exhausted").
+ALTER TABLE front_analytics_monthly_coverage
+  ADD COLUMN IF NOT EXISTS deep_search_exhausted_at timestamptz;

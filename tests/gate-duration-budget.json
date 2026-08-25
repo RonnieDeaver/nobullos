@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-19T19:13:43.387Z",
+  "sourceRun": {
+    "generatedAt": "2026-08-19T19:11:13.566Z",
+    "mode": "smoke",
+    "relatedSelection": false,
+    "skippedGreen": 0,
+    "suiteCount": 900,
+    "failedSuites": 0,
+    "wallMs": 413485
+  },
+  "fullSmokeWallBudgetMs": 537531,
+  "perSuiteDefaultCeilingMs": 90000,
+  "gateLintWallBudgetMs": 240000,
+  "formula": "fullSmokeWallBudgetMs = min(ceil(1.30 × sourceRun.wallMs), 40min pin); per-suite/lint-phase budgets are the PINNED_MAXIMA policy values (tests/durationBudget.ts)",
+  "updatePath": "Owner-approved regen only (Task #4531 L3): produce a fresh zero-skip full-smoke measurement (clear .local/state/test-green-store.json or TEST_FORCE_ALL=1, npm run gate --full-smoke), then `npx tsx scripts/regen-gate-duration-budget.ts` and commit. Hand-edits fail the self-hash; budgets above PINNED_MAXIMA are refused.",
+  "selfHash": "86cc44964420fd894c152951581d5d4661e3fb75d1775b102230aff50e268727"
+}

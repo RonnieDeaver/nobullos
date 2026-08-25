@@ -1,0 +1,1 @@
+ALTER TABLE "clients" ADD COLUMN "stripe_customer_id" varchar;

@@ -1,0 +1,11 @@
+# scripts/lint-replit-md.baseline.txt
+#
+# One SHA1 hash per line of an offending `replit.md` line that is
+# explicitly grandfathered. Lint will not fail on these hashes but
+# will report how many remain. Goal: keep this file empty.
+#
+# To grandfather an offender:
+#   node -e "console.log(require('crypto').createHash('sha1').update(process.argv[1]).digest('hex'))" \
+#     -- "<exact line content from replit.md>"
+#
+# Then add the printed hash on its own line below.

@@ -1,0 +1,99 @@
+{
+  "executionTimestamp": "2026-04-15T02:43:17.084Z",
+  "runStartTime": "2026-04-15T02:43:17.038Z",
+  "environment": "empty_dataset",
+  "preflight": {
+    "passed": true,
+    "learningMode": "trusted",
+    "contaminationGate": {
+      "decontaminationScanClean": true,
+      "wouldDeleteCount": 0,
+      "clientsAffected": 0
+    },
+    "thresholds": {
+      "activeThreshold": 0.78,
+      "activeAmbiguityGap": 0.08,
+      "shadowThreshold": 0.65,
+      "thresholdPolicyValid": true,
+      "evidenceAwarePolicy": {
+        "enabled": true,
+        "thresholdExact": 0.78,
+        "thresholdDomain": 0.78,
+        "thresholdHeuristic": 0.85,
+        "thresholdSemantic": 0.9,
+        "thresholdMixed": 0.82
+      }
+    },
+    "agentMemories": 0,
+    "clientsWithMemory": 0,
+    "warnings": []
+  },
+  "before": {
+    "total": 0,
+    "unmatched": 0,
+    "matched": 0,
+    "nonSpamTotal": 0,
+    "nonSpamMatchRate": "0.00%",
+    "autoMatched": 0,
+    "manuallyMatched": 0,
+    "dismissedOperational": 0,
+    "evidenceClasses": []
+  },
+  "dryRun": {
+    "total": 0,
+    "wouldNewlyMatch": 0,
+    "wouldReassign": 0,
+    "unchanged": 0,
+    "skippedSpam": 0,
+    "errors": 0
+  },
+  "liveExecution": {
+    "batchesRun": 1,
+    "total": 0,
+    "newlyMatched": 0,
+    "reassigned": 0,
+    "unchanged": 0,
+    "skippedSpam": 0,
+    "errors": 0
+  },
+  "after": {
+    "total": 0,
+    "unmatched": 0,
+    "matched": 0,
+    "nonSpamTotal": 0,
+    "nonSpamMatchRate": "0.00%",
+    "autoMatched": 0,
+    "manuallyMatched": 0,
+    "dismissedOperational": 0,
+    "evidenceClasses": []
+  },
+  "runNewEvidenceClasses": [],
+  "deltas": {
+    "matchedDelta": 0,
+    "unmatchedDelta": 0,
+    "matchRateChange": "0.00% → 0.00%"
+  },
+  "falsePositiveCheck": {
+    "topClientConcentration": [],
+    "sampleSize": 0
+  },
+  "learningImpact": {
+    "memoriesBefore": 0,
+    "memoriesAfter": 0,
+    "memoriesLearned": 0,
+    "batchesRun": 1
+  },
+  "zeroMatchClients": {
+    "total": 1,
+    "dataGapCount": 1,
+    "matchingGapCount": 0,
+    "dataGapSample": [
+      {
+        "firmName": "The Deaver Firm",
+        "hasEmail": true
+      }
+    ],
+    "matchingGapSample": []
+  },
+  "confidenceAssessment": "Confidence: N/A\n  * No Front sync emails in database — verification requires production data\n  * Script infrastructure validated: pre-flight, execution, and reporting work correctly"
+}

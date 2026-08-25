@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- No maximum-scale: pinch-zoom must stay available (WCAG 1.4.4 / Lighthouse).
+         iOS focus-zoom is prevented by the 16px mobile form-control floor in index.css
+         instead — keep those two policies in lockstep. viewport-fit=cover exposes
+         env(safe-area-inset-*) for notch/home-indicator padding. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>NoBull OS</title>
+    <script>
+      /* Task #4518 — route-aware pre-mount title for client-facing report
+         routes. The shared shell titles the app "NoBull OS" (internal
+         surfaces pin that deliberately), but /share/:token, /preview/:id and
+         /demo-report are client trust surfaces: the tab must never show the
+         internal product name — not on cold load, not while the report data
+         loads, and not via PublicReport's initialTitleRef unmount restore
+         (which captures whatever title existed at mount). Runs inline in
+         <head>, before React, so there is no "NoBull OS" frame at all. */
+      (function () {
+        try {
+          if (/^\/(share|preview|demo-report)(\/|$)/.test(location.pathname)) {
+            document.title = "Report";
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Task #4618 — NoBull-branded link previews (was Replit placeholder art
+         and handle). og:image must be absolute for scrapers; the host is the
+         OS's canonical production hostname (server/services/publicUrl.ts
+         resolveOsCanonicalHostname). The card is generated from the exact
+         approved logo by scripts/generate-brand-assets.ts. These static
+         tags serve verbatim: the old vite-plugin-meta-images rewrite
+         machinery (which silently repointed them at a Replit-domain
+         opengraph.* file) was removed in Task #4641. -->
+    <meta property="og:title" content="NoBull OS" />
+    <meta property="og:description" content="Data-driven analysis of your Marketing, Intake & Sales performance" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://reports.nobullmarketing.com/brand/og-nobull-os.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NoBull OS" />
+    <meta name="twitter:description" content="Data-driven analysis of your Marketing, Intake & Sales performance" />
+    <meta name="twitter:image" content="https://reports.nobullmarketing.com/brand/og-nobull-os.png" />
+
+    <!-- Task #4618 — square bull-icon favicon set from the exact approved
+         artwork (scripts/generate-brand-assets.ts; provenance in
+         client/public/brand/README.md). The SVG stays crisp at any size;
+         favicon.ico carries 16/32/48 for legacy consumers and direct
+         /favicon.ico requests. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/brand/nobull-icon-crimson.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      /* Task #4377 — pre-paint theme application (no flash of wrong theme).
+         Mirrors client/src/lib/theme.tsx: localStorage "nobull-theme" caches
+         the user's preference (light | dark | system); system (and any
+         missing/unknown value) follows the OS. Must run before first paint,
+         so it stays inline in <head>. */
+      (function () {
+        try {
+          var pref = localStorage.getItem("nobull-theme");
+          var dark =
+            pref === "dark" ||
+            (pref !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root">
+      <div id="initial-loader" style="display:flex;align-items:center;justify-content:center;height:100vh;background:#F5F0E8;">
+        <div style="text-align:center;">
+          <div data-loader-spinner style="width:40px;height:40px;border:3px solid #e8e0d8;border-top-color:#8b1a2b;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;"></div>
+          <div data-loader-text style="color:#8b1a2b;font-size:14px;font-weight:500;">Loading NoBull OS</div>
+        </div>
+      </div>
+      <style>
+        #initial-loader{transition:opacity .3s}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        /* Dark-theme loader (Task #4377) — the pre-paint head script sets
+           html.dark before this renders; !important beats the inline styles.
+           Hexes mirror the .dark tokens in index.css (canvas / border /
+           crimson lift / rose). */
+        html.dark #initial-loader{background:#121110!important}
+        html.dark #initial-loader [data-loader-spinner]{border-color:#2e2b28!important;border-top-color:#b8454e!important}
+        html.dark #initial-loader [data-loader-text]{color:#d0666d!important}
+      </style>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
