@@ -1303,6 +1303,11 @@ Rules:
           id: candidate.id,
           name: candidate.name,
           stage: candidate.stage,
+          // Task #5325 (QA fix): the portal needs the real completion
+          // timestamps, not just answered-question counts, to know whether
+          // the application was actually submitted (see client-side fix).
+          screeningCompletedAt: candidate.screeningCompletedAt,
+          videoCompletedAt: candidate.videoCompletedAt,
         },
         job: {
           title: job.title,

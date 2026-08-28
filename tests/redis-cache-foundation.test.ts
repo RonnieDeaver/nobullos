@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Redis cache foundation (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

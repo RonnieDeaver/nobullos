@@ -5,7 +5,8 @@
   "smoke": true,
   "smokeReason": "Task #2611: the nightly regression sweep's own report-classification and scheduler-gating logic. It guards against the very rot it exists to catch, so it must run in the routine gate, not just the rarely-run full suite. It is a fast, pure, in-memory test (no DB, no spawned children, no network).",
   "scanPaths": ["server/services/regressionSweepScheduler.ts"],
-  "tier": "small"
+  "tier": "small",
+  "tierReason": "Deliberately small, overriding the unmeasured default of medium: this is pure in-memory report classification and scheduler gating with no database, child process, vendor call, or persistent timer."
 }
 test-registration */
 // future-date-literal-reviewed: the quarantine-ledger expiresOn 2026-09-30 is only evaluated against explicitly pinned new Date(...) arguments (both sides literal); no real-clock comparison — it cannot rot.
@@ -48,6 +49,7 @@ import {
   readAlertedLintReds,
   readAlertedPoisonFiles,
   readCommittedBaselineStatus,
+  readCommittedRedManifestStatus,
   shouldScheduleRegressionSweep,
   writeAlertedBaselineStalenessStamp,
   writeAlertedLintReds,
@@ -251,13 +253,68 @@ test("summary surfaces migration-scoping realized skips when measured, stays sil
 // parseSweepReport round-trip + malformed handling
 // ---------------------------------------------------------------------------
 
-test("parseSweepReport round-trips a real report and rejects garbage", () => {
+test("parseSweepReport round-trips a complete report and rejects malformed accounting", () => {
   const report = buildSweepReport([result({ name: "A" })], META);
   const parsed = parseSweepReport(JSON.stringify(report));
   assert.ok(parsed);
   assert.equal(parsed!.total, 1);
   assert.equal(parseSweepReport("not json"), null);
   assert.equal(parseSweepReport("{}"), null);
+
+  const missingCompletion = { ...report };
+  delete (missingCompletion as Partial<typeof report>).verificationComplete;
+  assert.equal(
+    parseSweepReport(JSON.stringify(missingCompletion)),
+    null,
+    "a report without explicit completion proof is never accepted",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({ ...report, total: 2 })),
+    null,
+    "declared total must account for every result",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({ ...report, hardFailedNames: ["invented failure"] })),
+    null,
+    "aggregate failure names must match terminal results",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({
+      ...report,
+      results: [{ ...report.results[0], attempts: 0 }],
+    })),
+    null,
+    "result shapes must have a valid terminal-attempt count",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({ ...report, startedAt: "1" })),
+    null,
+    "parseable-but-noncanonical dates are malformed evidence, not timestamps",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({
+      ...report,
+      results: [result({
+        name: "A",
+        outcome: "incomplete",
+        failureReason: "worker completion proof missing",
+      })],
+      verificationComplete: true,
+      incomplete: 1,
+      incompleteNames: ["A"],
+    })),
+    null,
+    "a complete verdict cannot claim incomplete execution",
+  );
+  assert.equal(
+    parseSweepReport(JSON.stringify({
+      ...report,
+      verificationComplete: false,
+      verificationProblems: [],
+    })),
+    null,
+    "an incomplete verdict must carry incomplete execution or accounting problems",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -584,6 +641,72 @@ test("REPO INTEGRATION: readCommittedBaselineStatus reads the real committed bas
 
   const missing = readCommittedBaselineStatus(new Date(), "/nonexistent/baseline.json");
   assert.deepEqual(missing, { publishedAt: null, ageDays: null }, "absent baseline → nulls, never a throw");
+});
+
+test("future baseline and red-manifest stamps are invalid evidence, never fresh", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sweep-future-stamp-"));
+  const future = new Date(META.finishedAt).getTime() + 24 * 60 * 60 * 1000;
+  const now = new Date(META.finishedAt);
+  try {
+    const baselinePath = join(dir, "green-baseline.json");
+    writeFileSync(baselinePath, JSON.stringify({ publishedAt: new Date(future).toISOString() }), "utf8");
+    assert.deepEqual(
+      readCommittedBaselineStatus(now, baselinePath),
+      { publishedAt: new Date(future).toISOString(), ageDays: null, invalidStamp: true },
+      "a clock-skewed baseline never acts as freshness proof",
+    );
+
+    const manifestPath = join(dir, "red-manifest.json");
+    writeFileSync(manifestPath, JSON.stringify({ lastPartialUpdateAt: new Date(future).toISOString() }), "utf8");
+    assert.deepEqual(
+      readCommittedRedManifestStatus(now, manifestPath),
+      { publishedAt: new Date(future).toISOString(), ageDays: null, invalidStamp: true },
+      "a future canary stamp never suppresses the red-manifest watchdog",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("noncanonical baseline and red-manifest stamps are invalid evidence", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sweep-invalid-stamp-"));
+  const now = new Date(META.finishedAt);
+  try {
+    const baselinePath = join(dir, "green-baseline.json");
+    writeFileSync(baselinePath, JSON.stringify({ publishedAt: "1" }), "utf8");
+    assert.deepEqual(
+      readCommittedBaselineStatus(now, baselinePath),
+      { publishedAt: "1", ageDays: null, invalidStamp: true },
+    );
+    const manifestPath = join(dir, "red-manifest.json");
+    writeFileSync(manifestPath, JSON.stringify({ publishedAt: "1" }), "utf8");
+    assert.deepEqual(
+      readCommittedRedManifestStatus(now, manifestPath),
+      { publishedAt: "1", ageDays: null, invalidStamp: true },
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a malformed red-manifest partial stamp cannot be masked by a fresh full stamp", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sweep-mixed-invalid-stamp-"));
+  const now = new Date(META.finishedAt);
+  try {
+    const manifestPath = join(dir, "red-manifest.json");
+    writeFileSync(
+      manifestPath,
+      JSON.stringify({ publishedAt: now.toISOString(), lastPartialUpdateAt: "1" }),
+      "utf8",
+    );
+    assert.deepEqual(
+      readCommittedRedManifestStatus(now, manifestPath),
+      { publishedAt: "1", ageDays: null, invalidStamp: true },
+      "all present stamps must be canonical before any one stamp can prove freshness",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------

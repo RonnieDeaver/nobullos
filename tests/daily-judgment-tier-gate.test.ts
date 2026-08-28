@@ -1124,21 +1124,93 @@ check("silence is judged against the client's OWN longest historical gap", () =>
   );
 });
 
-check("≤3 business days is never a silence signal; null baseline falls back to 21d", () => {
+check("weekly cadence floor is stable even when a client's historical gaps are shorter", () => {
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 3,
+      businessDaySilence: 3,
+      longestGapDays: 2,
+      averageGapDays: 2,
+      rolling30dCount: 42,
+    }),
+    false,
+    "today's communication-rich account is not called silent",
+  );
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 7,
+      businessDaySilence: 5,
+      longestGapDays: 2,
+      averageGapDays: 2,
+      rolling30dCount: 42,
+    }),
+    false,
+    "once per week is acceptable",
+  );
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 8,
+      businessDaySilence: 6,
+      longestGapDays: 2,
+      averageGapDays: 2,
+      rolling30dCount: 42,
+    }),
+    false,
+    "the rolling 30d volume still exceeds the weekly standard",
+  );
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 8,
+      businessDaySilence: 6,
+      longestGapDays: 2,
+      averageGapDays: 2,
+      rolling30dCount: 3,
+    }),
+    true,
+    "below-standard rolling volume plus an overdue current gap is a cadence failure",
+  );
+});
+
+check("a slower client's observed average cadence is respected above the weekly floor", () => {
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 10,
+      businessDaySilence: 7,
+      longestGapDays: 14,
+      averageGapDays: 14,
+      rolling30dCount: 2,
+    }),
+    false,
+    "10d is within this client's normal 14d cadence",
+  );
+  assertEq(
+    isBaselineSilenceExceeded({
+      silenceDays: 15,
+      businessDaySilence: 10,
+      longestGapDays: 14,
+      averageGapDays: 14,
+      rolling30dCount: 1,
+    }),
+    true,
+    "15d exceeds the observed 14d cadence",
+  );
+});
+
+check("≤3 business days is never a silence signal; null baseline uses the weekly standard", () => {
   assertEq(
     isBaselineSilenceExceeded({ silenceDays: 10, businessDaySilence: 3, longestGapDays: 2 }),
     false,
     "3 business days",
   );
   assertEq(
-    isBaselineSilenceExceeded({ silenceDays: 25, businessDaySilence: 17, longestGapDays: null }),
+    isBaselineSilenceExceeded({ silenceDays: 8, businessDaySilence: 6, longestGapDays: null }),
     true,
-    "25d > 21d fallback",
+    "8d exceeds the weekly fallback",
   );
   assertEq(
-    isBaselineSilenceExceeded({ silenceDays: 20, businessDaySilence: 14, longestGapDays: 0 }),
+    isBaselineSilenceExceeded({ silenceDays: 7, businessDaySilence: 5, longestGapDays: 0 }),
     false,
-    "20d within fallback",
+    "7d meets the weekly standard",
   );
 });
 
@@ -1296,6 +1368,101 @@ check("baseline-relative silence alone requires At Risk (never Critical)", () =>
   assertEq(d.capReasons.includes("baseline_silence_exceeded"), true, "cap reason");
   assertEq(d.finalOverallRisk, 51, "risk derived from cadence breakdown + uncertainty");
   assertEq(d.finalRelationshipStatus, "Stable", "cadence alone cannot invent relationship strain");
+});
+
+check("current positive intel with confirmed client contact prevents a contradicted silence-only At Risk", () => {
+  const positiveContact = [{
+    id: "intel-positive-contact",
+    sourceType: "operator_intel" as const,
+    occurredAt: `${DATE_STR}T12:00:00.000Z`,
+    confirmsRecentClientContact: true,
+  }];
+  const input = gateInput({
+    proposedStatus: "At Risk",
+    silenceExceeded: true,
+    deliveryStability: "stable",
+    positiveClientContext: positiveContact,
+  });
+  const decision = applyJudgmentTierGate(input);
+  assertEq(decision.finalStatus, "Healthy", "contradicted silence cannot force At Risk");
+  assertEq(decision.silenceTemperedByPositiveContext, true, "tempering is explicit");
+  assertEq(
+    decision.riskDrivers.some(driver => driver.reason === "baseline_silence_exceeded"),
+    false,
+    "the stale silence driver is removed",
+  );
+  assertEq(
+    decision.capReasons.includes("positive_client_context_tempered_silence"),
+    true,
+    "positive precedence is explained",
+  );
+
+  const audit = buildTierGateAudit(input, decision, {
+    items: [],
+    validCount: 0,
+    rejectedCount: 0,
+    reclassifiedCount: 0,
+  });
+  assertEq(audit.positiveClientContext[0]?.id, "intel-positive-contact", "source identity is audited");
+  assertEq(audit.silenceTemperedByPositiveContext, true, "audit explains the removed silence driver");
+
+  const rating = toAccountRatingPresentation({
+    status: decision.finalStatus,
+    relationship: decision.finalRelationshipStatus,
+    riskScore: decision.finalOverallRisk,
+    judgmentDate: DATE_STR,
+    dataSourcesSummary: {
+      tier: "full",
+      promptRevision: "5354.1",
+      generatedAt: `${DATE_STR}T23:00:00.000Z`,
+      tierGate: audit,
+    },
+  });
+  assertEq(
+    rating?.reasonLabels.includes(
+      "Current positive client context tempered an otherwise contradictory silence-only signal",
+    ),
+    true,
+    "presented basis exposes the positive precedence",
+  );
+});
+
+check("positive intel is considered but cannot hide genuine cadence or delivery risk", () => {
+  const positiveWithoutContact = [{
+    id: "intel-positive-sentiment",
+    sourceType: "operator_intel" as const,
+    occurredAt: `${DATE_STR}T12:00:00.000Z`,
+    confirmsRecentClientContact: false,
+  }];
+  const cadence = applyJudgmentTierGate(gateInput({
+    silenceExceeded: true,
+    deliveryStability: "stable",
+    positiveClientContext: positiveWithoutContact,
+  }));
+  assertEq(cadence.finalStatus, "At Risk", "positive sentiment does not erase a genuine cadence gap");
+  assertEq(cadence.silenceTemperedByPositiveContext, false, "cadence driver remains active");
+  assertEq(
+    cadence.capReasons.includes("positive_client_context_validated"),
+    true,
+    "positive intel was still considered",
+  );
+
+  const delivery = applyJudgmentTierGate(gateInput({
+    silenceExceeded: true,
+    deliveryStability: "declining",
+    positiveClientContext: [{
+      ...positiveWithoutContact[0],
+      id: "intel-positive-contact",
+      confirmsRecentClientContact: true,
+    }],
+  }));
+  assertEq(delivery.finalStatus, "At Risk", "objective delivery decline remains At Risk");
+  assertEq(delivery.silenceTemperedByPositiveContext, false, "delivery risk prevents silence tempering");
+  assertEq(
+    delivery.riskDrivers.some(driver => driver.reason === "delivery_metrics_declining"),
+    true,
+    "objective delivery driver remains visible",
+  );
 });
 
 check("declining delivery metrics cap at At Risk; At-Risk-tier evidence does too", () => {

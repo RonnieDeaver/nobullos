@@ -3900,6 +3900,7 @@ const MOBILE_ORDER_CLASSES = [
   "max-md:order-7",
   "max-md:order-8",
   "max-md:order-9",
+  "max-md:order-10",
 ];
 
 function formatRollupFreshness(updatedAt: number, now: number): string {

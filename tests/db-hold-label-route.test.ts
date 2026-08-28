@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "DB hold label + route normalization (Task #836 P1)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Prod actions registry (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

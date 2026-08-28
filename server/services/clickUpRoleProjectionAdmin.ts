@@ -115,6 +115,8 @@ export interface RoleProjectionDestinationInput {
   /** direct_task (company-scope): the single ClickUp task ID required */
   targetId?: string | null;
   peopleFieldId: string;
+  peopleFieldLabel?: string | null;
+  peopleFieldType?: string | null;
   maxPeople?: number;
   environment: string;
   enabled?: boolean;
@@ -193,6 +195,15 @@ function validateDestinationInput(
   if (input.environment === "sandbox" && input.listId === CANONICAL_PRODUCTION_LIST_ID) {
     errors.push(
       `sandbox destination must not use canonical production list ID ${CANONICAL_PRODUCTION_LIST_ID}`,
+    );
+  }
+  if (
+    input.environment === "production" &&
+    input.targetKind === "client_list_parent" &&
+    input.listId !== CANONICAL_PRODUCTION_LIST_ID
+  ) {
+    errors.push(
+      `production per-client role destinations must use canonical production list ID ${CANONICAL_PRODUCTION_LIST_ID}`,
     );
   }
   // An approval action must be attributable to an authenticated actor.
@@ -317,7 +328,12 @@ export async function upsertRoleProjectionDestination(
       // authoritative row, not caller-supplied hints. Generic departments skip
       // the policy entirely.
       const [department] = await tx
-        .select({ id: sdDepartments.id, name: sdDepartments.name })
+        .select({
+          id: sdDepartments.id,
+          name: sdDepartments.name,
+          active: sdDepartments.active,
+          assignmentScope: sdDepartments.assignmentScope,
+        })
         .from(sdDepartments)
         .where(eq(sdDepartments.id, input.departmentId))
         .limit(1)
@@ -327,6 +343,39 @@ export async function upsertRoleProjectionDestination(
         .for("update");
       if (!department) {
         return { ok: false as const, errors: [`department ${input.departmentId} not found`] };
+      }
+      if (!department.active) {
+        return {
+          ok: false as const,
+          errors: ["Inactive departments may not receive a role projection destination"],
+        };
+      }
+      // Per-client roles are a column contract on client parent tasks. Allowing
+      // them to fall back to one direct task bypasses canonical client-task
+      // mappings and makes one client's assignment overwrite another's.
+      if (
+        department.assignmentScope === "per_client" &&
+        input.targetKind !== "client_list_parent"
+      ) {
+        return {
+          ok: false as const,
+          errors: [
+            "Per-client departments must use client_list_parent projection destinations",
+          ],
+        };
+      }
+      // Company roles retain their existing single-task behavior but must never
+      // be configured as a per-client column destination.
+      if (
+        department.assignmentScope === "company" &&
+        input.targetKind !== "direct_task"
+      ) {
+        return {
+          ok: false as const,
+          errors: [
+            "Company-scoped departments must use direct_task projection destinations",
+          ],
+        };
       }
       if (
         input.responsibility === "checker" &&
@@ -342,6 +391,37 @@ export async function upsertRoleProjectionDestination(
         if (policyErrors.length > 0) {
           return { ok: false as const, errors: policyErrors };
         }
+      }
+
+      // A ClickUp People field represents one responsibility column. Reusing
+      // its exact field ID for a second role would silently project two
+      // assignments into the same column, so reject it regardless of label.
+      const existingFieldMappings = await tx
+        .select({
+          departmentId: cuRoleProjectionDestinations.departmentId,
+          responsibility: cuRoleProjectionDestinations.responsibility,
+        })
+        .from(cuRoleProjectionDestinations)
+        .where(
+          and(
+            eq(cuRoleProjectionDestinations.workspaceId, input.workspaceId),
+            eq(cuRoleProjectionDestinations.environment, input.environment),
+            eq(cuRoleProjectionDestinations.listId, input.listId ?? ""),
+            eq(cuRoleProjectionDestinations.peopleFieldId, input.peopleFieldId),
+          ),
+        );
+      const duplicateFieldMapping = existingFieldMappings.find(
+        (row) =>
+          row.departmentId !== input.departmentId ||
+          row.responsibility !== input.responsibility,
+      );
+      if (duplicateFieldMapping) {
+        return {
+          ok: false as const,
+          errors: [
+            `People field ${input.peopleFieldId} is already mapped to ${duplicateFieldMapping.departmentId}:${duplicateFieldMapping.responsibility}`,
+          ],
+        };
       }
 
       // Load the existing row (by the unique identity) so approval actions apply
@@ -381,6 +461,8 @@ export async function upsertRoleProjectionDestination(
           listId: input.listId ?? undefined,
           targetId: input.targetId ?? undefined,
           peopleFieldId: input.peopleFieldId,
+          peopleFieldLabel: input.peopleFieldLabel ?? undefined,
+          peopleFieldType: input.peopleFieldType ?? undefined,
           maxPeople: input.maxPeople ?? 1,
           environment: input.environment as "sandbox" | "production",
           enabled: input.enabled ?? false,
@@ -401,6 +483,8 @@ export async function upsertRoleProjectionDestination(
             listId: input.listId ?? undefined,
             targetId: input.targetId ?? undefined,
             peopleFieldId: input.peopleFieldId,
+            peopleFieldLabel: input.peopleFieldLabel ?? undefined,
+            peopleFieldType: input.peopleFieldType ?? undefined,
             maxPeople: input.maxPeople ?? 1,
             enabled: input.enabled ?? false,
             sandboxExitApprovedAt: approvals.sandboxExitApprovedAt,
@@ -443,6 +527,8 @@ export async function upsertRoleProjectionClientTarget(
           id: cuRoleProjectionDestinations.id,
           departmentId: cuRoleProjectionDestinations.departmentId,
           responsibility: cuRoleProjectionDestinations.responsibility,
+          environment: cuRoleProjectionDestinations.environment,
+          targetKind: cuRoleProjectionDestinations.targetKind,
         })
         .from(cuRoleProjectionDestinations)
         .where(eq(cuRoleProjectionDestinations.id, input.destinationId))
@@ -458,6 +544,17 @@ export async function upsertRoleProjectionClientTarget(
         return {
           ok: false as const,
           errors: [`Destination ${input.destinationId} uses an unsupported responsibility`],
+        };
+      }
+      if (
+        destination.environment === "production" &&
+        destination.targetKind === "client_list_parent"
+      ) {
+        return {
+          ok: false as const,
+          errors: [
+            "Canonical production role targets are derived from client-list mappings and cannot be entered per client",
+          ],
         };
       }
       const [target] = await tx

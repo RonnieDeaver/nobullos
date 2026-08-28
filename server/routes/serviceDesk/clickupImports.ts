@@ -259,12 +259,24 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
           }),
         ]);
 
-        // Existing saved map — carry over all pre-existing entries untouched.
+        // Existing saved map. A mapping whose request-type label no longer has
+        // a backing row is stale and must not be counted as already mapped.
         // CONTRACT: requestTypeOptionIds values are request-type NAMES (labels),
         // not IDs — the ticket resolver and the Option Maps UI both read/write
         // labels (see resolveTickets ~line 410 and the auto-match UI).
         const existingMap = (config.requestTypeOptionIds ?? {}) as Record<string, string>;
-        const newMap: Record<string, string> = { ...existingMap };
+        const existingRtNameKeys = new Set(existingRts.map((requestType) => requestType.name.toLowerCase().trim()));
+        const validExistingMap = Object.fromEntries(
+          Object.entries(existingMap).filter(([, requestTypeName]) =>
+            existingRtNameKeys.has(requestTypeName.toLowerCase().trim()),
+          ),
+        );
+        const staleMappedOptionIds = new Set(
+          Object.entries(existingMap)
+            .filter(([, requestTypeName]) => !existingRtNameKeys.has(requestTypeName.toLowerCase().trim()))
+            .map(([optionId]) => optionId),
+        );
+        const newMap: Record<string, string> = { ...validExistingMap };
 
         // Refresh names of already-mapped request types whose ClickUp option was
         // renamed. Mutates newMap values (name-keyed) + existingRts in place;
@@ -274,6 +286,7 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
         const created: Array<{ optionId: string; optionName: string; requestTypeName: string }> = [];
         const matched: Array<{ optionId: string; optionName: string; requestTypeName: string }> = [];
         const alreadyMapped: Array<{ optionId: string; optionName: string; requestTypeName: string }> = [];
+        const staleRecovered: Array<{ optionId: string; optionName: string; requestTypeName: string }> = [];
 
         // Built AFTER the rename refresh so lookups use the current names.
         const rtByName = new Map(
@@ -286,7 +299,7 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
         );
 
         for (const opt of clickupOptions) {
-          if (existingMap[opt.id]) {
+          if (validExistingMap[opt.id]) {
             // Report the (possibly just-refreshed) name from newMap.
             alreadyMapped.push({ optionId: opt.id, optionName: opt.name, requestTypeName: newMap[opt.id] });
             continue;
@@ -303,7 +316,14 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
             // even before the CEO presses "Auto-match departments".
             const autoPrefix = extractRtPrefix(opt.name);
             const autoMatch = matchDeptForPrefix(autoPrefix, importDepts);
-            const autoDeptId = autoMatch.kind === "matched" ? autoMatch.deptId : null;
+            // A stale mapping means the former request type was deliberately
+            // removed. Restore the row for explicit operator remapping, but do
+            // not guess its new department from a similar-looking prefix.
+            const autoDeptId = staleMappedOptionIds.has(opt.id)
+              ? null
+              : autoMatch.kind === "matched"
+                ? autoMatch.deptId
+                : null;
 
             const [newRt] = await withDbAttribution("serviceDesk:importRts:createRt", async () => {
               const db = getDb();
@@ -316,10 +336,13 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
             rtCanonicalName.set(newRt.name.toLowerCase().trim(), newRt.name);
             newMap[opt.id] = newRt.name;
             created.push({ optionId: opt.id, optionName: opt.name, requestTypeName: newRt.name });
+            if (staleMappedOptionIds.has(opt.id)) {
+              staleRecovered.push({ optionId: opt.id, optionName: opt.name, requestTypeName: newRt.name });
+            }
           }
         }
 
-        if (created.length > 0 || matched.length > 0 || renamed.length > 0) {
+        if (staleMappedOptionIds.size > 0 || created.length > 0 || matched.length > 0 || renamed.length > 0) {
           await withDbAttribution("serviceDesk:importRts:saveMap", async () => {
             const db = getDb();
             const [existing] = await db.select({ id: sdListMapping.id }).from(sdListMapping).limit(1);
@@ -335,10 +358,13 @@ export function registerServiceDeskClickUpImportRoutes(app: Express): void {
           created,
           matched,
           alreadyMapped,
+          staleRecovered,
           renamed,
           createdCount: created.length,
           matchedCount: matched.length,
           alreadyMappedCount: alreadyMapped.length,
+          staleRecoveredCount: staleRecovered.length,
+          needsDepartmentRemapCount: staleRecovered.length,
           renamedCount: renamed.length,
         });
       } catch (err: any) {

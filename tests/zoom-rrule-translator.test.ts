@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Zoom RRULE translator (Task #1032C)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

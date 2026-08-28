@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Work-queue scheduler stability (Tasks #978/#986/#987/#988)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

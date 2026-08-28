@@ -1,10 +1,11 @@
 /* test-registration
 {
-  "name": "Workflow topology guard: application, routine validation, and long-control roles",
+  "name": "Workflow topology guard: application and durable long-validation roles",
   "smoke": true,
-  "smokeReason": "Protects the approved application, routine-gate, and explicit long-control workflow topology so normal Run cannot fan out or bypass the canonical gate.",
+  "smokeReason": "Protects the approved application and durable long-validation workflow topology so normal Run cannot fan out or bypass the canonical gate.",
   "regression": true,
   "tier": "medium",
+  "tierReason": "Scans workflow topology and fixture cases to enforce the approved gate structure.",
   "scanPaths": [".replit", "scripts/lint-gate-workflow-drift.ts", "artifacts/mockup-sandbox/.replit-artifact/artifact.toml"]
 }
 test-registration */
@@ -39,29 +40,51 @@ console.log("1) approved repository topology");
   const result = runLint({ replitSource: canonical });
   assert(result.ok, "real .replit passes the approved workflow topology contract");
   assert(
-    result.message.includes("Validate runs the canonical gate"),
-    "success output records the canonical validation path",
+    result.message.includes("Long validation is the sole durable allowlisted control runner"),
+    "success output records the durable requested-gate path",
+  );
+  assert(
+    canonical.includes(
+      'purpose = "Durable operator-requested canonical gate and main-workspace-only central-integrity control runner (full-control/matched-comparison refused in task/sub-environments)"',
+    ),
+    "Long validation metadata identifies the durable requested-gate role",
   );
 }
 
 console.log("\n2) migration regressions are rejected");
 expectFailure(
-  "duplicate role",
-  canonical.replace(
-    'name = "Validate"',
-    'name = "Validate"\n\n[[workflows.workflow]]\nname = "Validate"',
-  ),
-  'duplicate workflow role "Validate"',
+  "retired foreground validation role",
+  `${canonical}\n[[workflows.workflow]]\nname = "Validate"\nauthor = "agent"\n\n[[workflows.workflow.tasks]]\ntask = "shell.exec"\nargs = "npm run gate"\n`,
+  'forbidden workflow "Validate"',
 );
 expectFailure(
-  "wrong validation command",
-  canonical.replace('args = "npm run gate"', 'args = "npm run check"'),
-  '"Validate" command must be "npm run gate"',
+  "duplicate role",
+  canonical.replace(
+    'name = "Long validation"',
+    'name = "Long validation"\n\n[[workflows.workflow]]\nname = "Long validation"',
+  ),
+  'duplicate workflow role "Long validation"',
+);
+expectFailure(
+  "wrong durable validation command",
+  canonical.replace(
+    'args = "npm run validate:long -- --request .local/runs/long-validation-request.json"',
+    'args = "npm run gate"',
+  ),
+  '"Long validation" command must be "npm run validate:long -- --request .local/runs/long-validation-request.json"',
+);
+expectFailure(
+  "stale foreground validation command",
+  canonical.replace(
+    'args = "npm run validate:long -- --request .local/runs/long-validation-request.json"',
+    'args = "npm run gate"',
+  ),
+  '"Long validation" command must be "npm run validate:long -- --request .local/runs/long-validation-request.json"',
 );
 expectFailure(
   "excess workflow",
   `${canonical}\n[[workflows.workflow]]\nname = "Extra"\nauthor = "agent"\n\n[[workflows.workflow.tasks]]\ntask = "shell.exec"\nargs = "true"\n`,
-  "workflow capacity is 3 roles with 0 spare slots",
+  "workflow capacity is 2 roles with 0 spare slots",
 );
 expectFailure(
   "forbidden per-lint workflow",

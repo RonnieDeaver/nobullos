@@ -505,6 +505,10 @@ export interface AuditReport {
   next_steps: NextSteps;
   categories: CategoryResult[];
   from_cache?: boolean;
+  /** Task #5332: the account's current Account Alerts (same store the combined
+   *  dashboard badge reads) — a separate real-time signal from this score. */
+  alerts?: Alert[];
+  alerts_at?: string | null;
 }
 
 // ---- Search Term Analyzer (mirrors backend keywordIntel/models.ts) ----

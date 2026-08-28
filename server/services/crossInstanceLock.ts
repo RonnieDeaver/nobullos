@@ -35,6 +35,10 @@ import { workerPool } from "../db";
  *   • PROD_ACTION_DRAIN — "DRAI" → 0x44524149. Owned by
  *     `prodActionBackgroundDrain.ts`; keyed by `actionId`. Kept identical
  *     to the Task #2293 value so existing locks/tests are unchanged.
+ *   • PROD_ACTION_MANUAL — "PAML" → 0x50414D4C. Owned by the direct
+ *     manual-lever executor; keyed by `actionId`. This namespace is
+ *     deliberately separate from DRAI because a manual action may launch
+ *     a background drain that acquires and holds the DRAI lock itself.
  *   • WORKER_SINGLETON  — "WSNG" → 0x57534E47. Owned by run-once
  *     workers/schedulers (Google Drive crawl, Local Dominance sync,
  *     SEMrush inventory sweep, daily-judgment cron, import-ghosts cron);
@@ -43,6 +47,7 @@ import { workerPool } from "../db";
  * Both values are well within the signed-int4 range.
  */
 export const PROD_ACTION_DRAIN_LOCK_NAMESPACE = 0x44524149;
+export const PROD_ACTION_MANUAL_LOCK_NAMESPACE = 0x50414d4c;
 export const WORKER_SINGLETON_LOCK_NAMESPACE = 0x57534e47;
 
 /**
@@ -200,6 +205,19 @@ export function acquireProdActionDrainLock(
     PROD_ACTION_DRAIN_LOCK_NAMESPACE,
     actionId,
     "[prod-actions]",
+    options,
+  );
+}
+
+/** Cluster-wide, per-action lock for the direct manual-lever request. */
+export function acquireProdActionManualLock(
+  actionId: string,
+  options: CrossInstanceLockOptions = {},
+): Promise<CrossInstanceLockHandle | null> {
+  return acquireCrossInstanceLock(
+    PROD_ACTION_MANUAL_LOCK_NAMESPACE,
+    actionId,
+    "[prod-actions:manual]",
     options,
   );
 }

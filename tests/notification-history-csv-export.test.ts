@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Notification history CSV export",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

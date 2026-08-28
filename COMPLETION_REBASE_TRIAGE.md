@@ -94,7 +94,8 @@ judged by them — run new gates locally before revalidating.
 
 ### 5. Revalidate ONCE
 
-Re-run validation a single time via the `Validate` workflow (`npm run gate`)
+Re-run validation a single time via the managed **Long validation** workflow's
+reviewed `routine-gate` profile
 and judge its final verdict. Incremental green-skip stays **unchanged**:
 unaffected suites skip on their fingerprints; never force a full manual
 re-derivation per round, and never re-verify suites with bare `tsx` against

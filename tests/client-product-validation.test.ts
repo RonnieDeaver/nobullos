@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Client product validation",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Blocked rate-limit events CSV export (Task #777)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

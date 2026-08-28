@@ -118,6 +118,17 @@ const TAGS_KEY = ["/api/tags"] as const;
 const SEGMENTS_KEY = ["/api/segments"] as const;
 const STATUS_KEY = ["/api/tags-segments/status"] as const;
 
+// Other surfaces (Dashboard's client tag picker, DealsBoard's deal tag
+// picker) cache tag lists under entityType/includeAssignments query strings,
+// e.g. "/api/tags?entityType=deal&includeAssignments=1". Those are distinct
+// query keys from the bare "/api/tags" used on this page, so an exact-key
+// invalidation here never reaches them — a predicate on the URL prefix does.
+function invalidateAllTagQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({
+    predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/tags"),
+  });
+}
+
 function formatWhen(value: string | Date | null | undefined): string {
   if (!value) return "never";
   const d = new Date(value);
@@ -179,7 +190,7 @@ function TagDialog({
       return res.json();
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...TAGS_KEY] });
+      invalidateAllTagQueries(queryClient);
       void queryClient.invalidateQueries({ queryKey: [...STATUS_KEY] });
       onOpenChange(false);
       toast({ title: existing ? "Tag updated" : "Tag created" });
@@ -360,6 +371,11 @@ function SegmentDialog({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SEGMENTS_KEY] });
       void queryClient.invalidateQueries({ queryKey: [...STATUS_KEY] });
+      if (existing) {
+        // A still-open Members dialog for this segment would otherwise show
+        // membership from before the criteria change.
+        void queryClient.invalidateQueries({ queryKey: [`/api/segments/${existing.id}/members`] });
+      }
       onOpenChange(false);
       toast({ title: existing ? "Segment updated" : "Segment created" });
     },
@@ -478,6 +494,13 @@ function SegmentMembersDialog({
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading members…
           </div>
+        ) : membersQuery.isError ? (
+          <div className="flex flex-col items-center gap-2 py-6 text-sm text-destructive" data-testid="text-members-error">
+            <p>Couldn't load members.</p>
+            <Button variant="outline" size="sm" onClick={() => void membersQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
         ) : (data?.members.length ?? 0) === 0 ? (
           <p className="py-6 text-sm text-muted-foreground" data-testid="text-no-members">
             No members match this segment right now.
@@ -541,7 +564,9 @@ export default function TagsSegments() {
       );
     },
     onSuccess: (_data, target) => {
-      void queryClient.invalidateQueries({ queryKey: [...TAGS_KEY] });
+      if (target.kind === "tag") {
+        invalidateAllTagQueries(queryClient);
+      }
       void queryClient.invalidateQueries({ queryKey: [...SEGMENTS_KEY] });
       void queryClient.invalidateQueries({ queryKey: [...STATUS_KEY] });
       setDeleteTarget(null);
@@ -555,9 +580,13 @@ export default function TagsSegments() {
   const recomputeMutation = useMutation({
     mutationFn: (segmentId: string) =>
       apiRequest("POST", `/api/segments/${segmentId}/recompute`).then((r) => r.json()),
-    onSuccess: (result: { memberCount: number }) => {
+    onSuccess: (result: { memberCount: number }, segmentId) => {
       void queryClient.invalidateQueries({ queryKey: [...SEGMENTS_KEY] });
       void queryClient.invalidateQueries({ queryKey: [...STATUS_KEY] });
+      // If the Members dialog for this segment is already open, its list is
+      // now stale too — the count on the row would update but the dialog
+      // wouldn't until it happened to be reopened.
+      void queryClient.invalidateQueries({ queryKey: [`/api/segments/${segmentId}/members`] });
       toast({ title: `Recomputed — ${result.memberCount} member${result.memberCount === 1 ? "" : "s"}` });
     },
     onError: (err: Error) => {
@@ -644,6 +673,13 @@ export default function TagsSegments() {
               {tagsQuery.isLoading ? (
                 <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                </div>
+              ) : tagsQuery.isError ? (
+                <div className="flex flex-col items-center gap-2 p-6 text-sm text-destructive" data-testid="text-tags-error">
+                  <p>Couldn't load tags.</p>
+                  <Button variant="outline" size="sm" onClick={() => void tagsQuery.refetch()}>
+                    Retry
+                  </Button>
                 </div>
               ) : tags.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground" data-testid="text-no-tag-defs">
@@ -739,6 +775,13 @@ export default function TagsSegments() {
                 <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                 </div>
+              ) : segmentsQuery.isError ? (
+                <div className="flex flex-col items-center gap-2 p-6 text-sm text-destructive" data-testid="text-segments-error">
+                  <p>Couldn't load segments.</p>
+                  <Button variant="outline" size="sm" onClick={() => void segmentsQuery.refetch()}>
+                    Retry
+                  </Button>
+                </div>
               ) : segments.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground" data-testid="text-no-segments">
                   No segments yet.
@@ -833,6 +876,19 @@ export default function TagsSegments() {
 
         {/* ── Status ── */}
         <TabsContent value="status" className="space-y-3">
+          {statusQuery.isError && (
+            <Card data-testid="card-status-error">
+              <CardContent className="flex flex-col items-center gap-2 p-6 text-sm text-destructive">
+                <p>
+                  Couldn't load sweep status — the controls below may be showing stale or
+                  default values, not the real state.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => void statusQuery.refetch()}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid gap-3 lg:grid-cols-2">
             <Card data-testid="card-sweep-controls">
               <CardHeader className="pb-3">
@@ -852,7 +908,7 @@ export default function TagsSegments() {
                   </div>
                   <Switch
                     checked={status?.sweepEnabled ?? false}
-                    disabled={statusQuery.isLoading || settingsMutation.isPending}
+                    disabled={statusQuery.isLoading || statusQuery.isError || settingsMutation.isPending}
                     onCheckedChange={(checked) => settingsMutation.mutate({ enabled: checked })}
                     data-testid="switch-sweep-enabled"
                   />

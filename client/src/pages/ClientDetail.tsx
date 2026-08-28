@@ -193,7 +193,6 @@ function MatchingContactsSummary({ contacts = [], isLoading, onNavigate, clientI
               <div key={c.id} className="flex items-start gap-3 p-2 rounded-lg bg-surface-warm-1/50 border border-primary/5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm text-primary">{c.name}</span>
                     <span className="font-medium text-sm text-foreground">{c.name}</span>
                     {c.roleTitle && <span className="text-xs text-muted-foreground">{c.roleTitle}</span>}
                   </div>
@@ -285,7 +284,6 @@ const TAB_DOMAINS: TabDomain[] = [
     tabs: [
       { id: "comm-log", label: "Comm Log", icon: MessageSquare },
       { id: "timeline", label: "Timeline", icon: History },
-      { id: "daily-judgment", label: "Judgment", icon: Scale },
       { id: "team-chat", label: "Team Chat", icon: MessageSquare },
     ],
   },
@@ -304,6 +302,7 @@ const TAB_DOMAINS: TabDomain[] = [
     icon: Bot,
     tabs: [
       { id: "agent-chat", label: "Chat", icon: Bot },
+      { id: "daily-judgment", label: "Judgment", icon: Scale },
       { id: "agent-memory", label: "Memory", icon: Database },
       { id: "matching-agent", label: "Matching", icon: Brain },
     ],

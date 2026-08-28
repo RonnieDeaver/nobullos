@@ -3,11 +3,12 @@
 // be exercised without real ClickUp API calls, database token rows, or OpenAI.
 //
 // Stubs:
-//   sd-sync-client-options-cu-stub.mjs      → clickUpClient
+//   vendor-stubs/clickup-stub.mjs            → clickUpClient (shared module,
+//     Task #5313 — see TESTING.md, "Shared vendor test stubs")
 //   sd-sync-client-options-token-stub.mjs   → clickUpIntegration
 //   sd-sync-client-options-openai-stub.mjs  → routes/middleware (openai only)
 
-const CU_STUB_URL = new URL("./sd-sync-client-options-cu-stub.mjs", import.meta.url).href;
+const CU_STUB_URL = new URL("./vendor-stubs/clickup-stub.mjs", import.meta.url).href;
 const TOKEN_STUB_URL = new URL("./sd-sync-client-options-token-stub.mjs", import.meta.url).href;
 const OPENAI_STUB_URL = new URL("./sd-sync-client-options-openai-stub.mjs", import.meta.url).href;
 

@@ -230,7 +230,7 @@ export const LEADS_GENERATED = {
  * leads-in → cases-out for both firms — the H2 poses the figure, the
  * receipt still proves it, and the consults pair + revenue duel remain
  * visible only in the chart/receipt. Everything stays GAP_MODEL-templated
- * (lede keeps the "Picture two firms" cue), and a visually-hidden
+ * (the visually-hidden summary carries an explicit hypothetical label), and a
  * summary (also GAP_MODEL-templated) speaks the full model to screen
  * readers while the chart stays aria-hidden.
  * ILLUSTRATIVE MODEL — always label as a model (the hypothetical two-firm

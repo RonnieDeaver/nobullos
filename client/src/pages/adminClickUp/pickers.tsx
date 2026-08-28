@@ -46,19 +46,22 @@ export function TaskPicker({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const { data, isFetching } = useQuery<{ tasks: SearchResult[] }>({
+  const { data, isFetching, isError } = useQuery<{ tasks: SearchResult[] }>({
     queryKey: ["/api/clickup/workspaces", workspaceId, "search", query],
     queryFn: async () => {
       if (!workspaceId || !query.trim()) return { tasks: [] };
       const res = await fetch(
-        `/api/clickup/workspaces/${workspaceId}/search?query=${encodeURIComponent(query)}`,
+        // Server reads the free-text term from `q`, not `query` — using the
+        // wrong param name silently returned the unfiltered task list.
+        `/api/clickup/workspaces/${workspaceId}/search?q=${encodeURIComponent(query)}`,
         { credentials: "include" },
       );
-      if (!res.ok) return { tasks: [] };
+      if (!res.ok) throw new Error(`Search failed (${res.status})`);
       return res.json();
     },
     enabled: !!workspaceId && query.trim().length > 1,
     staleTime: 10_000,
+    retry: false,
   });
 
   const results = (data?.tasks ?? []).filter((t) => t.id !== excludeId).slice(0, 8);
@@ -78,7 +81,12 @@ export function TaskPicker({
         />
         {isFetching && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
       </div>
-      {open && results.length > 0 && (
+      {open && isError && (
+        <div className="absolute z-[var(--z-overlay)] top-9 left-0 right-0 bg-card border rounded shadow-lg px-3 py-2 text-xs text-red-600" data-testid="task-picker-error">
+          Search failed — try again.
+        </div>
+      )}
+      {open && !isError && results.length > 0 && (
         <div className="absolute z-50 top-9 left-0 right-0 bg-card border rounded shadow-lg max-h-48 overflow-y-auto" data-testid="task-picker-results">
           {results.map((t) => (
             <button

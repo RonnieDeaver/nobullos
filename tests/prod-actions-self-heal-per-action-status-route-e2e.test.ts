@@ -3,7 +3,8 @@
   "name": "Prod-actions self-heal per-action status route body e2e (Task #2241)",
   "regression": true,
   "sweepOnlyReason": "Owner-approved 2026-08 blocking-portfolio audit: this isolated-schema Express route E2E uniquely proves each action's durable self-heal readout survives GET /api/admin/prod-actions serialization, but repeated forced focused runs took about 48s. It remains in the full/post-merge/nightly regression lanes and the existing blast-radius expansion re-adds it to the blocking run whenever its imported prod-actions route or service closure changes.",
-  "tier": "medium"
+  "tier": "large",
+  "tierReason": "Measured focused route E2E duration is about 48 seconds and uses an isolated schema plus Express serialization."
 }
 test-registration */
 /**

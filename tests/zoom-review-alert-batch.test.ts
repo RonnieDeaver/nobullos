@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Zoom review alert batched read (Task #836 P5)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

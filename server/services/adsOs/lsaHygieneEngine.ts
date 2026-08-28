@@ -509,8 +509,9 @@ export function checkAnswerRate(ar: AnswerRate): CheckResult {
   const ev: Evidence[] = [
     { name: "Calls", id: null, detail: `${ar.connected} connected / ${ar.calls} calls` },
   ];
-  const val = `${Math.round(ar.rate)}% answered (${ar.connected} of ${ar.calls} calls)`;
-  if (ar.rate >= LSA_ANSWER_RATE_GOOD) {
+  const roundedRate = Math.round(ar.rate);
+  const val = `${roundedRate}% answered (${ar.connected} of ${ar.calls} calls)`;
+  if (roundedRate >= LSA_ANSWER_RATE_GOOD) {
     return check("PERF-01", "PERF", name, Status.GOOD, W_HIGH, "high", val, ev);
   }
   return check(
@@ -535,12 +536,13 @@ export function checkLeadQuality(leads: LeadRow[], cost: number, currency: strin
     );
   }
   const chargeRate = (charged / total) * 100;
+  const roundedChargeRate = Math.round(chargeRate);
   const cplStr = costPerLead !== null ? ` · CPL ${fmt0(costPerLead)}${cur}` : "";
-  const val = `${Math.round(chargeRate)}% billable (${charged} charged of ${total} leads)${cplStr}`;
+  const val = `${roundedChargeRate}% billable (${charged} charged of ${total} leads)${cplStr}`;
   const ev: Evidence[] = [
     { name: "Leads (window)", id: null, detail: `${charged} charged / ${total} total` },
   ];
-  if (chargeRate > LSA_LEAD_QUALITY_GOOD) {
+  if (roundedChargeRate >= LSA_LEAD_QUALITY_GOOD) {
     return check("PERF-02", "PERF", name, Status.GOOD, W_MEDIUM, "medium", val, ev);
   }
   return check(

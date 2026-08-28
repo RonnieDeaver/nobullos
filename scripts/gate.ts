@@ -3,7 +3,7 @@
  * smoke gate in one invocation with a clear per-check pass/fail summary.
  *
  * This is the single source of truth for the gate command set. The `.replit`
- * `Validate` role invokes `npm run gate`; individual scripts remain available
+ * managed Long validation workflow runs the reviewed routine-gate profile; individual scripts remain available
  * as focused CLI commands (`npx tsx scripts/…`). LINT_CHECKS below is the
  * canonical list. See TASK_SELFCHECK.md § 4 when adding a lint.
  *
@@ -43,7 +43,7 @@
 
 import { spawnSync } from "node:child_process";
 import { Worker } from "node:worker_threads";
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { loadDurationBudgetArtifact } from "../tests/durationBudget";
 // Task #5030 — wall breaches alert (non-blocking) and land in the breach
 // ledger; the sweep scheduler auto-files the re-baseline/triage item.
@@ -56,16 +56,24 @@ import { fileURLToPath } from "node:url";
 // Import is side-effect-free (constants + function defs only), preserving the
 // nightly report-only `import("../scripts/gate")` in tests/run-all.ts.
 import { runGateLintFailureRails } from "./gateLintAttribution";
+// Task #5317 — reuse Task #5316's live diff-provenance tool (which itself
+// reuses gateLintAttribution's resolveBaseTree) rather than a second
+// base-resolution implementation. Import is side-effect-free.
+import { buildProvenanceReport, type ProvenanceReport } from "./diffProvenanceLib";
 import {
   TASK_GATE_EVIDENCE_SCHEMA_VERSION,
   TASK_GATE_SHARD_CAP_REASONS,
   TASK_GATE_SHARD_COUNT_SOURCES,
   appendTaskGateEvidence,
+  buildTaskGateProvenance,
+  captureTaskGateSource,
   type TaskGateAttributionSummary,
   type TaskGateEvidenceRecord,
   type TaskGatePerformanceSummary,
   type TaskGateSelectionMode,
 } from "./taskGateEvidence";
+import { classifyTaskGateDisposition, mandatoryRailWasExecuted } from "./taskGatePolicy";
+import { computeChangedFiles, makeGitRunner } from "../tests/relatedSmokeSelection";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_PATH = resolve(ROOT, "scripts/gate-lint-worker.mjs");
@@ -81,6 +89,10 @@ const GATE_ATTRIBUTION_REPORT_PATH = resolve(
   ROOT,
   `.local/scratch/task-gate-attribution-${GATE_PRIVATE_ARTIFACT_STEM}.json`,
 );
+// Task #5317 — well-known (not per-invocation-private) fixed path: every
+// gate run overwrites this with a freshly computed report, so it's always
+// where an agent expects it, unlike the per-PID scratch paths above.
+const GATE_DIFF_PROVENANCE_REPORT_PATH = resolve(ROOT, ".local/runs/gate-diff-provenance.json");
 
 // npm swallows unknown --flags before argv (`npm run gate --lint-only` arrives
 // only as npm_config_lint_only), while `npm run gate -- --lint-only` arrives
@@ -99,11 +111,57 @@ const NO_SMOKE =
 const LINT_ONLY = flag("--lint-only", "lint_only");
 const FULL_SMOKE = flag("--full-smoke", "full_smoke");
 
+/**
+ * Changes to these policy-owning surfaces require focused contract proof plus
+ * a bounded gate. Their broad verification is explicitly deferred to the
+ * shared central-integrity lane; only an operator-requested full smoke run
+ * verifies that debt immediately.
+ */
+const TASK_CONTROL_PLANE_PATHS = [
+  "scripts/gate.ts",
+  "scripts/gate-lint-worker.mjs",
+  "scripts/taskGatePolicy.ts",
+  "scripts/taskGateEvidence.ts",
+  "scripts/report-task-gate-evidence.ts",
+  "scripts/gateLintAttribution.ts",
+  "scripts/regen-gate-duration-budget.ts",
+  "tests/run-all.ts",
+  "tests/testRegistry.ts",
+  "tests/relatedSmokeSelection.ts",
+  "tests/suiteFingerprint.ts",
+  "tests/redManifest.ts",
+  "tests/durationBudget.ts",
+  "tests/flake-quarantine.json",
+  "server/services/regressionSweep.ts",
+  "server/services/regressionSweepScheduler.ts",
+] as const;
+
+export function isTaskControlPlanePath(path: string): boolean {
+  return (
+    TASK_CONTROL_PLANE_PATHS.includes(path as (typeof TASK_CONTROL_PLANE_PATHS)[number]) ||
+    path.startsWith("scripts/lint-") ||
+    path.startsWith("tests/helpers/") ||
+    path.startsWith("tests/flake-quarantine")
+  );
+}
+
+function currentTaskTouchesTaskControlPlane(): boolean {
+  const changed = computeChangedFiles(makeGitRunner(ROOT), process.env);
+  return !changed.ok || changed.files.some(isTaskControlPlanePath);
+}
+
 
 export interface LintCheck {
   name: string;
   /** Repo-relative path to the lint script (standalone command: `npx tsx <script>`). */
   script: string;
+  /**
+   * Run this check without any other lint worker active. Reserved for checks
+   * whose subprocess is healthy in isolation but can exceed its own bounded
+   * timeout under lint-pool CPU/memory contention. Cache hits still occupy
+   * this lane briefly; the check's own timeout and verdict remain unchanged.
+   */
+  exclusive?: boolean;
   /**
    * Task #4491 — optional remediation hint printed when the check fails
    * (generator command or doc pointer), so fixes stop requiring memory
@@ -126,7 +184,7 @@ export interface LintCheck {
 /**
  * LINT_CHECKS is the single canonical list of all lint checks.
  *
- * Every entry runs under the single `.replit` Validate role via `npm run gate`.
+ * Every entry runs under the managed Long validation workflow's reviewed routine-gate profile.
  * No lint receives a dedicated workflow; standalone commands are focused
  * debugging tools only.
  * When adding a new lint script:
@@ -153,7 +211,11 @@ export const LINT_CHECKS: LintCheck[] = [
   { name: "lint-test-hedge-comments", script: "scripts/lint-test-hedge-comments.ts" },
   { name: "lint-probe-swallow-into-unauthorized", script: "scripts/lint-probe-swallow-into-unauthorized.ts" },
   { name: "lint-front-rematch-restrict-to-ids", script: "scripts/lint-front-rematch-restrict-to-ids.ts" },
-  { name: "lint-bundle-budget", script: "scripts/lint-bundle-budget.ts" },
+  {
+    name: "lint-bundle-budget",
+    script: "scripts/lint-bundle-budget.ts",
+    exclusive: true,
+  },
   { name: "lint-probe-refresh-purpose", script: "scripts/lint-probe-refresh-purpose.ts" },
   { name: "lint-test-shared-setting-pinning", script: "scripts/lint-test-shared-setting-pinning.ts" },
   { name: "lint-cross-instance-locks", script: "scripts/lint-cross-instance-locks.ts" },
@@ -512,18 +574,41 @@ export async function runLintPhase(
     }
   };
 
-  let cursor = 0;
-  const runNext = async (): Promise<void> => {
-    while (cursor < checks.length) {
-      const index = cursor++;
-      const result = await runLintWorker(checks[index]);
-      results[index] = result;
-      flushReady();
-    }
+  const runIndexes = async (
+    indexes: readonly number[],
+    laneConcurrency: number,
+  ): Promise<void> => {
+    let cursor = 0;
+    const runNext = async (): Promise<void> => {
+      while (cursor < indexes.length) {
+        const index = indexes[cursor++];
+        const result = await runLintWorker(checks[index]);
+        results[index] = result;
+        flushReady();
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(laneConcurrency, Math.max(indexes.length, 1)) },
+        () => runNext(),
+      ),
+    );
   };
-  await Promise.all(
-    Array.from({ length: concurrency }, () => runNext()),
-  );
+
+  let index = 0;
+  while (index < checks.length) {
+    if (checks[index].exclusive) {
+      await runIndexes([index], 1);
+      index++;
+      continue;
+    }
+    const concurrentIndexes: number[] = [];
+    while (index < checks.length && !checks[index].exclusive) {
+      concurrentIndexes.push(index);
+      index++;
+    }
+    await runIndexes(concurrentIndexes, concurrency);
+  }
   flushReady();
 
   return {
@@ -563,11 +648,18 @@ function persistTimings(results: Result[], mode: string, extra: Record<string, u
   }
 }
 
-interface FreshSuiteDurationSummary {
+export interface FreshSuiteDurationSummary {
   relatedSelection: boolean;
+  centralIntegrityDeferred: boolean;
   executedCount: number;
   skippedCount: number;
   deferredCount: number;
+  verificationComplete: boolean;
+  quarantinedNonBlockingCount: number;
+  railProof: {
+    directAffected: { selected: number; executed: number; skippedGreen: number; deferred: number };
+    core: { selected: number; executed: number; skippedGreen: number; deferred: number };
+  };
   runner: TaskGatePerformanceSummary["runner"];
 }
 
@@ -678,9 +770,13 @@ function readFreshSuiteDurationSummary(gateStartedAtMs: number): FreshSuiteDurat
       finishedAt?: string;
       mode?: string;
       relatedSelection?: boolean;
+      centralIntegrityDeferred?: boolean;
       total?: number;
       skippedGreen?: number;
       deferredNotVerified?: number;
+      verificationComplete?: boolean;
+      quarantineSkippedFromGate?: number;
+      taskGateRailProof?: FreshSuiteDurationSummary["railProof"];
       taskGatePerformance?: unknown;
     };
     const startedMs = Date.parse(parsed.startedAt ?? "");
@@ -698,25 +794,49 @@ function readFreshSuiteDurationSummary(gateStartedAtMs: number): FreshSuiteDurat
     }
     if (
       typeof parsed.relatedSelection !== "boolean" ||
+      typeof parsed.centralIntegrityDeferred !== "boolean" ||
       !Number.isInteger(parsed.total) ||
       Number(parsed.total) < 0 ||
       !Number.isInteger(parsed.skippedGreen) ||
       Number(parsed.skippedGreen) < 0 ||
       !Number.isInteger(parsed.deferredNotVerified) ||
-      Number(parsed.deferredNotVerified) < 0
+      Number(parsed.deferredNotVerified) < 0 ||
+      parsed.verificationComplete !== true ||
+      !Number.isInteger(parsed.quarantineSkippedFromGate) ||
+      Number(parsed.quarantineSkippedFromGate) < 0 ||
+      !isRailProof(parsed.taskGateRailProof)
     ) {
       return null;
     }
     return {
       relatedSelection: parsed.relatedSelection,
+      centralIntegrityDeferred: parsed.centralIntegrityDeferred,
       executedCount: Number(parsed.total),
       skippedCount: Number(parsed.skippedGreen),
       deferredCount: Number(parsed.deferredNotVerified),
+      verificationComplete: parsed.verificationComplete,
+      quarantinedNonBlockingCount: Number(parsed.quarantineSkippedFromGate),
+      railProof: parsed.taskGateRailProof,
       runner: parseRunnerPerformance(parsed.taskGatePerformance),
     };
   } catch {
     return null;
   }
+}
+
+export function isRailProof(
+  value: unknown,
+): value is FreshSuiteDurationSummary["railProof"] {
+  if (!value || typeof value !== "object") return false;
+  for (const rail of ["directAffected", "core"] as const) {
+    const counts = (value as Record<string, unknown>)[rail];
+    if (!counts || typeof counts !== "object") return false;
+    for (const key of ["selected", "executed", "skippedGreen", "deferred"]) {
+      const count = (counts as Record<string, unknown>)[key];
+      if (!Number.isInteger(count) || Number(count) < 0) return false;
+    }
+  }
+  return true;
 }
 
 function readFreshAttributionSummary(
@@ -767,11 +887,14 @@ function readFreshAttributionSummary(
 
 function persistTaskGateEvidence(input: {
   gateStartedAtMs: number;
+  validatedSource:
+    | { validatedCommit: string; validatedTree: string }
+    | undefined;
   results: readonly Result[];
   verdict: "pass" | "fail";
   lintVerdicts: ReadonlyArray<{ name: string; verdict: "inherited" | "yours" }>;
   performance: TaskGatePerformanceSummary["lint"];
-}): void {
+}): { effectiveVerdict: "pass" | "fail"; blockingReasons: string[] } {
   const finishedAtMs = Date.now();
   const suiteSummary = !NO_SMOKE && !LINT_ONLY
     ? readFreshSuiteDurationSummary(input.gateStartedAtMs)
@@ -785,8 +908,70 @@ function persistTaskGateEvidence(input: {
         : suiteSummary === null
           ? "smoke-unresolved"
           : suiteSummary.relatedSelection
-            ? "related-smoke"
-            : "full-smoke-fallback";
+            ? suiteSummary.centralIntegrityDeferred
+              ? "deferred-central-integrity"
+              : "related-smoke"
+            : "full-smoke";
+  const testControlPlaneChanged = currentTaskTouchesTaskControlPlane();
+  const fullIntegrityVerified =
+    FULL_SMOKE && process.env.TEST_FORCE_ALL === "1";
+  const policy = classifyTaskGateDisposition({
+    gatePassed: input.verdict === "pass",
+    verificationComplete:
+      NO_SMOKE || LINT_ONLY ? true : suiteSummary?.verificationComplete === true,
+    selectionTrusted:
+      NO_SMOKE || LINT_ONLY
+        ? true
+        : suiteSummary !== null && selectionMode !== "smoke-unresolved",
+    // A deferred suite can only be emitted by the existing reason-gated
+    // planner after positively stale accepted-green evidence. If that
+    // invariant changes, this classifier deliberately turns the record red.
+    proofStatus:
+      suiteSummary?.centralIntegrityDeferred
+        ? "central-integrity"
+        : (suiteSummary?.deferredCount ?? 0) > 0
+          ? "stale-rotation"
+          : "accepted-green",
+    // The runner's terminal accounting is the authoritative confirmation that
+    // related, core, expansion, and quarantine-readded suites produced a
+    // complete result. A missing/incomplete report fails each rail closed.
+    directlyAffectedUnverified:
+      !NO_SMOKE && !LINT_ONLY && !mandatoryRailWasExecuted(suiteSummary?.railProof.directAffected),
+    coreGuardUnverified:
+      !NO_SMOKE && !LINT_ONLY && !mandatoryRailWasExecuted(suiteSummary?.railProof.core),
+    testControlPlaneChanged,
+    fullIntegrityVerified,
+    centralIntegrityDeferred: suiteSummary?.centralIntegrityDeferred === true,
+    executedAndPassed:
+      input.verdict === "pass" && (suiteSummary === null || suiteSummary.executedCount > 0),
+    reusedAcceptedGreenEvidence: (suiteSummary?.skippedCount ?? 0) > 0,
+    deferredNotVerified:
+      suiteSummary?.centralIntegrityDeferred === true ||
+      (suiteSummary?.deferredCount ?? 0) > 0,
+    quarantinedNonBlocking: (suiteSummary?.quarantinedNonBlockingCount ?? 0) > 0,
+  });
+  console.log(
+    `[task-gate] disposition=${policy.primaryDisposition}; ` +
+      `observed=${policy.dispositions.join(",")}` +
+      (policy.blockingReasons.length > 0 ? `; blockingReasons=${policy.blockingReasons.join("|")}` : ""),
+  );
+  const effectiveVerdict = policy.primaryDisposition === "blocking-failure"
+    ? "fail"
+    : input.verdict;
+  const endingSource = input.validatedSource
+    ? captureTaskGateSource(ROOT)
+    : undefined;
+  const validatedSource =
+    input.validatedSource &&
+    endingSource?.validatedCommit === input.validatedSource.validatedCommit &&
+    endingSource.validatedTree === input.validatedSource.validatedTree
+      ? input.validatedSource
+      : undefined;
+  const provenance = buildTaskGateProvenance({
+    taskRef: process.env.TASK_GATE_TASK_REF,
+    validatedCommit: validatedSource?.validatedCommit,
+    validatedTree: validatedSource?.validatedTree,
+  });
   const record: TaskGateEvidenceRecord = {
     schemaVersion: TASK_GATE_EVIDENCE_SCHEMA_VERSION,
     observationId: GATE_OBSERVATION_ID,
@@ -797,12 +982,15 @@ function persistTaskGateEvidence(input: {
     executedCount: suiteSummary?.executedCount ?? 0,
     skippedCount: suiteSummary?.skippedCount ?? 0,
     deferredCount: suiteSummary?.deferredCount ?? 0,
-    verdict: input.verdict,
+    verdict: effectiveVerdict,
+    primaryDisposition: policy.primaryDisposition,
+    dispositions: policy.dispositions,
     attribution: readFreshAttributionSummary(
       input.gateStartedAtMs,
       input.results,
       input.lintVerdicts,
     ),
+    ...(provenance ? { provenance } : {}),
     performance: {
       lint: input.performance,
       runner: suiteSummary?.runner ?? null,
@@ -823,6 +1011,12 @@ function persistTaskGateEvidence(input: {
   if (!appendTaskGateEvidence(record)) {
     console.warn("[gate-evidence] could not persist the completed-gate evidence record (gate verdict unchanged).");
   }
+  console.log(
+    `[gate-evidence] observationId=${record.observationId}` +
+      (record.provenance
+        ? `; taskRef=${record.provenance.taskRef}; validatedCommit=${record.provenance.validatedCommit}; validatedTree=${record.provenance.validatedTree}`
+        : "; provenance=unknown"),
+  );
   for (const path of [GATE_SWEEP_REPORT_PATH, GATE_ATTRIBUTION_REPORT_PATH]) {
     try {
       unlinkSync(path);
@@ -830,7 +1024,9 @@ function persistTaskGateEvidence(input: {
       /* absent/already removed — no private artifact to clean */
     }
   }
+  return { effectiveVerdict, blockingReasons: policy.blockingReasons };
 }
+
 
 const CACHE_ELIGIBLE_LINTS = new Set([
   "lint-async-correctness",
@@ -856,6 +1052,9 @@ function summarizeLintPerformance(
 
 async function main(): Promise<number> {
   const gateStartedAtMs = GATE_INVOCATION_STARTED_AT_MS;
+  const validatedSource = process.env.TASK_GATE_TASK_REF
+    ? captureTaskGateSource(ROOT)
+    : undefined;
   const totalChecks =
     1 + (LINT_ONLY ? 0 : 1) + LINT_CHECKS.length + (!NO_SMOKE && !LINT_ONLY ? 1 : 0);
   const smokeMode = NO_SMOKE
@@ -1014,6 +1213,8 @@ async function main(): Promise<number> {
     GATE_ATTRIBUTION_REPORT_PATH,
   );
 
+  recordGateDiffProvenance();
+
   persistTimings(results, smokeMode.trim().replace(/^\(|\)$/g, "") || "full gate", {
     lintPhaseWallMs: lintPhase.wallMs,
     lintConcurrency: lintPhase.concurrency,
@@ -1021,13 +1222,20 @@ async function main(): Promise<number> {
   });
 
   if (failed.length === 0) {
-    persistTaskGateEvidence({
+    const evidence = persistTaskGateEvidence({
       gateStartedAtMs,
+      validatedSource,
       results,
       verdict: "pass",
       lintVerdicts: lintAttributionVerdicts,
       performance: lintPerformance,
     });
+    if (evidence.effectiveVerdict === "fail") {
+      console.error(
+        `gate: FAIL — task-validation policy blocked completion: ${evidence.blockingReasons.join("; ")}\n`,
+      );
+      return 1;
+    }
     if (excused.length > 0) {
       console.log(
         `gate: PASS — ${passed.length} checks passed; ${excused.length} lint red(s) EXCUSED as inherited from the base tree ` +
@@ -1041,6 +1249,7 @@ async function main(): Promise<number> {
   }
   persistTaskGateEvidence({
     gateStartedAtMs,
+    validatedSource,
     results,
     verdict: "fail",
     lintVerdicts: lintAttributionVerdicts,
@@ -1142,6 +1351,64 @@ function printFailureAttributionPointers(
     }
   } catch {
     /* no merge-integrity report — nothing to add */
+  }
+}
+
+/**
+ * Task #5317 — auto-wire Task #5316's live diff-provenance tool into every
+ * gate run, so the "your diff contains unrelated changes" rebuttal evidence
+ * always exists by completion-review time without anyone remembering to run
+ * the standalone CLI. Reuses `buildProvenanceReport` (which itself reuses
+ * `gateLintAttribution.resolveBaseTree`) verbatim — no second base-resolution
+ * mechanism. Computed fresh on every call (never reused from a stale cache)
+ * and written to a FIXED, well-known path (unlike the per-invocation-private
+ * `GATE_*_REPORT_PATH` scratch paths above), so it's always where an agent
+ * expects it. Same best-effort contract as `printFailureAttributionPointers`:
+ * best-effort, try/caught, never throws, never changes the gate verdict — a
+ * failure to compute or write degrades to silence, never a gate error.
+ *
+ * `compute` and `reportPath` are injectable so
+ * tests/gate-diff-provenance-wiring.test.ts can assert exactly-once call
+ * semantics, the written report shape, and that an injected throwing
+ * `compute` never escapes this function, without depending on live git
+ * state or writing into the real `.local/runs/` path.
+ */
+export function recordGateDiffProvenance(
+  compute: (opts: {
+    repoRoot: string;
+    flaggedPaths: readonly string[];
+  }) => ProvenanceReport = buildProvenanceReport,
+  reportPath: string = GATE_DIFF_PROVENANCE_REPORT_PATH,
+): void {
+  // A failed/partial run must never leave a STALE report sitting at this
+  // fixed path where a later reviewer would mistake old evidence for fresh
+  // — that would silently violate the "never cached" contract this report
+  // advertises. So: write to a private temp file and rename it into place
+  // atomically (a crash mid-write can't leave a half-written file at
+  // `reportPath`), and on ANY failure — compute, mkdir, write, or rename —
+  // remove whatever currently sits at `reportPath` so the absence of a
+  // report is the visible signal, never a wrong one.
+  const tmpPath = `${reportPath}.${process.pid}.tmp`;
+  try {
+    const report = compute({ repoRoot: ROOT, flaggedPaths: [] });
+    mkdirSync(dirname(reportPath), { recursive: true });
+    writeFileSync(tmpPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    renameSync(tmpPath, reportPath);
+    console.log(
+      `[gate] live diff-provenance evidence (fresh, HEAD vs upstream tip — never cached): .local/runs/gate-diff-provenance.json — cite this if a completion review flags "unrelated changes" instead of hand-running git archaeology (TASK_PREFLIGHT.md §12.9).`,
+    );
+    console.log("");
+  } catch {
+    /* best-effort evidence only — never let this affect the gate verdict.
+       Clean up both the target and any orphaned temp file so a failure
+       degrades to "no report" rather than risking a stale/partial one. */
+    for (const p of [reportPath, tmpPath]) {
+      try {
+        unlinkSync(p);
+      } catch {
+        /* already absent — fine either way */
+      }
+    }
   }
 }
 

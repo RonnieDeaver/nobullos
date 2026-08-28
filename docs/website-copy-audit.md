@@ -10,7 +10,7 @@ what is vague, unsupported, outdated, or missing. Companion docs:
 2026-08-06 baseline. Words such as "current" and the inventory immediately
 below describe that historical snapshot, not the live generator contract.
 Current truth lives in `website-final-copy.md`: About owns the complete
-18-person team and `Practice Areas Served` list; the header links there
+20-person team and `Practice Areas Served` list; the header links there
 directly; `/services/` and `/testimonials/` are retired routes that return the
 branded 404; the homepage/footer own the surviving product and proof anchors.
 

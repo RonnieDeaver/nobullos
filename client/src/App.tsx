@@ -53,6 +53,10 @@ const TagsSegments = lazyWithRetry(() => import("@/pages/admin/TagsSegments"));
 const ScoringAdmin = lazyWithRetry(() => import("@/pages/admin/Scoring"));
 const DealAutomation = lazyWithRetry(() => import("@/pages/admin/DealAutomation"));
 const PhaseSettings = lazyWithRetry(() => import("@/pages/admin/PhaseSettings"));
+// Task #5295 — onboarding roster & default person (stage 1 of the New Client
+// Onboarding epic). Nav entries wired in QuicklinksBar (Task #5298, stage 4).
+const OnboardingRoster = lazyWithRetry(() => import("@/pages/admin/OnboardingRoster"));
+const OnboardingIntake = lazyWithRetry(() => import("@/pages/OnboardingIntake"));
 const ReportForm = lazyWithRetry(() => import("@/pages/ReportForm"));
 const PublicReport = lazyWithRetry(() => import("@/pages/PublicReport"));
 const PublicBookingPage = lazyWithRetry(() => import("@/pages/PublicBookingPage"));
@@ -162,6 +166,7 @@ function PageLoader() {
 // Task #4225 — moved to lib/publicPaths so use-auth and GlobalTitleManager
 // can gate their background probes on the same list without importing App.
 import { isPublicPath } from "@/lib/publicPaths";
+import { resolveAuthGateRedirect } from "@/lib/authGateRedirect";
 
 const RETURN_TO_STORAGE_KEY = "nobull:return-to";
 
@@ -191,22 +196,17 @@ function consumeReturnTo(): string | null {
  */
 function AuthGate({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { user, isLoading, notApproved } = useAuth();
+  const { user, isLoading, notApproved, revoked } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !user && !isPublicPath(location)) {
-      // Task #4554 — closed admission: a signed-in Clerk session whose
-      // email isn't approved must land on /not-approved (public), NOT
-      // /sign-in — Clerk would bounce the still-signed-in session straight
-      // back and loop.
-      if (notApproved) {
-        setLocation("/not-approved");
-        return;
-      }
+    const target = resolveAuthGateRedirect({ isLoading, user, notApproved, revoked, location });
+    if (target === "/sign-in") {
       saveReturnTo(location + window.location.search);
-      setLocation("/sign-in");
     }
-  }, [isLoading, user, notApproved, location, setLocation]);
+    if (target) {
+      setLocation(target);
+    }
+  }, [isLoading, user, notApproved, revoked, location, setLocation]);
 
   if (isPublicPath(location)) {
     return <>{children}</>;
@@ -390,6 +390,11 @@ function Router() {
         {/* Task #4331 — deal stage automation rules (team_lead+). */}
         <Route path="/admin/deal-automation" component={DealAutomation} />
         <Route path="/admin/phase-settings" component={PhaseSettings} />
+        <Route path="/admin/onboarding-roster">
+          <Redirect to="/admin/role-assignments" replace />
+        </Route>
+        {/* Task #5297/#5298: sales intake tool, linked from QuicklinksBar ("onboarding-intake"). */}
+        <Route path="/onboarding-intake" component={OnboardingIntake} />
         <Route path="/clients/add" component={ClientAdd} />
         <Route path="/clients/:id" component={ClientDetail} />
         {/* Task #4327 — deals pipeline (kanban board + deal detail). */}

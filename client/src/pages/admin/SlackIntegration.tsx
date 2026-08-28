@@ -1275,6 +1275,12 @@ export default function SlackIntegration() {
     onSuccess: () => {
       toast({ title: "Slack disconnected" });
       void queryClient.invalidateQueries({ queryKey: ["/api/integrations/slack/status"] }); // fire-and-forget: cache refresh only
+      // Also drop feed/sync-history/channel caches — otherwise a stale
+      // "connected" snapshot of the feed keeps rendering after disconnect
+      // until an unrelated refetch happens to clear it.
+      void queryClient.invalidateQueries({ queryKey: ["/api/integrations/slack/sync-history"] }); // fire-and-forget: cache refresh only
+      void queryClient.invalidateQueries({ queryKey: ["/api/integrations/slack/messages"] }); // fire-and-forget: cache refresh only
+      void queryClient.invalidateQueries({ queryKey: ["/api/integrations/slack/channels"] }); // fire-and-forget: cache refresh only
     },
   });
 

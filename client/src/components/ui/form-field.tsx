@@ -98,7 +98,14 @@ export function FormField({
   }
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("relative space-y-1.5", className)}>
+      {/* `relative` gives an absolutely-positioned label (labelClassName=
+          "sr-only") a containing block scoped to this field. Without it,
+          the label's static position is computed against the nearest
+          positioned ancestor — which can be many DOM levels up inside a
+          wide, horizontally-scrollable table — pushing it hundreds of
+          pixels past the viewport edge and inflating the page's real
+          scrollWidth even though the label itself is invisible. */}
       <Label htmlFor={htmlFor} className={labelClassName}>
         {label}
         {required ? (

@@ -112,7 +112,11 @@ export default function LsaPacingToolPage() {
             onClose={() => setEditing(false)}
             onSaved={() => {
               setEditing(false);
-              load(isCeo);
+              // Reload must force a fresh recompute for every role — the
+              // server's pacing force cache-bust is intentionally open to
+              // all staff (see server/routes/adsOs.ts header comment), so
+              // whoever just saved their edit sees it reflected immediately.
+              load(true);
             }}
           />
         )}

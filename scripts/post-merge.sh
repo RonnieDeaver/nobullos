@@ -41,6 +41,25 @@ else
   node "$INSTR" record-npm-success || true
 fi
 
+# Task #5290: attach the final delivery commit to the exact task-gate
+# observation when the trusted completion boundary supplied all correlation
+# fields. Partial/malformed metadata stays unknown; no commit-message or
+# timestamp inference is allowed. Report-only: attachment failure is loud but
+# never changes application setup or the validation verdict already recorded.
+if [[ -n "${TASK_GATE_OBSERVATION_ID:-}" ||
+      -n "${TASK_GATE_TASK_REF:-}" ||
+      -n "${TASK_GATE_VALIDATED_COMMIT:-}" ||
+      -n "${TASK_GATE_VALIDATED_TREE:-}" ||
+      -n "${TASK_GATE_DELIVERY_COMMIT:-}" ]]; then
+  # The merge boundary owns this value. Never trust a caller-supplied delivery
+  # SHA, even if it happens to name an ancestor with an identical tree.
+  TASK_GATE_DELIVERY_COMMIT="$CANARY_MERGE_SHA"
+  export TASK_GATE_DELIVERY_COMMIT
+  if ! npx tsx scripts/link-task-gate-delivery.ts; then
+    echo "!!! WARN: task-gate delivery provenance was not attached; validation history remains unknown."
+  fi
+fi
+
 # Sweep root junk + prune stale scratch zones (Task #3794 policy). Main's
 # worktree is the template every task environment (and the publish image) is
 # cloned from: merge waves deposit git-ignored debris (*_block.txt dumps,

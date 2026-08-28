@@ -7,7 +7,8 @@
   "extraEnv": {
     "NODE_ENV": "test"
   },
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises enrollment evaluation, deduplication, delivery retry, and lock-state branches."
 }
 test-registration */
 // future-date-literal-reviewed: the 2026-08-18 through 2026-08-23 instants are injected

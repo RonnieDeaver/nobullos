@@ -351,13 +351,22 @@ const requireAuthImpl = async (
   }
 
   // ── Step 3: reject soft-deleted users ─────────────────────────────────────
-  // Mirrors the Replit Auth per-request revocation re-check gate.
+  // Mirrors the Replit Auth per-request revocation re-check gate. Follows the
+  // same isApiPath-aware branching as denyNotApproved: API routes and any
+  // caller not explicitly asking for an HTML navigation (fetch()'s default
+  // Accept is "*/*", not "application/json") must always get machine-readable
+  // JSON — a 302-to-HTML here made /api/auth/user's own fetch() follow the
+  // redirect and choke on non-JSON, so the client never learned it was
+  // revoked and fell through to a sign-in loop instead of /access-revoked.
   if ((dbUser as any).deletedAt) {
     const acceptHeader = String((req.headers as any).accept ?? "");
-    if (/application\/json/.test(acceptHeader)) {
-      res.status(401).json({ message: "Access revoked" });
-    } else {
+    const isApiPath = String(
+      (req as any).originalUrl ?? (req as any).url ?? "",
+    ).startsWith("/api");
+    if (!isApiPath && /text\/html/.test(acceptHeader)) {
       (res as any).redirect("/access-revoked");
+    } else {
+      res.status(401).json({ message: "Access revoked", code: "account_revoked" });
     }
     return;
   }

@@ -1,9 +1,10 @@
 // @cross-instance-safe: work_queue poller — claims rows with FOR UPDATE SKIP LOCKED; parallel polling across instances is intended.
-import { workerDb, withDbAttribution } from "../db";
+// @db-pool-intent: worker
+import { getDb, runWithWorkerDb, workerDb, withDbAttribution } from "../db";
 import { workQueue } from "@shared/schema";
 import type { WorkloadClass, WorkQueueJob } from "@shared/schema";
 import { REPAIR_QUEUE_CLASSES } from "@shared/schema";
-import { eq, and, lte, asc, or, isNull, inArray } from "drizzle-orm";
+import { eq, and, lte, asc, or, isNull, inArray, sql } from "drizzle-orm";
 import { workerLog } from "./workerLogger";
 import { acquireClassSlot, releaseClassSlot } from "./workloadManager";
 import { mapRowToJob, enqueueToQueue, dequeueFromQueue, recoverStaleLeases as sharedRecoverStaleLeases } from "./workQueueLease";
@@ -11,6 +12,152 @@ import { PERF } from "../perfConfig";
 import { getMaxProcessingMs } from "./queueMaxProcessing";
 
 type RepairQueueClass = "interactive_repair" | "repair" | "maintenance";
+
+/** A bounded handoff queue; it never tries to alter a failing test itself. */
+export const DEFERRED_FAILURE_REPAIR_QUEUE = "deferred_failure_repair";
+/** A single nightly intake may create at most this many repair handoffs. */
+export const DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS = 10;
+/** A delayed/replayed report must not manufacture new repair work. */
+export const DEFERRED_FAILURE_REPAIR_MAX_AGE_MS = 36 * 60 * 60 * 1_000;
+
+/**
+ * A bounded, non-executing handoff for a human-owned repair item. Deferred
+ * verification dispatches this through the existing repair queue, but the
+ * registered handler only records a manual handoff. It never turns a test
+ * observation into an automatic source edit or a retry loop.
+ */
+export interface DeferredFailureRepairRequest {
+  ownerFeedbackId: number | null;
+  canonicalKey: string;
+  classification: "task-caused" | "proven-inherited" | "recurring-intermittent" | "unresolved";
+  evidenceCodes: string[];
+  workloadClass: "repair";
+  dispatch: "manual-triage";
+  /** Present on normalized reports so the batch can reject delayed evidence. */
+  observedAt?: string;
+  source?: "post-merge" | "nightly" | "periodic";
+}
+
+export function buildDeferredFailureRepairRequest(input: {
+  ownerFeedbackId: number | null;
+  canonicalKey: string;
+  classification: DeferredFailureRepairRequest["classification"];
+  evidenceCodes: readonly string[];
+  observedAt?: string;
+  source?: DeferredFailureRepairRequest["source"];
+}): DeferredFailureRepairRequest {
+  return {
+    ownerFeedbackId: input.ownerFeedbackId,
+    canonicalKey: input.canonicalKey.slice(0, 255),
+    classification: input.classification,
+    evidenceCodes: [...new Set(input.evidenceCodes)].slice(0, 8),
+    workloadClass: "repair",
+    dispatch: "manual-triage",
+    ...(input.observedAt ? { observedAt: input.observedAt } : {}),
+    ...(input.source ? { source: input.source } : {}),
+  };
+}
+
+export interface DeferredFailureRepairEnqueueResult {
+  id: string | null;
+  /** True only when this owner episode received its first durable handoff. */
+  inserted: boolean;
+  /** The authoritative batch day already consumed all bounded repair slots. */
+  capacityExhausted: boolean;
+}
+
+function repairBatchDay(observedAt: string | undefined): string | null {
+  const observedMs = observedAt ? Date.parse(observedAt) : Number.NaN;
+  return Number.isFinite(observedMs)
+    ? new Date(observedMs).toISOString().slice(0, 10)
+    : null;
+}
+
+/**
+ * Create exactly one repair-queue handoff for a feedback-owner episode.
+ *
+ * Queue-level dedupe intentionally releases after terminal completion, which
+ * is right for normal retryable work but wrong for a human repair owner: a
+ * later nightly observation must refresh its evidence, not re-open a completed
+ * handoff. The transaction-scoped advisory lock makes the history check and
+ * insert atomic across concurrent scheduler instances.
+ */
+export async function enqueueDeferredFailureRepairRequest(
+  request: DeferredFailureRepairRequest,
+): Promise<DeferredFailureRepairEnqueueResult> {
+  if (request.ownerFeedbackId == null || request.classification === "unresolved") {
+    return { id: null, inserted: false, capacityExhausted: false };
+  }
+
+  const batchDay = repairBatchDay(request.observedAt);
+  if (!batchDay) return { id: null, inserted: false, capacityExhausted: false };
+  const dedupeKey = `deferred-failure-repair:${request.ownerFeedbackId}`;
+  return runWithWorkerDb(() =>
+    withDbAttribution("deferredFailureRepair:enqueue", () =>
+      getDb().transaction(async (tx) => {
+        // Take the day lock before the owner lock everywhere. That keeps the
+        // count + insert atomic across instances and avoids lock-order cycles.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${"deferred-failure-repair-day:" + batchDay}, 42))`,
+        );
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${dedupeKey}, 42))`,
+        );
+
+        // Intentionally include terminal rows. A completed handoff remains the
+        // owner episode's durable "already sent" marker until feedback recovery
+        // creates a new owner id.
+        const [existing] = await tx
+          .select({ id: workQueue.id })
+          .from(workQueue)
+          .where(eq(workQueue.dedupeKey, dedupeKey))
+          .limit(1);
+        if (existing) return { id: existing.id, inserted: false, capacityExhausted: false };
+
+        // Queue history is the durable daily budget. It includes terminal rows
+        // so failed/cancelled handoffs cannot be replaced by an unbounded
+        // follow-up burst, and uses the report day rather than clock time so
+        // a delayed but still-fresh run cannot spill into a new batch.
+        const capacity = await tx.execute(sql`
+          SELECT count(*)::int AS count
+          FROM work_queue
+          WHERE queue_name = ${DEFERRED_FAILURE_REPAIR_QUEUE}
+            AND payload->>'batchDay' = ${batchDay}
+        `);
+        const used = Number((capacity.rows?.[0] as any)?.count ?? 0);
+        if (used >= DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS) {
+          return { id: null, inserted: false, capacityExhausted: true };
+        }
+
+        const [inserted] = await tx
+          .insert(workQueue)
+          .values({
+            queueName: DEFERRED_FAILURE_REPAIR_QUEUE,
+            jobType: DEFERRED_FAILURE_REPAIR_QUEUE,
+            workloadClass: "repair",
+            priority: 100,
+            status: "pending",
+            payload: {
+              ownerFeedbackId: request.ownerFeedbackId,
+              canonicalKey: request.canonicalKey,
+              classification: request.classification,
+              evidenceCodes: request.evidenceCodes,
+              dispatch: request.dispatch,
+              observedAt: request.observedAt ?? null,
+              batchDay,
+            },
+            maxAttempts: PERF.REPAIR_DISPATCHER_MAX_ATTEMPTS,
+            dedupeKey,
+          })
+          .returning({ id: workQueue.id });
+
+        return inserted
+          ? { id: inserted.id, inserted: true, capacityExhausted: false }
+          : { id: null, inserted: false, capacityExhausted: false };
+      }),
+    ),
+  );
+}
 
 const LEASE_OWNER = `repair-dispatcher-${process.pid}`;
 

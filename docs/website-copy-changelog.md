@@ -5,6 +5,31 @@ Companion docs: `website-messaging-architecture.md` (locked naming + narrative),
 `website-copy-audit.md` (pre-change route audit), `website-final-copy.md`
 (the decided copy this changelog implements).
 
+
+## 2026-08-27 — Homepage credibility rail now leads with proof numbers
+
+- Reordered the existing credibility rail so the four approved outcome
+  metrics lead visually and semantically, with the five existing opaque press
+  logos following as quieter validation.
+- Preserved every metric value, label, logo asset, accessibility treatment,
+  count-up behavior, and responsive wrapping rule.
+
+## 2026-08-27 — Homepage FAQ story reordered
+
+- Reordered the existing seven homepage FAQ disclosures into the approved
+  buying sequence: engagement scope, operating ownership, compatibility,
+  measurement, timing, investment, then final fit.
+- Questions, answers, fit criteria, accessibility markup, styling, and the
+  existing FAQ → book → booking sequence are unchanged.
+
+## 2026-08-25 — Homepage booking panel simplified
+
+- Reduced the final homepage booking panel to its heading and the existing
+  `View Available Times →` action.
+- Retired the booking explainer paragraphs, benefit facts, scheduler note, and
+  no-JavaScript note. The action still opens the canonical High Impact Revenue
+  Session Calendly destination in a new tab; no embedded scheduler was added.
+
 ## 2026-08-24 — Amazon and Audible marked Coming Soon
 
 - Replaced the current-edition Amazon and Audible search-link affordances with
@@ -2515,6 +2540,18 @@ identical final state (`data-fn-anim` pending→done stamp, mirroring
 the gap band's contract).
 
 
+### 2026-08-27 — Product Funnel Capability Beats
+
+**Owner-approved capability wording.** CaseIntake now reads `speed to
+human, consult capture, revenue follow through`, and CaseConvert now reads
+`Consult to Client Script, Obvious Choice Offer, Close Rate Lab`. CaseGen's
+three system names remain unchanged.
+
+**Layout.** The three capability phrases in every stage now render as
+separate semantic beats with centered vertical spacing, so the short copy
+occupies the existing angled surfaces intentionally without adding body
+copy, cards, or changing the funnel's geometry, order, or conversion path.
+
 ### 2026-08-19 — Product Funnel Scroll Focus (Task #5065)
 
 **Section identity.** The `#system` eyebrow now reads `OUR PRODUCT LINES`.
@@ -3109,3 +3146,50 @@ the only Calendly widget at `#booking` and the only contact-kind inquiry form
 at `#contact`. Both old paths remain compatibility-only permanent redirects
 to those anchors; neither is generated, canonical, linked, or listed in the
 sitemap. Historical entries remain unchanged as dated implementation history.
+
+## 2026-08-25 — Owner-confirmed 20-person roster replacement
+
+Owner confirmation expands the shared homepage/About roster from 18 to 20
+people. Inno Mdletshe joins as `Paid Search` immediately before Devin
+Petersen; Devin's role is now `Senior Paid Search`; and Kreston Nathras joins
+as `Senior Paid Search` immediately after Devin. Every other member keeps
+their prior relative order.
+
+Six owner-supplied portrait assets were prepared for Priyanka Lakha, Cam
+Duhart, Inno Mdletshe, Devin Petersen, Kreston Nathras, and Liri Abdullahu.
+Five are wired into the merged roster (Priyanka, Cam, Inno, Devin, and
+Kreston); Liri's prepared portrait remains unwired pending a separate
+follow-up. Inno and Kreston receive no invented biography; the only approved
+About biographies remain Ronnie, Oliver, and Jake. The homepage's first-two-row reveal remains
+12 / 6 / 4 / 2 cards across its 6 / 3 / 2 / 1-column breakpoints; expanding
+and the JavaScript-disabled fallback show all 20 people.
+
+This owner-confirmed replacement chain supersedes Task #5239's unmergeable
+all-in-one attempt. That blocked attempt is not retried or applied: the
+replacement stages prepare the portrait assets, cut over the shared roster and
+generated site, then reconcile the active documentation and integrated checks.
+Earlier dated 18-person entries below remain unchanged as historical records.
+
+**Lockstep:** `TEAM_ROSTER`, the homepage and About templates, square team
+assets, active truth/final-copy/do-not-break documentation, the existing
+focused static/browser suites, and the committed generated website bundle.
+
+## 2026-08-27 — Homepage copy, FAQ, and roster refresh
+
+The homepage removes the redundant session-explainer sentence, the
+book/system caption, and the visible Million Dollar Gap setup paragraph. The
+chart and payoff remain unchanged; their visually hidden summary now begins
+`Hypothetical model:` so the comparison stays explicit for screen readers.
+
+The standalone fit band is retired. Its complete fit and not-fit criteria now
+form the seventh native FAQ disclosure, `Is Your Firm a Fit?`, after the six
+existing questions. The heading now reads `Seven Questions, Answered
+Straight.`
+
+The shared homepage/About roster now places Cat immediately after Priyanka.
+Its paid-search run is Juan, Santiago, Devin, Kreston, Kaylie, then Inno.
+Juan, Santiago, Devin, and Kreston are `Senior Paid Search Expert`; Kaylie and
+Inno are `Paid Search Expert`. Liri is `Intake Engineer`, and both pages use
+her owner-supplied square portrait derivative,
+`liri-abdullahu-2026.jpg`. This supersedes the 2026-08-25 note that Liri's
+prepared portrait was not yet wired.

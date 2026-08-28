@@ -3,6 +3,7 @@ import { db, withDbHoldLabel } from "../db";
 import { dbRetry } from "../db";
 import {
   heatmapSnapshots, heatmapPoints, heatmapMetrics, heatmapOverrides,
+  heatmapCompetitorSnapshots,
   type HeatmapSnapshot, type HeatmapPoint, type HeatmapMetric,
   type InsertHeatmapSnapshot, type InsertHeatmapPoint,
   clients,
@@ -335,6 +336,135 @@ export interface StagedHeatmapImport {
   geojson: ReturnType<typeof buildGeoJSON>;
 }
 
+function getHeatmapImportIdentity(payload: SemrushImportPayload): {
+  normalizedKeywordName: string;
+  dayStart: Date;
+  dayEnd: Date;
+} {
+  const reportDate = new Date(payload.reportDate);
+  const dateOnly = reportDate.toISOString().split("T")[0];
+  return {
+    normalizedKeywordName: normalizeKeyword(payload.keywordName),
+    dayStart: new Date(dateOnly + "T00:00:00.000Z"),
+    dayEnd: new Date(dateOnly + "T23:59:59.999Z"),
+  };
+}
+
+/** Deterministic, key-order-independent stringify for material scan equality. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+  const record = value as Record<string, unknown>;
+  return "{" + Object.keys(record).sort()
+    .map((key) => JSON.stringify(key) + ":" + stableStringify(record[key]))
+    .join(",") + "}";
+}
+
+type MaterialSnapshot = Pick<
+  HeatmapSnapshot,
+  | "locationName"
+  | "businessName"
+  | "keywordId"
+  | "keywordName"
+  | "reportDate"
+  | "businessLat"
+  | "businessLng"
+  | "gridTemplate"
+  | "gridUnit"
+  | "gridDistance"
+  | "baseLat"
+  | "baseLng"
+  | "pointsNumber"
+>;
+
+type MaterialPoint = Pick<
+  HeatmapPoint,
+  "pointIndex" | "lat" | "lng" | "position" | "diff" | "isEnabled"
+>;
+
+function buildMaterialScan(
+  snapshot: MaterialSnapshot,
+  points: MaterialPoint[],
+): unknown {
+  return {
+    locationName: snapshot.locationName,
+    businessName: snapshot.businessName ?? null,
+    keywordId: snapshot.keywordId ?? null,
+    keywordName: normalizeKeyword(snapshot.keywordName),
+    reportDate: new Date(snapshot.reportDate).toISOString(),
+    businessLat: snapshot.businessLat,
+    businessLng: snapshot.businessLng,
+    gridTemplate: snapshot.gridTemplate,
+    gridUnit: snapshot.gridUnit,
+    gridDistance: snapshot.gridDistance,
+    baseLat: snapshot.baseLat,
+    baseLng: snapshot.baseLng,
+    pointsNumber: snapshot.pointsNumber ?? points.length,
+    points: points.map((point) => ({
+      pointIndex: point.pointIndex,
+      lat: point.lat,
+      lng: point.lng,
+      position: point.position ?? null,
+      diff: point.diff ?? null,
+      isEnabled: point.isEnabled !== false,
+    })),
+  };
+}
+
+function metricsFromStoredRow(metric: HeatmapMetric | undefined): ReturnType<typeof computeMetrics> {
+  return {
+    avgRank: metric?.avgRank ?? null,
+    medianRank: metric?.medianRank ?? null,
+    bestRank: metric?.bestRank ?? null,
+    worstRank: metric?.worstRank ?? null,
+    top3CoveragePct: metric?.top3CoveragePct ?? 0,
+    top10CoveragePct: metric?.top10CoveragePct ?? 0,
+    rankedPointsCount: metric?.rankedPointsCount ?? 0,
+    unrankedPointsCount: metric?.unrankedPointsCount ?? 0,
+    bandTop3Pct: metric?.bandTop3Pct ?? 0,
+    band4to10Pct: metric?.band4to10Pct ?? 0,
+    band11to20Pct: metric?.band11to20Pct ?? 0,
+    bandOutOfTop20Pct: metric?.bandOutOfTop20Pct ?? 0,
+  };
+}
+
+function buildMetricInsertValues(
+  snapshotId: string,
+  metrics: ReturnType<typeof computeMetrics>,
+) {
+  return {
+    snapshotId,
+    avgRank: metrics.avgRank,
+    medianRank: metrics.medianRank,
+    bestRank: metrics.bestRank,
+    worstRank: metrics.worstRank,
+    top3CoveragePct: metrics.top3CoveragePct,
+    top10CoveragePct: metrics.top10CoveragePct,
+    rankedPointsCount: metrics.rankedPointsCount,
+    unrankedPointsCount: metrics.unrankedPointsCount,
+    bandTop3Pct: metrics.bandTop3Pct,
+    band4to10Pct: metrics.band4to10Pct,
+    band11to20Pct: metrics.band11to20Pct,
+    bandOutOfTop20Pct: metrics.bandOutOfTop20Pct,
+  };
+}
+
+function isExactStoredReplay(
+  staged: StagedHeatmapImport,
+  existingSnapshot: HeatmapSnapshot,
+  existingPoints: HeatmapPoint[],
+  existingMetric: HeatmapMetric | undefined,
+): boolean {
+  if (!existingMetric || !existingSnapshot.geojsonCache) return false;
+  return stableStringify(buildMaterialScan(existingSnapshot, existingPoints))
+      === stableStringify(buildMaterialScan(
+        staged.snapshotValues as unknown as MaterialSnapshot,
+        staged.pointRows as unknown as MaterialPoint[],
+      ))
+    && stableStringify(metricsFromStoredRow(existingMetric)) === stableStringify(staged.metrics)
+    && stableStringify(existingSnapshot.geojsonCache) === stableStringify(staged.geojson);
+}
+
 /**
  * Pure staging step for `importHeatmap`: normalizes the payload, prepares all
  * point rows, computes metrics, and builds the complete GeoJSON cache value.
@@ -343,11 +473,7 @@ export interface StagedHeatmapImport {
  */
 export function stageHeatmapImport(payload: SemrushImportPayload, snapshotId: string): StagedHeatmapImport {
   const reportDate = new Date(payload.reportDate);
-  const dateOnly = reportDate.toISOString().split("T")[0];
-  const dayStart = new Date(dateOnly + "T00:00:00.000Z");
-  const dayEnd = new Date(dateOnly + "T23:59:59.999Z");
-
-  const normalizedKeywordName = normalizeKeyword(payload.keywordName);
+  const { normalizedKeywordName, dayStart, dayEnd } = getHeatmapImportIdentity(payload);
 
   const snapshotValues = {
     id: snapshotId,
@@ -405,6 +531,7 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
   snapshotId: string;
   pointCount: number;
   metrics: ReturnType<typeof computeMetrics>;
+  status: "created" | "unchanged" | "refreshed";
 }> {
   const validationError = validateImportPayload(payload);
   if (validationError) {
@@ -437,12 +564,37 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
     }
   }
 
+  // A read-only identity hint lets changed same-day scans stage point ids and
+  // GeoJSON against the existing snapshot id before the write transaction.
+  // The authoritative identity decision is still revalidated under FOR UPDATE
+  // below; a concurrent insert between these phases causes a bounded restage.
+  const identity = getHeatmapImportIdentity(payload);
+  const identityLockKey = [
+    payload.campaignId,
+    payload.locationId,
+    identity.normalizedKeywordName,
+    identity.dayStart.toISOString().slice(0, 10),
+  ].map((part) => `${part.length}:${part}`).join("|");
+  const hintedExisting = await withDbHoldLabel("semrush_heatmap_apply:identity_hint", () =>
+    db.select({ id: heatmapSnapshots.id })
+      .from(heatmapSnapshots)
+      .where(
+        and(
+          eq(heatmapSnapshots.campaignId, payload.campaignId),
+          sql`lower(regexp_replace(trim(${heatmapSnapshots.keywordName}), '\\s+', ' ', 'g')) = ${identity.normalizedKeywordName}`,
+          eq(heatmapSnapshots.locationId, payload.locationId),
+          gte(heatmapSnapshots.reportDate, identity.dayStart),
+          lte(heatmapSnapshots.reportDate, identity.dayEnd),
+        ),
+      )
+      .limit(1),
+  );
+
   // Phase A/B (audit C-T1): all CPU-heavy staging — point-row preparation,
-  // metrics computation, GeoJSON construction/serialization — happens here,
-  // BEFORE the write transaction opens. The snapshot id is generated up
-  // front so the staged rows/GeoJSON are complete; a dbRetry re-attempt
-  // reuses the same staged data (nothing committed on a failed attempt).
-  const staged = stageHeatmapImport(payload, randomUUID());
+  // metrics computation, GeoJSON construction/serialization — happens before
+  // the write transaction opens. A dbRetry re-attempt reuses the same staged
+  // data (nothing committed on a failed attempt).
+  let staged = stageHeatmapImport(payload, hintedExisting[0]?.id ?? randomUUID());
 
   // Pool Epic Phase 1.4: explicit hold-label attribution for the
   // heatmap-apply transaction. This is now a SHORT hold: only the
@@ -451,16 +603,36 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
   // the >10s warn / >30s alert guards if it ever grows long again.
   // External SEMrush HTTP calls (metrics + competitors) happen post-commit
   // below — they are deliberately outside this hold window.
-  const txResult = await dbRetry(async () => {
-    return withDbHoldLabel("semrush_heatmap_apply:apply", () =>
-      db.transaction(async (tx) => {
+  type PersistedImportResult = {
+    snapshotId: string;
+    pointCount: number;
+    metrics: ReturnType<typeof computeMetrics>;
+    status: "created" | "unchanged" | "refreshed";
+  };
+  type RestageResult = { status: "restage"; snapshotId: string };
+
+  let txResult: PersistedImportResult | undefined;
+  for (let reconcileAttempt = 0; reconcileAttempt < 3; reconcileAttempt++) {
+    const attemptResult = await dbRetry(async (): Promise<PersistedImportResult | RestageResult> => {
+      return withDbHoldLabel("semrush_heatmap_apply:apply", () =>
+        db.transaction(async (tx): Promise<PersistedImportResult | RestageResult> => {
+      // No unique constraint exists for the canonical same-day identity.
+      // Serialize both first inserts and later refreshes on that identity so
+      // two concurrent importers cannot both observe "missing" and create
+      // separate snapshots. The xact-scoped lock releases automatically.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${"semrush-heatmap:" + identityLockKey}, 42))`,
+      );
+
       // Duplicate-import check MUST stay inside the transaction: it reads
       // mutable DB state (a concurrent import of the same campaign/keyword/
-      // day) and gates whether we insert at all. Identity here MUST stay
+      // day) and gates whether we insert or reconcile. FOR UPDATE serializes
+      // refreshes of an existing identity so readers can never observe mixed
+      // snapshot/point/metric/cache versions. Identity here MUST stay
       // aligned with the coverage / stale-cleanup paths in
       // localDominanceSyncWorker, both of which use the same canonical
       // `normalizeKeyword` helper.
-      const existing = await tx.select({ id: heatmapSnapshots.id })
+      const existing = await tx.select()
         .from(heatmapSnapshots)
         .where(
           and(
@@ -471,31 +643,81 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
             lte(heatmapSnapshots.reportDate, staged.dayEnd),
           )
         )
+        .for("update")
         .limit(1);
 
       if (existing.length > 0) {
+        if (existing[0].id !== staged.snapshotId) {
+          return { status: "restage", snapshotId: existing[0].id };
+        }
+
+        const existingPoints = await tx.select()
+          .from(heatmapPoints)
+          .where(eq(heatmapPoints.snapshotId, existing[0].id))
+          .orderBy(heatmapPoints.pointIndex);
         const existingMetrics = await tx.select()
           .from(heatmapMetrics)
           .where(eq(heatmapMetrics.snapshotId, existing[0].id))
           .limit(1);
-        const m = existingMetrics[0];
+        const existingMetric = existingMetrics[0];
+
+        if (isExactStoredReplay(staged, existing[0], existingPoints, existingMetric)) {
+          return {
+            snapshotId: existing[0].id,
+            pointCount: existingPoints.length,
+            metrics: metricsFromStoredRow(existingMetric),
+            status: "unchanged",
+          };
+        }
+
+        await tx.update(heatmapSnapshots)
+          .set({
+            clientId: staged.snapshotValues.clientId,
+            locationId: staged.snapshotValues.locationId,
+            locationName: staged.snapshotValues.locationName,
+            businessName: staged.snapshotValues.businessName,
+            campaignId: staged.snapshotValues.campaignId,
+            keywordId: staged.snapshotValues.keywordId,
+            keywordName: staged.snapshotValues.keywordName,
+            reportDate: staged.snapshotValues.reportDate,
+            businessLat: staged.snapshotValues.businessLat,
+            businessLng: staged.snapshotValues.businessLng,
+            gridTemplate: staged.snapshotValues.gridTemplate,
+            gridUnit: staged.snapshotValues.gridUnit,
+            gridDistance: staged.snapshotValues.gridDistance,
+            baseLat: staged.snapshotValues.baseLat,
+            baseLng: staged.snapshotValues.baseLng,
+            pointsNumber: staged.snapshotValues.pointsNumber,
+            rawPayload: staged.snapshotValues.rawPayload,
+            // Never leave the prior scan's derived SoV attached to the new
+            // grid if post-commit derivation or vendor enrichment fails.
+            shareOfVoiceRaw: null,
+            geojsonCache: staged.geojson,
+          })
+          .where(eq(heatmapSnapshots.id, existing[0].id));
+
+        await tx.delete(heatmapPoints)
+          .where(eq(heatmapPoints.snapshotId, existing[0].id));
+        await tx.delete(heatmapMetrics)
+          .where(eq(heatmapMetrics.snapshotId, existing[0].id));
+        await tx.delete(heatmapCompetitorSnapshots)
+          .where(eq(heatmapCompetitorSnapshots.snapshotId, existing[0].id));
+
+        if (staged.pointRows.length > 0) {
+          const batchSize = 500;
+          for (let i = 0; i < staged.pointRows.length; i += batchSize) {
+            await tx.insert(heatmapPoints).values(staged.pointRows.slice(i, i + batchSize));
+          }
+        }
+
+        await tx.insert(heatmapMetrics)
+          .values(buildMetricInsertValues(existing[0].id, staged.metrics));
+
         return {
           snapshotId: existing[0].id,
-          pointCount: payload.points.length,
-          metrics: {
-            avgRank: m?.avgRank ?? null,
-            medianRank: m?.medianRank ?? null,
-            bestRank: m?.bestRank ?? null,
-            worstRank: m?.worstRank ?? null,
-            top3CoveragePct: m?.top3CoveragePct ?? 0,
-            top10CoveragePct: m?.top10CoveragePct ?? 0,
-            rankedPointsCount: m?.rankedPointsCount ?? 0,
-            unrankedPointsCount: m?.unrankedPointsCount ?? 0,
-            bandTop3Pct: m?.bandTop3Pct ?? 0,
-            band4to10Pct: m?.band4to10Pct ?? 0,
-            band11to20Pct: m?.band11to20Pct ?? 0,
-            bandOutOfTop20Pct: m?.bandOutOfTop20Pct ?? 0,
-          },
+          pointCount: staged.pointRows.length,
+          metrics: staged.metrics,
+          status: "refreshed",
         };
       }
 
@@ -510,10 +732,8 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
         }
       }
 
-      await tx.insert(heatmapMetrics).values({
-        snapshotId: staged.snapshotId,
-        ...staged.metrics,
-      });
+      await tx.insert(heatmapMetrics)
+        .values(buildMetricInsertValues(staged.snapshotId, staged.metrics));
 
       await tx.update(heatmapSnapshots)
         .set({ geojsonCache: staged.geojson })
@@ -523,16 +743,38 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
         snapshotId: staged.snapshotId,
         pointCount: staged.pointRows.length,
         metrics: staged.metrics,
+        status: "created",
       };
     }),
-    );
-  }, "importHeatmap");
+      );
+    }, "importHeatmap");
+
+    if (attemptResult.status === "restage") {
+      staged = stageHeatmapImport(payload, attemptResult.snapshotId);
+      continue;
+    }
+    txResult = attemptResult;
+    break;
+  }
+
+  if (!txResult) {
+    throw new Error("Heatmap import identity changed repeatedly during reconciliation");
+  }
+
+  if (txResult.status === "unchanged") {
+    console.log(`[Heatmap Import] Exact replay skipped for snapshot ${txResult.snapshotId} (${txResult.pointCount} persisted points)`);
+    return txResult;
+  }
+
+  if (txResult.status === "refreshed") {
+    console.log(`[Heatmap Import] Refreshed snapshot ${txResult.snapshotId} in place with ${txResult.pointCount} points`);
+  }
 
   const enrichmentErrors: string[] = [];
 
   try {
     const { computeAndStoreDerivedMetrics } = await import("./localDominanceService");
-    const derivedResult = await computeAndStoreDerivedMetrics(txResult.snapshotId);
+    const derivedResult = await computeAndStoreDerivedMetrics(txResult.snapshotId, payload);
     if (derivedResult.errors.length > 0) {
       enrichmentErrors.push(...derivedResult.errors);
     }
@@ -557,10 +799,18 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
         if (payload.placeIds?.length) metricsOpts.placeIds = payload.placeIds;
         const metricsData = await getCampaignMetrics(payload.campaignId, payload.keywordId, metricsOpts, signal);
         if (metricsData.shareOfVoice !== null) {
-          await db.update(heatmapSnapshots)
+          const updated = await db.update(heatmapSnapshots)
             .set({ shareOfVoiceRaw: metricsData.shareOfVoice })
-            .where(eq(heatmapSnapshots.id, txResult.snapshotId));
-          console.log(`[Heatmap] SEMrush SoV written for snapshot ${txResult.snapshotId}: ${metricsData.shareOfVoice}`);
+            .where(and(
+              eq(heatmapSnapshots.id, txResult.snapshotId),
+              eq(heatmapSnapshots.rawPayload, payload),
+            ))
+            .returning({ id: heatmapSnapshots.id });
+          if (updated.length > 0) {
+            console.log(`[Heatmap] SEMrush SoV written for snapshot ${txResult.snapshotId}: ${metricsData.shareOfVoice}`);
+          } else {
+            console.log(`[Heatmap] Discarded stale SEMrush SoV for superseded snapshot version ${txResult.snapshotId}`);
+          }
         } else {
           const msg = `SEMrush getCampaignMetrics returned null SoV for campaign ${payload.campaignId}, keyword ${payload.keywordId}`;
           console.warn(`[Heatmap] ${msg}`);
@@ -625,7 +875,8 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
             payload.campaignId,
             payload.keywordName,
             new Date(payload.reportDate),
-            competitors
+            competitors,
+            payload,
           );
           console.log(`[Heatmap] Stored ${competitors.length} competitors for snapshot ${txResult.snapshotId}`);
         } else {
@@ -671,6 +922,7 @@ export async function importHeatmap(payload: SemrushImportPayload, signal?: Abor
     snapshotId: txResult.snapshotId,
     pointCount: txResult.pointCount,
     metrics: txResult.metrics,
+    status: txResult.status,
   };
 }
 

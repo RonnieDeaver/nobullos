@@ -269,6 +269,12 @@ function testCompactCalendlyHandoff(): void {
   }
   const home = read("index.html");
   const css = read("assets/css/home.css");
+  const bookingStart = home.indexOf('<section id="booking"');
+  const bookingEnd = home.indexOf("</section>", bookingStart);
+  const booking =
+    bookingStart >= 0 && bookingEnd > bookingStart
+      ? home.slice(bookingStart, bookingEnd)
+      : "";
   check("bundle contains no Calendly embeds", embeds === 0, `got ${embeds}`);
   check(
     "bundle loads no Calendly scripts",
@@ -277,9 +283,26 @@ function testCompactCalendlyHandoff(): void {
   );
   check(
     "homepage has the canonical external scheduling action",
-    /class="nb-btn nb-booking-cta" href="https:\/\/calendly\.com\/[^"]+" target="_blank" rel="noopener"/.test(
-      home,
-    ),
+    /class="nb-btn nb-booking-cta" href="https:\/\/calendly\.com\/jmangle-nobullmarketing\/high-impact-revenue-session-other" target="_blank" rel="noopener">View Available Times/.test(home),
+  );
+  check(
+    "booking panel contains only its heading and one external action",
+    bookingStart >= 0 &&
+      bookingEnd > bookingStart &&
+      (booking.match(/<h3\b/g) ?? []).length === 1 &&
+      (booking.match(/class="nb-btn nb-booking-cta"/g) ?? []).length === 1 &&
+      !/<(?:p|ul|noscript)\b/.test(booking),
+  );
+  check(
+    "removed booking explainers stay absent",
+    ![
+      "Choose a time that works",
+      "A focused, free session",
+      "Start with the real constraint",
+      "Leave with a clear next step",
+      "Opens the NoBull scheduler",
+      "JavaScript is off",
+    ].some((copy) => booking.includes(copy)),
   );
   check(
     "booking CTA is fluid and avoids fixed-width mobile overflow",
@@ -314,6 +337,35 @@ function testConversionCloseReflow(): void {
   check(
     "retired chooser and standalone booking close stay absent",
     !html.includes("nb-conversion-choice") && !html.includes("nb-close-cta"),
+  );
+}
+
+function testBookStoreNoticeAlignment(): void {
+  console.log("\nBook-store availability notices center only in the narrow-screen book band");
+  const html = read("index.html");
+  const css = read("assets/css/home.css");
+  const mobileStart = css.indexOf("@media(max-width:850px)");
+  const mobile = mobileStart >= 0 ? css.slice(mobileStart) : "";
+  const baseRule = css.match(/\.nb-book-actions\{[^}]*\}/)?.[0] ?? "";
+  const bookStart = html.indexOf('<section id="book" class="nb-book-sec">');
+  const bookEnd = html.indexOf("</section>", bookStart);
+  const book = bookStart >= 0 && bookEnd > bookStart ? html.slice(bookStart, bookEnd) : "";
+
+  check(
+    "mobile book-store row centers its wrapped notice group",
+    mobileStart >= 0 && /\.nb-book-actions\{[^}]*justify-content:center[^}]*\}/.test(mobile),
+  );
+  check(
+    "desktop/tablet book-store row keeps its original flex wrapping and gap",
+    baseRule === ".nb-book-actions{display:flex;flex-wrap:wrap;gap:12px 16px}",
+    baseRule,
+  );
+  check(
+    "Amazon and Audible remain non-interactive Coming Soon notices",
+    (book.match(/class="nb-store-btn"/g) ?? []).length === 2 &&
+      book.includes('aria-label="Amazon — Coming Soon!"') &&
+      book.includes('aria-label="Audible — Coming Soon!"') &&
+      !/<a\b[^>]*nb-store-btn/.test(book),
   );
 }
 
@@ -353,6 +405,7 @@ function main(): void {
   testLeadRampRemovedFromCompactReceipt();
 testCompactCalendlyHandoff();
   testConversionCloseReflow();
+  testBookStoreNoticeAlignment();
   testLazyImagesHaveDimensions();
 
   console.log(`\n${passed} passed, ${failed} failed`);

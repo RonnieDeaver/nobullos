@@ -17,6 +17,7 @@ import type { AuditReport, ScoreHistoryEntry } from "./lib/types";
 import { ScoreTrend } from "./components/ScoreTrend";
 import { Gauge } from "./components/Gauge";
 import { GateBanner } from "./components/GateBanner";
+import { AccountAlertsPanel } from "./components/AccountAlertsPanel";
 import { CategorySection } from "./components/CategorySection";
 import { CriteriaEditor } from "./components/CriteriaEditor";
 import { NextSteps } from "./components/NextSteps";
@@ -161,6 +162,10 @@ export default function HygieneAuditToolPage() {
           <div className="panel error" data-testid="text-audit-error">
             Audit failed: {error}
           </div>
+        )}
+
+        {!loading && !error && report && (
+          <AccountAlertsPanel alerts={report.alerts} alertsAt={report.alerts_at} />
         )}
 
         {!loading && !error && report && report.band === "Inactive" && (

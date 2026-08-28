@@ -7,7 +7,8 @@
     "server/services/zoomIntegration.ts",
     "shared/models/auth.ts"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises Zoom-host override persistence and booking-resolution behavior."
 }
 test-registration */
 /**

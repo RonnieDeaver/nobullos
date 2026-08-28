@@ -402,6 +402,7 @@ export const clickupWebhooks = pgTable(
     clientId: varchar("client_id"),
     secret: text("secret_encrypted"),
     events: jsonb("events"),
+    locationType: varchar("location_type"),
     locationId: varchar("location_id"),
     health: jsonb("health"),
     status: varchar("status").notNull().default("active"),
@@ -415,3 +416,44 @@ export const clickupWebhooks = pgTable(
 );
 
 export type ClickupWebhook = typeof clickupWebhooks.$inferSelect;
+
+// ─── Verified webhook receipts ─────────────────────────────────────────────────
+
+/**
+ * Minimal, durable correlation for canonical Client List task deliveries.
+ * The raw vendor body and webhook secret are deliberately never persisted.
+ * Execution/retry/dead-letter evidence remains authoritative in work_queue via
+ * queueJobId, avoiding a second queue state machine that could drift.
+ */
+export const clickupWebhookReceipts = pgTable(
+  "clickup_webhook_receipts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    deliveryKey: varchar("delivery_key").notNull(),
+    webhookId: varchar("webhook_id").notNull(),
+    workspaceId: varchar("workspace_id").notNull(),
+    serviceUserId: varchar("service_user_id").notNull(),
+    eventType: varchar("event_type").notNull(),
+    providerEventId: varchar("provider_event_id"),
+    taskId: varchar("task_id").notNull(),
+    listId: varchar("list_id").notNull(),
+    bodySha256: varchar("body_sha256").notNull(),
+    queueJobId: varchar("queue_job_id"),
+    actorClickupUserId: varchar("actor_clickup_user_id"),
+    changedFieldIds: jsonb("changed_field_ids"),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    deliveryKeyIdx: uniqueIndex("clickup_webhook_receipts_delivery_key_idx").on(
+      t.deliveryKey,
+    ),
+    queueJobIdx: index("clickup_webhook_receipts_queue_job_idx").on(t.queueJobId),
+    taskReceivedIdx: index("clickup_webhook_receipts_task_received_idx").on(
+      t.taskId,
+      t.receivedAt,
+    ),
+  }),
+);
+
+export type ClickupWebhookReceipt =
+  typeof clickupWebhookReceipts.$inferSelect;

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Notification history manual flush",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

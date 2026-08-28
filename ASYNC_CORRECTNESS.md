@@ -72,13 +72,14 @@ regenerate after each tranche.
 - `npm run gate` — the `lint-async-correctness` entry in `scripts/gate.ts`
   (~2–2.5 min: type-aware linting builds a full TS program; this is the tuned
   fast configuration — the untuned rule set ran >5 min).
-- Full-set test runs (the `Validate` workflow, predeploy `npm test`) — via
+- Full-set test runs (managed Long validation profiles, predeploy `npm test`) — via
   `tests/async-correctness-lint.test.ts`, which asserts the real tree against
   the baseline and fixture-proves each rule. It is deliberately **not** named
   `tests/lint-*.test.ts`: the always-core naming would double-scan every
   related-smoke gate run on top of the LINT_CHECKS entry.
-- The `.replit` `Validate` workflow runs `npm run gate`, where the check is
-  registered in `scripts/gate.ts` `LINT_CHECKS`.
+- The managed `.replit` **Long validation** workflow runs the reviewed
+  `routine-gate` profile, where the check is registered in `scripts/gate.ts`
+  `LINT_CHECKS`.
 
 ## Local usage
 

@@ -119,6 +119,10 @@ async function run(): Promise<void> {
     ids.has("integration.clickup.webhook_health_degraded"),
     "notification registry contains integration.clickup.webhook_health_degraded",
   );
+  ok(
+    ids.has("integration.clickup.webhook_event_terminal"),
+    "notification registry contains integration.clickup.webhook_event_terminal",
+  );
 
   console.log(`\nclickup-sync-handlers: ${passed} assertion(s) passed.`);
   console.log("clickup-sync-handlers: verified");

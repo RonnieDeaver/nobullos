@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, LabelList, Line } from "recharts";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { highlightPhases, phaseColors } from "./chrome";
 import { REPORT_PHASE_INK_COLORS } from "./reportTokens";
 import { PhaseSettingResponse, PracticeAreaTrend, TrendDataPoint, TrendsResponse } from "./types";
@@ -61,6 +62,13 @@ export function TrendChart({ data, title, searchTerm, compact = false, estimated
    *  chip must never claim "Google Trends" for numbers we estimated. */
   estimated?: boolean;
 }) {
+  // Task #5326 — at narrow (<768px) widths this card's own column is full
+  // width but still only ~230-260px, too tight for 12 side-by-side month
+  // ticks PLUS a per-bar numeric label without overlapping illegibly. Thin
+  // the ticks to every other month and drop the numeric labels (the "NOW"
+  // callout and phase colors/legend still carry the story) rather than
+  // shrinking font past a readable floor.
+  const isNarrow = useIsMobile(768);
   return (
     <div className={compact ? "p-4" : "p-6"}>
       <div className="flex justify-between items-start mb-2">
@@ -82,7 +90,7 @@ export function TrendChart({ data, title, searchTerm, compact = false, estimated
               tickLine={false} 
               tick={{ fill: REPORT_COLORS.inkMuted, fontSize: REPORT_TICK_FONT_SIZE, fontWeight: 600 }} 
               dy={3}
-              interval={0}
+              interval={isNarrow ? 1 : 0}
             />
             <YAxis hide domain={[0, 115]} />
             <Bar 
@@ -113,7 +121,9 @@ export function TrendChart({ data, title, searchTerm, compact = false, estimated
                           <text x={(x as number) + (width as number) / 2} y={(y as number) - NOW_ARROW_LIFT} textAnchor="middle" fill={REPORT_COLORS.crimson} fontSize={REPORT_TICK_FONT_SIZE}>▼</text>
                         </>
                       )}
-                      <text x={(x as number) + (width as number) / 2} y={(y as number) - VALUE_LABEL_LIFT} textAnchor="middle" fill={REPORT_COLORS.ink} fontSize={REPORT_TICK_FONT_SIZE} fontWeight={400}>{value}</text>
+                      {!isNarrow && (
+                        <text x={(x as number) + (width as number) / 2} y={(y as number) - VALUE_LABEL_LIFT} textAnchor="middle" fill={REPORT_COLORS.ink} fontSize={REPORT_TICK_FONT_SIZE} fontWeight={400}>{value}</text>
+                      )}
                     </g>
                   );
                 }}
@@ -269,6 +279,8 @@ export function CombinedTrendChart({
   currentMonthIndex: number;
   compact?: boolean;
 }) {
+  // Task #5326 — see TrendChart above for the same narrow-width rationale.
+  const isNarrow = useIsMobile(768);
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   // Calculate combined average
@@ -313,7 +325,7 @@ export function CombinedTrendChart({
               tickLine={false} 
               tick={{ fill: REPORT_COLORS.inkMuted, fontSize: REPORT_TICK_FONT_SIZE, fontWeight: 600 }} 
               dy={3}
-              interval={0}
+              interval={isNarrow ? 1 : 0}
             />
             <YAxis hide domain={[0, 115]} />
             <Bar 
@@ -342,7 +354,9 @@ export function CombinedTrendChart({
                           <text x={(x as number) + (width as number) / 2} y={(y as number) - NOW_ARROW_LIFT} textAnchor="middle" fill={REPORT_COLORS.crimson} fontSize={REPORT_TICK_FONT_SIZE}>▼</text>
                         </>
                       )}
-                      <text x={(x as number) + (width as number) / 2} y={(y as number) - VALUE_LABEL_LIFT} textAnchor="middle" fill={REPORT_COLORS.ink} fontSize={REPORT_TICK_FONT_SIZE} fontWeight={400}>{value}</text>
+                      {!isNarrow && (
+                        <text x={(x as number) + (width as number) / 2} y={(y as number) - VALUE_LABEL_LIFT} textAnchor="middle" fill={REPORT_COLORS.ink} fontSize={REPORT_TICK_FONT_SIZE} fontWeight={400}>{value}</text>
+                      )}
                     </g>
                   );
                 }}
@@ -712,8 +726,8 @@ export function MarketContextSlide({ slideNumber, practiceAreas, embeddedTrends 
           )}
 
           <div className="bg-white rounded-lg border border-report-crimson/5 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-12">
-              <div className="col-span-8 border-r border-report-crimson/5">
+            <div className="grid grid-cols-1 md:grid-cols-12">
+              <div className="md:col-span-8 border-b md:border-b-0 md:border-r border-report-crimson/5">
                 {hasMultiple && safeSelectedTab === 0 ? (
                   <>
                     <CombinedTrendChart 
@@ -737,7 +751,7 @@ export function MarketContextSlide({ slideNumber, practiceAreas, embeddedTrends 
                 )}
               </div>
 
-              <div className="col-span-4 p-6 flex flex-col gap-4">
+              <div className="md:col-span-4 p-6 flex flex-col gap-4">
                 <div>
                   <div className="text-[11px] uppercase tracking-wider font-bold text-report-crimson mb-2">
                     {safeSelectedTab === 0 && hasMultiple ? "Portfolio Demand Position" : `${selectedTrend?.practiceArea} Position`}

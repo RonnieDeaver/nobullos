@@ -164,8 +164,16 @@ function LocationDrilldown({
           variant: "destructive",
         });
       }
+      // Match by prefix, not exact key: the parent panel's cache key embeds
+      // the since/until querystring (e.g. "...heatmap-coverage?since=..."),
+      // so an exact-key invalidate here silently misses it whenever a date
+      // window filter is active, leaving the summary counts stale.
       void queryClient.invalidateQueries({
-        queryKey: ["/api/integrations/semrush/heatmap-coverage"],
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" &&
+          (q.queryKey[0] as string).startsWith(
+            "/api/integrations/semrush/heatmap-coverage",
+          ),
       }); // fire-and-forget: cache refresh only
       void refetch(); // fire-and-forget: cache refresh only
     } catch (err: any) {

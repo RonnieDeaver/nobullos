@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Blocked-events retention confirm + trim notification (Task #781)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

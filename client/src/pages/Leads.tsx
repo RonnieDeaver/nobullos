@@ -54,7 +54,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Magnet, Briefcase, CalendarClock, Mail, Phone, ArrowUpRight, History, Merge } from "lucide-react";
+import { Magnet, Briefcase, CalendarClock, Mail, Phone, ArrowUpRight, History, Merge, AlertTriangle } from "lucide-react";
 import { EmptyState } from "@/components/kit/EmptyState";
 
 type LeadRow = Client & { openDealId: string | null; openDealName: string | null };
@@ -274,6 +274,18 @@ export default function Leads() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : leadsQuery.isError ? (
+        <EmptyState
+          icon={<AlertTriangle />}
+          title="Couldn't load leads"
+          description="Something went wrong fetching this list."
+          action={
+            <Button variant="outline" size="sm" onClick={() => void leadsQuery.refetch()} data-testid="button-retry-leads">
+              Retry
+            </Button>
+          }
+          testId="text-leads-error"
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<Magnet />}
@@ -382,7 +394,20 @@ export default function Leads() {
 
       <Dialog open={!!detailId} onOpenChange={(open) => !open && setDetailId(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="dialog-lead-detail">
-          {detailQuery.isLoading || !detailQuery.data ? (
+          {detailQuery.isError ? (
+            <div className="py-4 text-center" data-testid="text-lead-detail-error">
+              <p className="text-sm text-destructive">Couldn't load this lead.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => void detailQuery.refetch()}
+                data-testid="button-retry-lead-detail"
+              >
+                Retry
+              </Button>
+            </div>
+          ) : detailQuery.isLoading || !detailQuery.data ? (
             <div className="space-y-3 py-4">
               <Skeleton className="h-6 w-1/2" />
               <Skeleton className="h-4 w-full" />

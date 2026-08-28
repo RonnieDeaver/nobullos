@@ -180,6 +180,9 @@ export const bookingSources = [
   "client_profile",
   "public_link",
   "client_bound_public_link",
+  // Task #5296 — a meeting booked through the onboarding-pool
+  // availability/assignment engine (resolved assignee, not a fixed AM).
+  "onboarding_pool",
 ] as const;
 export type BookingSource = (typeof bookingSources)[number];
 

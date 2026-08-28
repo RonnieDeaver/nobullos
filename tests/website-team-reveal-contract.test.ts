@@ -2,7 +2,7 @@
 {
   "name": "Website team collapsed-grid contract — served fallback, state-gated hiding, disclosure a11y, wall retirement (Task #5011)",
   "smoke": true,
-  "smokeReason": "Guards the #5011 team-band treatment that replaced the #4979 endless wall: the committed homepage keeps serving the complete 18-card roster grid with zero disclosure chrome (the toggle button and the data-team-collapsed/data-team-expanded attributes are runtime-only, so no-JS visitors always see everyone); every card-hiding rule in home.css stays keyed on the JS-set data-team-collapsed state — never viewport width alone — and only ever hides cards, with the 12/4/2 first-two-rows boundaries in lockstep beside the grid's 6/2/1-column rules; the expand rise and chevron transition stay inside prefers-reduced-motion: no-preference and under data-team-expanded; teamReveal.ts keeps its native-button disclosure seams (type=button, aria-expanded in both states, aria-controls, aria-hidden chevron) with no GSAP, ScrollTrigger, IntersectionObserver, matchMedia, or inline-style hiding; main.ts wires initTeamReveal; and the retired wall (teamWall.ts, nb-team-wall/nb-team-col selectors, data-team-mode/data-team-clone attributes) stays deleted from module, entry, CSS, and served HTML. Pure string/regex checks over four committed files — sub-second, no DB, no jsdom.",
+  "smokeReason": "Guards the #5011 team-band treatment that replaced the #4979 endless wall: the committed homepage keeps serving the complete 20-card roster grid with zero disclosure chrome (the toggle button and the data-team-collapsed/data-team-expanded attributes are runtime-only, so no-JS visitors always see everyone); every card-hiding rule in home.css stays keyed on the JS-set data-team-collapsed state — never viewport width alone — and only ever hides cards, with the 12/6/4/2 first-two-rows boundaries in lockstep beside the grid's 6/3/2/1-column rules; the expand rise and chevron transition stay inside prefers-reduced-motion: no-preference and under data-team-expanded; teamReveal.ts keeps its native-button disclosure seams (type=button, aria-expanded in both states, aria-controls, aria-hidden chevron) with no GSAP, ScrollTrigger, IntersectionObserver, matchMedia, or inline-style hiding; main.ts wires initTeamReveal; and the retired wall (teamWall.ts, nb-team-wall/nb-team-col selectors, data-team-mode/data-team-clone attributes) stays deleted from module, entry, CSS, and served HTML. Pure string/regex checks over four committed files — sub-second, no DB, no jsdom.",
   "regression": true,
   "scanPaths": [
     "website/public/index.html",
@@ -20,7 +20,7 @@ test-registration */
 // band never scrolls or drifts for any visitor).
 //
 // The contract, in five parts:
-//   1. SERVED markup is the complete presentation: all 18 roster cards
+//   1. SERVED markup is the complete presentation: all 20 roster cards
 //      in ONE grid with ZERO disclosure chrome — the toggle button and
 //      the collapse/expand attributes exist only after
 //      home-client/teamReveal.ts runs, so visitors without JS always
@@ -30,7 +30,7 @@ test-registration */
 //      marker — and only ever hides cards (never the grid, never the
 //      button). The width queries merely translate "first two rows"
 //      into each breakpoint's column count (6-col band = 12 cards,
-//      2-col = 4, 1-col = 2) beside the .nb-team-grid column rules
+//      3-col = 6, 2-col = 4, 1-col = 2) beside the .nb-team-grid column rules
 //      they mirror.
 //   3. Motion is opt-in: the expand rise and the chevron transition
 //      live only inside prefers-reduced-motion: no-preference media
@@ -59,6 +59,61 @@ const WALL_STEMS = [
   "nb-team-col",
   'data-team-mode',
   "data-team-clone",
+] as const;
+
+const EXPECTED_TEAM = [
+  { img: "ronnie2.jpg", name: "Ronnie Deaver", role: "Founder" },
+  { img: "oliver.webp", name: "Oliver Goessler", role: "Head of Operations" },
+  { img: "brett2.jpg", name: "Brett Barney", role: "Head of Accounts" },
+  { img: "jeff.jpg", name: "Jeff Mangle", role: "Head of Sales" },
+  { img: "janno2.jpg", name: "Janno Perez", role: "Head of Paid Search" },
+  { img: "cam-2026.jpg", name: "Cam Duhart", role: "Sr. Intake Engineer" },
+  { img: "jake2.jpg", name: "Jake Davis", role: "Sr. Marketing Engineer" },
+  { img: "jason.jpg", name: "Jason Robbins", role: "Marketing Engineer" },
+  {
+    img: "priyanka-2026.jpg",
+    name: "Priyanka Lakha",
+    role: "Onboarding Engineer",
+  },
+  { img: "cat2.jpg", name: "Cat McManus", role: "Executive Assistant" },
+  { img: "juan.jpg", name: "Juan Antoniazzi", role: "Senior Paid Search Expert" },
+  {
+    img: "santiago.jpg",
+    name: "Santiago Sanchez",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "devin-2026.jpg",
+    name: "Devin Petersen",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "kreston.jpg",
+    name: "Kreston Nathras",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "kaylie.jpg",
+    name: "Kaylie Dietrichsen",
+    role: "Paid Search Expert",
+  },
+  {
+    img: "inno.jpg",
+    name: "Inno Mdletshe",
+    role: "Paid Search Expert",
+  },
+  {
+    img: "jordan.jpg",
+    name: "Jordan Scrimgeour",
+    role: "Google Business Profile Expert",
+  },
+  {
+    img: "liri-abdullahu-2026.jpg",
+    name: "Liri Abdullahu",
+    role: "Intake Engineer",
+  },
+  { img: "cleo.jpg", name: "Cleo Ortega", role: "Virtual Assistant" },
+  { img: "lotis.jpg", name: "Lotis Florida", role: "Virtual Assistant" },
 ] as const;
 
 let checks = 0;
@@ -143,8 +198,8 @@ const teamHtml = html.slice(teamStart, teamEnd);
 
 assert.equal(
   count(teamHtml, 'class="nb-team-card"'),
-  18,
-  "served team band carries the complete 18-card roster (the no-JS presentation)",
+  20,
+  "served team band carries the complete 20-card roster (the no-JS presentation)",
 );
 checks += 1;
 assert.equal(
@@ -153,6 +208,24 @@ assert.equal(
   "exactly ONE roster grid — no split/secondary containers",
 );
 checks += 1;
+
+let rosterCursor = -1;
+for (const member of EXPECTED_TEAM) {
+  const imagePos = teamHtml.indexOf(
+    `src="nobull-redesign/team/${member.img}" alt="${member.name}"`,
+  );
+  const namePos = teamHtml.indexOf(`<h3>${member.name}</h3>`, imagePos);
+  const rolePos = teamHtml.indexOf(
+    `<span class="nb-team-role">${member.role}</span>`,
+    namePos,
+  );
+  assert.ok(
+    imagePos > rosterCursor && namePos > imagePos && rolePos > namePos,
+    `served roster keeps exact image/name/role order for ${member.name}`,
+  );
+  rosterCursor = imagePos;
+  checks += 1;
+}
 
 // Runtime-only disclosure chrome must NOT be serialized into the page:
 // teamReveal.ts creates it, so its absence here proves no-JS visitors

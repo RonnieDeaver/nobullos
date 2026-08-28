@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildSync } from "esbuild";
 import {
@@ -57,7 +58,7 @@ const articleIndex = readJson<
 
 const articles: ArticleFull[] = articleIndex.map((meta) => ({
   ...meta,
-  ...readJson<{ bodyHtml: string; metaDesc: string }>(
+  ...readJson<{ bodyHtml: string; metaDesc: string; ogImage: string }>(
     path.join(CONTENT, "articles", `${meta.slug}.json`),
   ),
   ...meta, // index metadata (title/date/cat/thumb/excerpt) wins
@@ -161,12 +162,71 @@ for (const p of pages) {
 fs.writeFileSync(path.join(OUT, "404.html"), layout(notFoundPage));
 
 // ---- sitemap manifest (server renders sitemap.xml with the right origin) ----
+// Excludes the legacy privacy-policy URL (duplicate content of privacy/,
+// see legalPolicyPage's canonicalPath override) and the personal/
+// transactional book-funnel pages (checkout/bonus/apply/thanks/access/
+// order-status) — none have unique search-worthy content, and access/
+// order-status render per-buyer data.
+const SITEMAP_EXCLUDED_PATHS = new Set([
+  "privacy-policy/",
+  "book/checkout/",
+  "book/bonus/",
+  "book/apply/",
+  "book/thanks/",
+  "book/access/",
+  "book/order-status/",
+]);
+
+// Chrome-based pages don't carry an authored per-page date (unlike articles,
+// which set PageDef.lastmod from their own JSON), so their sitemap <lastmod>
+// is derived from git history of the file(s) that actually define each
+// page's content — stable across every re-run of this generator (never
+// changes unless one of those files is next committed with real edits),
+// unlike a fabricated "now" that would churn on every regen.
+const REPO_ROOT = path.resolve(ROOT, "..");
+const PAGE_CONTENT_FILES: Record<string, string[]> = {
+  "": ["website/src/pages/home.ts"],
+  "about/": ["website/src/pages/about.ts"],
+  "resources/": ["website/src/pages/resources.ts", "website/content/articles/index.json"],
+  "free-chapters/": ["website/src/pages/freeChapters.ts", "website/content/book-excerpt.json"],
+  "book/": ["website/src/pages/bookFunnel.ts"],
+  "calculator/": ["website/src/pages/calculator.ts"],
+  "data-notes/": ["website/src/pages/dataNotes.ts"],
+  "privacy/": ["website/src/pages/legal.ts", "website/content/privacy.json"],
+  "terms/": ["website/src/pages/legal.ts"],
+  "shipping-returns/": ["website/src/pages/legal.ts"],
+  "unsubscribe/": ["website/src/pages/legal.ts"],
+};
+
+/** Most recent git commit date (ISO YYYY-MM-DD) across the given repo-root
+    relative files, or null if git has no committed history for them yet
+    (e.g. an uncommitted new file) — callers must omit lastmod rather than
+    inventing one in that case. */
+function gitLastModifiedIso(files: string[]): string | null {
+  try {
+    const out = execFileSync(
+      "git",
+      ["log", "-1", "--format=%cI", "--", ...files],
+      { cwd: REPO_ROOT, encoding: "utf8" },
+    ).trim();
+    return out ? out.slice(0, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
 const manifest = pages
-  .map((p) => ({
-    path: p.path,
-    title: p.title,
-    priority: p.priority ?? (p.path.startsWith("resource/") ? "0.5" : "0.7"),
-  }));
+  .filter((p) => !SITEMAP_EXCLUDED_PATHS.has(p.path))
+  .map((p) => {
+    const contentFiles = PAGE_CONTENT_FILES[p.path];
+    const lastmod = p.lastmod ?? (contentFiles ? gitLastModifiedIso(contentFiles) : null);
+    return {
+      path: p.path,
+      title: p.title,
+      priority: p.priority ?? (p.path.startsWith("resource/") ? "0.5" : "0.7"),
+      ...(lastmod ? { lastmod } : {}),
+    };
+  });
 fs.writeFileSync(path.join(OUT, "sitemap-pages.json"), JSON.stringify(manifest, null, 2));
 
 // ---- freshness stamp (PR4) ----

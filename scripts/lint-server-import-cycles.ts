@@ -45,7 +45,7 @@
  * dependency-free leaf-module extraction used by Tasks #3945/#3947) — never
  * weaken this check.
  *
- * Wired through gate.ts LINT_CHECKS; the `.replit` `Validate` workflow runs
+ * Wired through gate.ts LINT_CHECKS; the managed Long validation workflow runs the reviewed
  * `npm run gate`. Guarded by tests/lint-server-import-cycles.test.ts (fixture-driven
  * positive + negative detection proofs).
  *

@@ -1,9 +1,9 @@
 /* test-registration
 {
-  "name": "Ads OS tools keep forced recompute CEO-only while every signed-in user can edit criteria — account_manager saves from all six tool pages with no Re-run or force= query; CEO control retains Re-run and force=1",
+  "name": "Ads OS tools keep the standalone Re-run control CEO-only while every signed-in user can edit criteria — account_manager saves force a fresh recompute on budget pacing/LSA pacing/pyramid/keyword-intel (Task #5331) but never reload on hygiene; Re-run remains absent for non-CEO everywhere and CEO Re-run still forces",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Forced recompute (?force=) persists fresh vendor/AI results and remains CEO-only, while criteria editing is available to all signed-in users on six individual tool pages. A refactor could hide the shared editor from account managers, re-expose Re-run, or make a non-CEO mount silently issue forced reads. Route tests only prove direct HTTP access; this rendered-DOM and issued-URL guard is fast, deterministic, DB-free, and fully stubbed.",
+  "smokeReason": "Forced recompute (?force=) persists fresh vendor/AI results. The standalone Re-run button remains CEO-only everywhere, but the server intentionally leaves the read-side force cache-bust open to every staff role (server/routes/adsOs.ts header comment), so budget pacing/LSA pacing/pyramid/keyword-intel must force a fresh reload after ANY role saves criteria (Task #5331) — hygiene audit/LSA hygiene tools don't reload on save at all and stay force-free. A refactor could hide the shared editor from account managers, re-expose Re-run, or regress either save-reload behavior. Route tests only prove direct HTTP access; this rendered-DOM and issued-URL guard is fast, deterministic, DB-free, and fully stubbed.",
   "extraNodeArgs": [
     "--import",
     "./tests/client/ads-os-tools-read-only-setup.mjs"
@@ -15,18 +15,32 @@
 }
 test-registration */
 /**
- * Ads OS tools keep operational controls CEO-only while criteria are shared.
+ * Ads OS tools keep the standalone Re-run control CEO-only while criteria
+ * editing — and, for three of the six tools, the post-save reload — are
+ * shared with every signed-in role.
  *
  * The account tools (BudgetPacingTool here, same shape across the pacing/
  * hygiene/keyword/pyramid tools) auto-load the stored/cached report on open
- * and offer a "Re-run" button that re-requests with ?force=1 — which makes
- * the server recompute via Google Ads / OpenAI and persist the result. That
- * force trigger stays CEO-only; criteria editing remains available to every
- * signed-in user through the shared editor.
+ * and offer a standalone "Re-run" button that re-requests with a force
+ * parameter — which makes the server recompute via Google Ads / OpenAI and
+ * persist the result. That standalone trigger stays CEO-only; criteria
+ * editing remains available to every signed-in user through the shared
+ * editor.
+ *
+ * Task #5331: budget pacing, LSA pacing, pyramid, and keyword intel also
+ * force a fresh recompute on the reload that follows a saved criteria edit —
+ * the server's read-side force cache-bust is intentionally open to every
+ * staff role (see server/routes/adsOs.ts header comment), so a non-CEO
+ * editor must see their own change reflected immediately rather than
+ * waiting for the 1h cache to expire. Hygiene audit and LSA hygiene don't
+ * reload at all on save, so they stay force-free for every role —
+ * unchanged by this task.
  *
  * Scenario 1 — account_manager: each real tool mounts, Edit criteria opens and
- *   saves through the shared editor, Re-run is absent, and no fetched URL
- *   contains a force parameter before or after Save.
+ *   saves through the shared editor, Re-run is absent throughout. Budget
+ *   pacing/LSA pacing/pyramid/keyword intel must issue exactly one forced
+ *   reload after Save; hygiene audit/LSA hygiene must issue zero forced
+ *   requests before or after Save.
  * Scenario 2 (control) — ceo: both controls render; clicking Re-run issues the
  *   budget-pacing request with force=1 (proves CEO-only operational wiring
  *   remains intact).
@@ -293,9 +307,11 @@ async function unmount(root: Root, qc: InstanceType<typeof QueryClient>): Promis
   qc.clear();
 }
 
-// ── Scenario 1: account_manager — all six criteria saves, no force query ────
-console.log("\n— Scenario 1: account_manager saves criteria on all six tools without forcing —");
-const NON_CEO_TOOL_CASES = [
+// ── Scenario 1: account_manager — all six criteria saves, Re-run always absent ──
+console.log("\n— Scenario 1: account_manager saves criteria on all six tools; Re-run stays hidden —");
+// Task #5331: these four force a fresh recompute on the post-save reload —
+// the read-side force cache-bust is intentionally open to every staff role.
+const FORCE_ON_SAVE_TOOL_CASES = [
   {
     name: "Google Ads pacing",
     route: `/ads-os/a/${CID}/pacing`,
@@ -311,6 +327,25 @@ const NON_CEO_TOOL_CASES = [
     Page: LsaPacingTool,
   },
   {
+    name: "pyramid",
+    route: `/ads-os/a/${CID}/pyramid`,
+    pageTestId: "page-ads-os-pyramid",
+    rerunTestId: "button-rerun-pyramid",
+    Page: PyramidTool,
+  },
+  {
+    name: "keyword intelligence",
+    route: `/ads-os/a/${CID}/analyzer/negatives`,
+    pageTestId: "page-ads-os-analyzer-negatives",
+    rerunTestId: "button-rerun-negatives",
+    Page: KeywordIntelTool,
+  },
+] as const;
+
+// Unchanged by Task #5331: these don't reload at all after Save, so they
+// stay force-free for every role.
+const NO_RELOAD_ON_SAVE_TOOL_CASES = [
+  {
     name: "Google Ads hygiene",
     route: `/ads-os/a/${CID}/audit`,
     pageTestId: "page-ads-os-audit",
@@ -324,23 +359,15 @@ const NON_CEO_TOOL_CASES = [
     rerunTestId: "button-rerun-audit",
     Page: LsaHygieneTool,
   },
-  {
-    name: "keyword intelligence",
-    route: `/ads-os/a/${CID}/analyzer/negatives`,
-    pageTestId: "page-ads-os-analyzer-negatives",
-    rerunTestId: "button-rerun-negatives",
-    Page: KeywordIntelTool,
-  },
-  {
-    name: "pyramid",
-    route: `/ads-os/a/${CID}/pyramid`,
-    pageTestId: "page-ads-os-pyramid",
-    rerunTestId: "button-rerun-pyramid",
-    Page: PyramidTool,
-  },
 ] as const;
 
-for (const tool of NON_CEO_TOOL_CASES) {
+async function runNonCeoSaveCase(tool: {
+  name: string;
+  route: string;
+  pageTestId: string;
+  rerunTestId: string;
+  Page: typeof BudgetPacingTool;
+}): Promise<void> {
   fetchedUrls = [];
   criteriaPutCount = 0;
   activeFetchHandler = makeNonCeoToolHandler();
@@ -380,15 +407,31 @@ for (const tool of NON_CEO_TOOL_CASES) {
       $("modal-criteria") === null,
       `${tool.name} criteria editor must close through its existing post-save callback`,
     );
-    const forced = fetchedUrls.filter((u) => /[?&]force(=|&|$)/.test(u));
     assert(
-      forced.length === 0,
-      `${tool.name} non-CEO mount must never issue a force= request — got: ${forced.join(", ")}`,
+      $(tool.rerunTestId) === null,
+      `${tool.name} Re-run (forced recompute) must remain ABSENT for account_manager after Save`,
     );
-    console.log(`  ✓ ${tool.name}: criteria saves; Re-run absent; zero force= requests`);
+    const forced = fetchedUrls.filter((u) => /[?&]force(=|&|$)/.test(u));
+    if (FORCE_ON_SAVE_TOOL_CASES.some((t) => t.name === tool.name)) {
+      assert(
+        forced.length === 1,
+        `${tool.name} account_manager Save must force exactly one fresh reload (Task #5331) — got: ${forced.join(", ")}`,
+      );
+      console.log(`  ✓ ${tool.name}: criteria saves; Re-run absent; one forced reload after Save`);
+    } else {
+      assert(
+        forced.length === 0,
+        `${tool.name} non-CEO mount must never issue a force= request — got: ${forced.join(", ")}`,
+      );
+      console.log(`  ✓ ${tool.name}: criteria saves; Re-run absent; zero force= requests`);
+    }
   } finally {
     await unmount(root, qc);
   }
+}
+
+for (const tool of [...FORCE_ON_SAVE_TOOL_CASES, ...NO_RELOAD_ON_SAVE_TOOL_CASES]) {
+  await runNonCeoSaveCase(tool);
 }
 
 // ── Scenario 2 (control): CEO — controls render, Re-run issues force=1 ──────
@@ -419,5 +462,5 @@ document.getElementById("root")!.innerHTML = "";
 }
 
 console.log(
-  "\nads-os-tools-read-only-roles: account_manager can save criteria on all six tools but cannot Re-run and issues zero force= requests; the CEO control retains Re-run force wiring.",
+  "\nads-os-tools-read-only-roles: account_manager can save criteria on all six tools but never sees Re-run; budget pacing/LSA pacing/pyramid/keyword-intel force a fresh reload after Save (Task #5331) while hygiene tools stay force-free; the CEO control retains Re-run force wiring.",
 );

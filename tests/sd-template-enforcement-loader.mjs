@@ -5,12 +5,19 @@
 //   server/services/clickUpClient      → recording ClickUp API stub
 //   server/services/clickUpIntegration → getAccessToken stub
 //
+// The ClickUp client stub is the shared module at
+// tests/vendor-stubs/clickup-stub.mjs (Task #5313 — see TESTING.md, "Shared
+// vendor test stubs"); it also serves service-desk-submit-status-fallback,
+// so the `?stubMode=template-enforcement` query picks this suite's
+// ledger/return shape for the two ClickUp functions both suites override
+// (createChecklist/createChecklistItem/updateTask).
+//
 // Each stub `export *`s the real module and overrides only the functions the
 // template-enforcement path calls; the stubs' own re-export imports must pass
 // straight through or resolution loops forever.
 
 const CLIENT_STUB_URL = new URL(
-  "./sd-template-enforcement-clickup-stub.mjs",
+  "./vendor-stubs/clickup-stub.mjs?stubMode=template-enforcement",
   import.meta.url,
 ).href;
 const INTEGRATION_STUB_URL = new URL(

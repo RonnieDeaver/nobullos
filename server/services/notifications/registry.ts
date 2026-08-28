@@ -286,6 +286,18 @@ export const NOTIFICATION_REGISTRY: NotificationRegistryEntry[] = [
     implemented: true,
     ownerService: "clickUpWebhookHealthCheck",
   },
+  {
+    id: "integration.clickup.webhook_event_terminal",
+    category: "integration",
+    label: "ClickUp webhook task event failed",
+    description:
+      "A verified canonical Client List task event exhausted its bounded work-queue retries. " +
+      "Review and replay the ClickUp task-apply job from the dead-letter queue.",
+    defaultEnabled: true,
+    supportsTest: true,
+    implemented: true,
+    ownerService: "clickUpWebhookInbox",
+  },
 
   {
     // Task #1643 — fires when Front Analytics all-time applied coverage

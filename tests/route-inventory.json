@@ -70,7 +70,7 @@
     "method": "GET",
     "path": "/api/ads-os/status",
     "file": "server/routes/adsOs.ts",
-    "line": 186,
+    "line": 187,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -88,7 +88,7 @@
     "method": "GET",
     "path": "/api/ads-os/proofs/accounts",
     "file": "server/routes/adsOs.ts",
-    "line": 221,
+    "line": 222,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -106,7 +106,7 @@
     "method": "GET",
     "path": "/api/ads-os/proofs/clickup",
     "file": "server/routes/adsOs.ts",
-    "line": 246,
+    "line": 247,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -124,7 +124,7 @@
     "method": "GET",
     "path": "/api/ads-os/proofs/openai",
     "file": "server/routes/adsOs.ts",
-    "line": 291,
+    "line": 292,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -142,7 +142,7 @@
     "method": "GET",
     "path": "/api/ads-os/proofs/store",
     "file": "server/routes/adsOs.ts",
-    "line": 327,
+    "line": 328,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -160,7 +160,7 @@
     "method": "GET",
     "path": "/api/ads-os/dashboard",
     "file": "server/routes/adsOs.ts",
-    "line": 425,
+    "line": 426,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -177,7 +177,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/dashboard",
     "file": "server/routes/adsOs.ts",
-    "line": 442,
+    "line": 443,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -194,7 +194,7 @@
     "method": "GET",
     "path": "/api/ads-os/combined/dashboard",
     "file": "server/routes/adsOs.ts",
-    "line": 459,
+    "line": 460,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -211,7 +211,7 @@
     "method": "GET",
     "path": "/api/ads-os/accounts",
     "file": "server/routes/adsOs.ts",
-    "line": 481,
+    "line": 482,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -228,7 +228,7 @@
     "method": "GET",
     "path": "/api/ads-os/monitored-accounts",
     "file": "server/routes/adsOs.ts",
-    "line": 502,
+    "line": 503,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -245,7 +245,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/monitored-accounts",
     "file": "server/routes/adsOs.ts",
-    "line": 518,
+    "line": 519,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -262,7 +262,7 @@
     "method": "GET",
     "path": "/api/ads-os/clients",
     "file": "server/routes/adsOs.ts",
-    "line": 537,
+    "line": 538,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -279,7 +279,7 @@
     "method": "GET",
     "path": "/api/ads-os/dashboard/pacing",
     "file": "server/routes/adsOs.ts",
-    "line": 558,
+    "line": 559,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -296,7 +296,7 @@
     "method": "POST",
     "path": "/api/ads-os/directory/refresh",
     "file": "server/routes/adsOs.ts",
-    "line": 605,
+    "line": 606,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -314,7 +314,7 @@
     "method": "GET",
     "path": "/api/ads-os/budget-pacing/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 632,
+    "line": 633,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -331,7 +331,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/pacing/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 647,
+    "line": 648,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -348,7 +348,7 @@
     "method": "GET",
     "path": "/api/ads-os/clients/:cid/criteria",
     "file": "server/routes/adsOs.ts",
-    "line": 772,
+    "line": 773,
     "middleware": [
       "isAuthenticated"
     ],
@@ -364,7 +364,7 @@
     "method": "GET",
     "path": "/api/ads-os/keyword-intel/:cid/criteria",
     "file": "server/routes/adsOs.ts",
-    "line": 777,
+    "line": 778,
     "middleware": [
       "isAuthenticated"
     ],
@@ -380,7 +380,7 @@
     "method": "PUT",
     "path": "/api/ads-os/clients/:cid/criteria",
     "file": "server/routes/adsOs.ts",
-    "line": 782,
+    "line": 783,
     "middleware": [
       "isAuthenticated"
     ],
@@ -396,7 +396,7 @@
     "method": "PUT",
     "path": "/api/ads-os/keyword-intel/:cid/criteria",
     "file": "server/routes/adsOs.ts",
-    "line": 787,
+    "line": 788,
     "middleware": [
       "isAuthenticated"
     ],
@@ -412,7 +412,7 @@
     "method": "GET",
     "path": "/api/ads-os/audit/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 815,
+    "line": 816,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -429,7 +429,7 @@
     "method": "POST",
     "path": "/api/ads-os/audit/:cid/run",
     "file": "server/routes/adsOs.ts",
-    "line": 831,
+    "line": 840,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -447,7 +447,7 @@
     "method": "GET",
     "path": "/api/ads-os/audit/:cid/report.html",
     "file": "server/routes/adsOs.ts",
-    "line": 845,
+    "line": 854,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -464,7 +464,7 @@
     "method": "POST",
     "path": "/api/ads-os/dashboard/run-audits",
     "file": "server/routes/adsOs.ts",
-    "line": 866,
+    "line": 875,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -482,7 +482,7 @@
     "method": "GET",
     "path": "/api/ads-os/audit/:cid/history",
     "file": "server/routes/adsOs.ts",
-    "line": 876,
+    "line": 885,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -499,7 +499,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/hygiene/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 886,
+    "line": 895,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -516,7 +516,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/hygiene/:cid/history",
     "file": "server/routes/adsOs.ts",
-    "line": 900,
+    "line": 909,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -533,7 +533,7 @@
     "method": "GET",
     "path": "/api/ads-os/lsa/hygiene/:cid/report.html",
     "file": "server/routes/adsOs.ts",
-    "line": 910,
+    "line": 919,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -550,7 +550,7 @@
     "method": "POST",
     "path": "/api/ads-os/lsa/dashboard/run-audits",
     "file": "server/routes/adsOs.ts",
-    "line": 929,
+    "line": 938,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -568,7 +568,7 @@
     "method": "GET",
     "path": "/api/ads-os/keyword-intel/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 946,
+    "line": 955,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -585,7 +585,7 @@
     "method": "GET",
     "path": "/api/ads-os/keyword-intel/:cid/keywords",
     "file": "server/routes/adsOs.ts",
-    "line": 960,
+    "line": 969,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -602,7 +602,7 @@
     "method": "GET",
     "path": "/api/ads-os/pyramid/:cid",
     "file": "server/routes/adsOs.ts",
-    "line": 979,
+    "line": 988,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -619,7 +619,7 @@
     "method": "POST",
     "path": "/api/ads-os/keyword-intel/:cid/keywords/actioned",
     "file": "server/routes/adsOs.ts",
-    "line": 995,
+    "line": 1004,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -637,7 +637,7 @@
     "method": "GET",
     "path": "/api/ads-os/client/profile",
     "file": "server/routes/adsOs.ts",
-    "line": 1013,
+    "line": 1022,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -654,7 +654,7 @@
     "method": "GET",
     "path": "/api/ads-os/client/performance",
     "file": "server/routes/adsOs.ts",
-    "line": 1035,
+    "line": 1044,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -671,7 +671,7 @@
     "method": "GET",
     "path": "/api/ads-os/client/log-summary",
     "file": "server/routes/adsOs.ts",
-    "line": 1073,
+    "line": 1082,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -688,7 +688,7 @@
     "method": "GET",
     "path": "/api/ads-os/clients/:cid/sibling",
     "file": "server/routes/adsOs.ts",
-    "line": 1097,
+    "line": 1106,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -705,7 +705,7 @@
     "method": "POST",
     "path": "/api/ads-os/dashboard/run-alerts",
     "file": "server/routes/adsOs.ts",
-    "line": 1110,
+    "line": 1119,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -723,7 +723,7 @@
     "method": "POST",
     "path": "/api/ads-os/lsa/dashboard/run-alerts",
     "file": "server/routes/adsOs.ts",
-    "line": 1118,
+    "line": 1127,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -741,7 +741,7 @@
     "method": "POST",
     "path": "/api/ads-os/combined/dashboard/run-alerts",
     "file": "server/routes/adsOs.ts",
-    "line": 1129,
+    "line": 1138,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -759,7 +759,7 @@
     "method": "GET",
     "path": "/api/ads-os/am/dashboard",
     "file": "server/routes/adsOs.ts",
-    "line": 1144,
+    "line": 1153,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -776,7 +776,7 @@
     "method": "POST",
     "path": "/api/ads-os/dashboard/run-status-checks",
     "file": "server/routes/adsOs.ts",
-    "line": 1176,
+    "line": 1185,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -794,7 +794,7 @@
     "method": "POST",
     "path": "/api/ads-os/lsa/dashboard/run-status-checks",
     "file": "server/routes/adsOs.ts",
-    "line": 1197,
+    "line": 1206,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -812,7 +812,7 @@
     "method": "POST",
     "path": "/api/ads-os/am/dashboard/refresh",
     "file": "server/routes/adsOs.ts",
-    "line": 1215,
+    "line": 1224,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -830,7 +830,7 @@
     "method": "GET",
     "path": "/api/ads-os/clickup/enabled",
     "file": "server/routes/adsOs.ts",
-    "line": 1258,
+    "line": 1267,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -847,7 +847,7 @@
     "method": "POST",
     "path": "/api/ads-os/clickup/task",
     "file": "server/routes/adsOs.ts",
-    "line": 1265,
+    "line": 1274,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -865,7 +865,7 @@
     "method": "GET",
     "path": "/api/ads-os/health",
     "file": "server/routes/adsOs.ts",
-    "line": 1292,
+    "line": 1301,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -883,7 +883,7 @@
     "method": "GET",
     "path": "/api/ads-os/accounts/:cid/probe",
     "file": "server/routes/adsOs.ts",
-    "line": 1304,
+    "line": 1313,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -901,7 +901,7 @@
     "method": "GET",
     "path": "/api/ads-os/cron/clickup-health",
     "file": "server/routes/adsOs.ts",
-    "line": 1356,
+    "line": 1365,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -915,7 +915,7 @@
     "method": "POST",
     "path": "/api/ads-os/cron/refresh-pacing",
     "file": "server/routes/adsOs.ts",
-    "line": 1378,
+    "line": 1387,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -929,7 +929,7 @@
     "method": "GET",
     "path": "/api/ads-os/admin/paid-search-role-cutover",
     "file": "server/routes/adsOs.ts",
-    "line": 1426,
+    "line": 1435,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -947,7 +947,7 @@
     "method": "GET",
     "path": "/api/ads-os/admin/paid-search-role-cutover/state",
     "file": "server/routes/adsOs.ts",
-    "line": 1448,
+    "line": 1457,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -965,7 +965,7 @@
     "method": "PUT",
     "path": "/api/ads-os/admin/paid-search-role-cutover/state",
     "file": "server/routes/adsOs.ts",
-    "line": 1481,
+    "line": 1490,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -2662,7 +2662,7 @@
     "method": "POST",
     "path": "/api/ats/portal/:token/submit",
     "file": "server/routes/ats.ts",
-    "line": 1345,
+    "line": 1350,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -2676,7 +2676,7 @@
     "method": "POST",
     "path": "/api/ats/portal/:token/complete-screening",
     "file": "server/routes/ats.ts",
-    "line": 1450,
+    "line": 1455,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -2690,7 +2690,7 @@
     "method": "POST",
     "path": "/api/ats/portal/:token/complete-video",
     "file": "server/routes/ats.ts",
-    "line": 1500,
+    "line": 1505,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -2704,7 +2704,7 @@
     "method": "POST",
     "path": "/api/ats/jobs/:jobId/candidates/import-csv",
     "file": "server/routes/ats.ts",
-    "line": 1732,
+    "line": 1737,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2721,7 +2721,7 @@
     "method": "POST",
     "path": "/api/ats/jobs/:jobId/candidates/bulk-update",
     "file": "server/routes/ats.ts",
-    "line": 1792,
+    "line": 1797,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2738,7 +2738,7 @@
     "method": "POST",
     "path": "/api/ats/jobs/:jobId/recalibrate",
     "file": "server/routes/ats.ts",
-    "line": 1820,
+    "line": 1825,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2755,7 +2755,7 @@
     "method": "GET",
     "path": "/api/ats/jobs/:jobId/analytics",
     "file": "server/routes/ats.ts",
-    "line": 1831,
+    "line": 1836,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2772,7 +2772,7 @@
     "method": "POST",
     "path": "/api/ats/portal/:token/video-upload-url",
     "file": "server/routes/ats.ts",
-    "line": 1883,
+    "line": 1888,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -2786,7 +2786,7 @@
     "method": "POST",
     "path": "/api/ats/portal/:token/submit-video",
     "file": "server/routes/ats.ts",
-    "line": 1913,
+    "line": 1918,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -2800,7 +2800,7 @@
     "method": "POST",
     "path": "/api/ats/candidates/:id/retry-transcription",
     "file": "server/routes/ats.ts",
-    "line": 2066,
+    "line": 2071,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2817,7 +2817,7 @@
     "method": "GET",
     "path": "/api/ats/email-templates",
     "file": "server/routes/ats.ts",
-    "line": 2098,
+    "line": 2103,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2834,7 +2834,7 @@
     "method": "POST",
     "path": "/api/ats/email-templates",
     "file": "server/routes/ats.ts",
-    "line": 2127,
+    "line": 2132,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2851,7 +2851,7 @@
     "method": "PATCH",
     "path": "/api/ats/email-templates/:id",
     "file": "server/routes/ats.ts",
-    "line": 2154,
+    "line": 2159,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2868,7 +2868,7 @@
     "method": "DELETE",
     "path": "/api/ats/email-templates/:id",
     "file": "server/routes/ats.ts",
-    "line": 2184,
+    "line": 2189,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2885,7 +2885,7 @@
     "method": "GET",
     "path": "/api/ats/candidates/:id/interviews",
     "file": "server/routes/ats.ts",
-    "line": 2200,
+    "line": 2205,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2902,7 +2902,7 @@
     "method": "POST",
     "path": "/api/ats/candidates/:id/interviews",
     "file": "server/routes/ats.ts",
-    "line": 2231,
+    "line": 2236,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2919,7 +2919,7 @@
     "method": "POST",
     "path": "/api/ats/candidates/:id/interviews/:interviewId/analyze",
     "file": "server/routes/ats.ts",
-    "line": 2266,
+    "line": 2271,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2936,7 +2936,7 @@
     "method": "DELETE",
     "path": "/api/ats/candidates/:id/interviews/:interviewId",
     "file": "server/routes/ats.ts",
-    "line": 2370,
+    "line": 2375,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2953,7 +2953,7 @@
     "method": "PATCH",
     "path": "/api/ats/candidates/:id/interviews/:interviewId",
     "file": "server/routes/ats.ts",
-    "line": 2421,
+    "line": 2426,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2970,7 +2970,7 @@
     "method": "GET",
     "path": "/api/ats/candidates/:id/final-decision",
     "file": "server/routes/ats.ts",
-    "line": 2445,
+    "line": 2450,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -2987,7 +2987,7 @@
     "method": "POST",
     "path": "/api/ats/candidates/:id/final-decision",
     "file": "server/routes/ats.ts",
-    "line": 2458,
+    "line": 2463,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -5216,7 +5216,7 @@
     "method": "GET",
     "path": "/api/integrations/clickup/authorize",
     "file": "server/routes/clickup.ts",
-    "line": 156,
+    "line": 161,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5232,7 +5232,7 @@
     "method": "GET",
     "path": "/api/integrations/clickup/callback",
     "file": "server/routes/clickup.ts",
-    "line": 182,
+    "line": 187,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -5246,7 +5246,7 @@
     "method": "POST",
     "path": "/api/integrations/clickup/disconnect",
     "file": "server/routes/clickup.ts",
-    "line": 216,
+    "line": 221,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5262,7 +5262,7 @@
     "method": "GET",
     "path": "/api/integrations/clickup/status",
     "file": "server/routes/clickup.ts",
-    "line": 233,
+    "line": 238,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5278,7 +5278,7 @@
     "method": "GET",
     "path": "/api/integrations/clickup/connected-users",
     "file": "server/routes/clickup.ts",
-    "line": 251,
+    "line": 256,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -5295,7 +5295,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces",
     "file": "server/routes/clickup.ts",
-    "line": 278,
+    "line": 283,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5311,7 +5311,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/hierarchy",
     "file": "server/routes/clickup.ts",
-    "line": 289,
+    "line": 294,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5327,7 +5327,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/spaces",
     "file": "server/routes/clickup.ts",
-    "line": 322,
+    "line": 327,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5343,7 +5343,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/spaces",
     "file": "server/routes/clickup.ts",
-    "line": 337,
+    "line": 342,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5359,7 +5359,7 @@
     "method": "PUT",
     "path": "/api/clickup/spaces/:spaceId",
     "file": "server/routes/clickup.ts",
-    "line": 380,
+    "line": 385,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5375,7 +5375,7 @@
     "method": "DELETE",
     "path": "/api/clickup/spaces/:spaceId",
     "file": "server/routes/clickup.ts",
-    "line": 401,
+    "line": 406,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5391,7 +5391,7 @@
     "method": "GET",
     "path": "/api/clickup/spaces/:spaceId/folders",
     "file": "server/routes/clickup.ts",
-    "line": 420,
+    "line": 425,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5407,7 +5407,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/folders",
     "file": "server/routes/clickup.ts",
-    "line": 431,
+    "line": 436,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5423,7 +5423,7 @@
     "method": "PUT",
     "path": "/api/clickup/folders/:folderId",
     "file": "server/routes/clickup.ts",
-    "line": 469,
+    "line": 474,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5439,7 +5439,7 @@
     "method": "DELETE",
     "path": "/api/clickup/folders/:folderId",
     "file": "server/routes/clickup.ts",
-    "line": 488,
+    "line": 493,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5455,7 +5455,7 @@
     "method": "GET",
     "path": "/api/clickup/spaces/:spaceId/lists",
     "file": "server/routes/clickup.ts",
-    "line": 506,
+    "line": 511,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5471,7 +5471,7 @@
     "method": "GET",
     "path": "/api/clickup/folders/:folderId/lists",
     "file": "server/routes/clickup.ts",
-    "line": 517,
+    "line": 522,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5487,7 +5487,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/lists",
     "file": "server/routes/clickup.ts",
-    "line": 528,
+    "line": 533,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5503,7 +5503,7 @@
     "method": "POST",
     "path": "/api/clickup/folders/:folderId/lists",
     "file": "server/routes/clickup.ts",
-    "line": 563,
+    "line": 568,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5519,7 +5519,7 @@
     "method": "PUT",
     "path": "/api/clickup/lists/:listId",
     "file": "server/routes/clickup.ts",
-    "line": 598,
+    "line": 603,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5535,7 +5535,7 @@
     "method": "DELETE",
     "path": "/api/clickup/lists/:listId",
     "file": "server/routes/clickup.ts",
-    "line": 620,
+    "line": 625,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5551,7 +5551,7 @@
     "method": "GET",
     "path": "/api/clickup/lists/:listId/custom-fields",
     "file": "server/routes/clickup.ts",
-    "line": 638,
+    "line": 643,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5567,7 +5567,7 @@
     "method": "GET",
     "path": "/api/clickup/lists/:listId/tasks",
     "file": "server/routes/clickup.ts",
-    "line": 651,
+    "line": 656,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5583,7 +5583,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId",
     "file": "server/routes/clickup.ts",
-    "line": 677,
+    "line": 682,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5599,7 +5599,7 @@
     "method": "POST",
     "path": "/api/clickup/lists/:listId/tasks",
     "file": "server/routes/clickup.ts",
-    "line": 688,
+    "line": 693,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5615,7 +5615,7 @@
     "method": "PUT",
     "path": "/api/clickup/tasks/:taskId",
     "file": "server/routes/clickup.ts",
-    "line": 699,
+    "line": 704,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5631,7 +5631,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId",
     "file": "server/routes/clickup.ts",
-    "line": 710,
+    "line": 715,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5647,7 +5647,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/fields/:fieldId",
     "file": "server/routes/clickup.ts",
-    "line": 721,
+    "line": 726,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5663,7 +5663,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/fields/:fieldId",
     "file": "server/routes/clickup.ts",
-    "line": 740,
+    "line": 745,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5679,7 +5679,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/custom-item-types",
     "file": "server/routes/clickup.ts",
-    "line": 759,
+    "line": 764,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5695,7 +5695,7 @@
     "method": "GET",
     "path": "/api/clickup/folders/:folderId/custom-fields",
     "file": "server/routes/clickup.ts",
-    "line": 778,
+    "line": 783,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5711,7 +5711,7 @@
     "method": "GET",
     "path": "/api/clickup/spaces/:spaceId/custom-fields",
     "file": "server/routes/clickup.ts",
-    "line": 797,
+    "line": 802,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5727,7 +5727,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/custom-fields",
     "file": "server/routes/clickup.ts",
-    "line": 816,
+    "line": 821,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5743,7 +5743,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/checklists",
     "file": "server/routes/clickup.ts",
-    "line": 833,
+    "line": 838,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5759,7 +5759,7 @@
     "method": "POST",
     "path": "/api/clickup/checklists/:checklistId/items",
     "file": "server/routes/clickup.ts",
-    "line": 844,
+    "line": 849,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5775,7 +5775,7 @@
     "method": "PUT",
     "path": "/api/clickup/checklists/:checklistId/items/:itemId",
     "file": "server/routes/clickup.ts",
-    "line": 859,
+    "line": 864,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5791,7 +5791,7 @@
     "method": "DELETE",
     "path": "/api/clickup/checklists/:checklistId",
     "file": "server/routes/clickup.ts",
-    "line": 879,
+    "line": 884,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5807,7 +5807,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId/comments",
     "file": "server/routes/clickup.ts",
-    "line": 912,
+    "line": 917,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5823,7 +5823,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/comments",
     "file": "server/routes/clickup.ts",
-    "line": 925,
+    "line": 930,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5839,7 +5839,7 @@
     "method": "GET",
     "path": "/api/clickup/comments/:commentId/replies",
     "file": "server/routes/clickup.ts",
-    "line": 936,
+    "line": 941,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5855,7 +5855,7 @@
     "method": "POST",
     "path": "/api/clickup/comments/:commentId/replies",
     "file": "server/routes/clickup.ts",
-    "line": 947,
+    "line": 952,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5871,7 +5871,7 @@
     "method": "PUT",
     "path": "/api/clickup/comments/:commentId",
     "file": "server/routes/clickup.ts",
-    "line": 958,
+    "line": 963,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5887,7 +5887,7 @@
     "method": "DELETE",
     "path": "/api/clickup/comments/:commentId",
     "file": "server/routes/clickup.ts",
-    "line": 969,
+    "line": 974,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5903,7 +5903,7 @@
     "method": "GET",
     "path": "/api/clickup/lists/:listId/comments",
     "file": "server/routes/clickup.ts",
-    "line": 980,
+    "line": 985,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5919,7 +5919,7 @@
     "method": "POST",
     "path": "/api/clickup/lists/:listId/comments",
     "file": "server/routes/clickup.ts",
-    "line": 993,
+    "line": 998,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5935,7 +5935,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId/attachments",
     "file": "server/routes/clickup.ts",
-    "line": 1013,
+    "line": 1018,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5951,7 +5951,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/attachments",
     "file": "server/routes/clickup.ts",
-    "line": 1028,
+    "line": 1033,
     "middleware": [
       "isAuthenticated",
       "upload.single"
@@ -5969,7 +5969,7 @@
     "method": "GET",
     "path": "/api/clickup/attachments/proxy",
     "file": "server/routes/clickup.ts",
-    "line": 1056,
+    "line": 1061,
     "middleware": [
       "isAuthenticated"
     ],
@@ -5985,7 +5985,7 @@
     "method": "POST",
     "path": "/api/clickup/entity/:entityId/attachments",
     "file": "server/routes/clickup.ts",
-    "line": 1101,
+    "line": 1106,
     "middleware": [
       "isAuthenticated",
       "upload.single"
@@ -6003,7 +6003,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/attachments/:attachmentId",
     "file": "server/routes/clickup.ts",
-    "line": 1128,
+    "line": 1133,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6019,7 +6019,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries",
     "file": "server/routes/clickup.ts",
-    "line": 1168,
+    "line": 1173,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6035,7 +6035,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries",
     "file": "server/routes/clickup.ts",
-    "line": 1196,
+    "line": 1201,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6051,7 +6051,7 @@
     "method": "PUT",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries/:entryId",
     "file": "server/routes/clickup.ts",
-    "line": 1211,
+    "line": 1216,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6067,7 +6067,7 @@
     "method": "DELETE",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries/:entryId",
     "file": "server/routes/clickup.ts",
-    "line": 1231,
+    "line": 1236,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6083,7 +6083,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/timer/start",
     "file": "server/routes/clickup.ts",
-    "line": 1246,
+    "line": 1251,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6099,7 +6099,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/timer/stop",
     "file": "server/routes/clickup.ts",
-    "line": 1266,
+    "line": 1271,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6115,7 +6115,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/timer/current",
     "file": "server/routes/clickup.ts",
-    "line": 1281,
+    "line": 1286,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6131,7 +6131,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries/:entryId/history",
     "file": "server/routes/clickup.ts",
-    "line": 1298,
+    "line": 1303,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6147,7 +6147,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/time-entry-tags",
     "file": "server/routes/clickup.ts",
-    "line": 1320,
+    "line": 1325,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6163,7 +6163,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags",
     "file": "server/routes/clickup.ts",
-    "line": 1336,
+    "line": 1341,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6179,7 +6179,7 @@
     "method": "DELETE",
     "path": "/api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags",
     "file": "server/routes/clickup.ts",
-    "line": 1355,
+    "line": 1360,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6195,7 +6195,7 @@
     "method": "PUT",
     "path": "/api/clickup/workspaces/:workspaceId/time-entry-tags/rename",
     "file": "server/routes/clickup.ts",
-    "line": 1373,
+    "line": 1378,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6211,7 +6211,7 @@
     "method": "PUT",
     "path": "/api/clickup/tasks/:taskId/time-estimates/user/:userId",
     "file": "server/routes/clickup.ts",
-    "line": 1399,
+    "line": 1404,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6227,7 +6227,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId/time-in-status",
     "file": "server/routes/clickup.ts",
-    "line": 1425,
+    "line": 1430,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6243,7 +6243,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/tasks/time-in-status",
     "file": "server/routes/clickup.ts",
-    "line": 1446,
+    "line": 1451,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6259,7 +6259,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/goals",
     "file": "server/routes/clickup.ts",
-    "line": 1466,
+    "line": 1471,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6275,7 +6275,7 @@
     "method": "GET",
     "path": "/api/clickup/goals/:goalId",
     "file": "server/routes/clickup.ts",
-    "line": 1477,
+    "line": 1482,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6291,7 +6291,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/goals",
     "file": "server/routes/clickup.ts",
-    "line": 1488,
+    "line": 1493,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6307,7 +6307,7 @@
     "method": "PUT",
     "path": "/api/clickup/goals/:goalId",
     "file": "server/routes/clickup.ts",
-    "line": 1538,
+    "line": 1543,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6323,7 +6323,7 @@
     "method": "DELETE",
     "path": "/api/clickup/goals/:goalId",
     "file": "server/routes/clickup.ts",
-    "line": 1561,
+    "line": 1566,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6339,7 +6339,7 @@
     "method": "POST",
     "path": "/api/clickup/goals/:goalId/key-results",
     "file": "server/routes/clickup.ts",
-    "line": 1577,
+    "line": 1582,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6355,7 +6355,7 @@
     "method": "PUT",
     "path": "/api/clickup/goals/:goalId/key-results/:krId",
     "file": "server/routes/clickup.ts",
-    "line": 1618,
+    "line": 1623,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6371,7 +6371,7 @@
     "method": "DELETE",
     "path": "/api/clickup/goals/:goalId/key-results/:krId",
     "file": "server/routes/clickup.ts",
-    "line": 1651,
+    "line": 1656,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6387,7 +6387,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/docs",
     "file": "server/routes/clickup.ts",
-    "line": 1684,
+    "line": 1689,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6403,7 +6403,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/docs",
     "file": "server/routes/clickup.ts",
-    "line": 1697,
+    "line": 1702,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6419,7 +6419,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId",
     "file": "server/routes/clickup.ts",
-    "line": 1716,
+    "line": 1721,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6435,7 +6435,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId/page-listing",
     "file": "server/routes/clickup.ts",
-    "line": 1732,
+    "line": 1737,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6451,7 +6451,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId/pages",
     "file": "server/routes/clickup.ts",
-    "line": 1751,
+    "line": 1756,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6467,7 +6467,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId/pages",
     "file": "server/routes/clickup.ts",
-    "line": 1767,
+    "line": 1772,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6483,7 +6483,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId",
     "file": "server/routes/clickup.ts",
-    "line": 1789,
+    "line": 1794,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6499,7 +6499,7 @@
     "method": "PUT",
     "path": "/api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId",
     "file": "server/routes/clickup.ts",
-    "line": 1809,
+    "line": 1814,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6515,7 +6515,7 @@
     "method": "GET",
     "path": "/api/clickup/spaces/:spaceId/tags",
     "file": "server/routes/clickup.ts",
-    "line": 1833,
+    "line": 1838,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6531,7 +6531,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/tags",
     "file": "server/routes/clickup.ts",
-    "line": 1844,
+    "line": 1849,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6547,7 +6547,7 @@
     "method": "PUT",
     "path": "/api/clickup/spaces/:spaceId/tags/:tagName",
     "file": "server/routes/clickup.ts",
-    "line": 1863,
+    "line": 1868,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6563,7 +6563,7 @@
     "method": "DELETE",
     "path": "/api/clickup/spaces/:spaceId/tags/:tagName",
     "file": "server/routes/clickup.ts",
-    "line": 1883,
+    "line": 1888,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6579,7 +6579,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/tags/:tagName",
     "file": "server/routes/clickup.ts",
-    "line": 1900,
+    "line": 1905,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6595,7 +6595,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/tags/:tagName",
     "file": "server/routes/clickup.ts",
-    "line": 1934,
+    "line": 1939,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6611,7 +6611,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/webhooks",
     "file": "server/routes/clickup.ts",
-    "line": 1968,
+    "line": 1973,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -6629,7 +6629,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/webhooks",
     "file": "server/routes/clickup.ts",
-    "line": 1984,
+    "line": 1989,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -6647,7 +6647,7 @@
     "method": "DELETE",
     "path": "/api/clickup/webhooks/:webhookId",
     "file": "server/routes/clickup.ts",
-    "line": 2018,
+    "line": 2025,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -6665,7 +6665,7 @@
     "method": "POST",
     "path": "/api/webhooks/clickup",
     "file": "server/routes/clickup.ts",
-    "line": 2040,
+    "line": 2047,
     "middleware": [],
     "protection": "public",
     "authClass": "observed_public",
@@ -6680,7 +6680,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/facets",
     "file": "server/routes/clickup.ts",
-    "line": 2079,
+    "line": 2099,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6696,7 +6696,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/search",
     "file": "server/routes/clickup.ts",
-    "line": 2170,
+    "line": 2190,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6712,7 +6712,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId/full",
     "file": "server/routes/clickup.ts",
-    "line": 2217,
+    "line": 2237,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6728,7 +6728,7 @@
     "method": "GET",
     "path": "/api/clickup/filter-presets",
     "file": "server/routes/clickup.ts",
-    "line": 2230,
+    "line": 2250,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6744,7 +6744,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/dependencies",
     "file": "server/routes/clickup.ts",
-    "line": 2252,
+    "line": 2272,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6760,7 +6760,7 @@
     "method": "POST",
     "path": "/api/clickup/filter-presets",
     "file": "server/routes/clickup.ts",
-    "line": 2267,
+    "line": 2287,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6776,7 +6776,7 @@
     "method": "DELETE",
     "path": "/api/clickup/filter-presets/:presetId",
     "file": "server/routes/clickup.ts",
-    "line": 2288,
+    "line": 2308,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6792,7 +6792,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/dependencies",
     "file": "server/routes/clickup.ts",
-    "line": 2309,
+    "line": 2329,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6808,7 +6808,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/links/:linksTo",
     "file": "server/routes/clickup.ts",
-    "line": 2326,
+    "line": 2346,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6824,7 +6824,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/links/:linksTo",
     "file": "server/routes/clickup.ts",
-    "line": 2341,
+    "line": 2361,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6840,7 +6840,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/merge",
     "file": "server/routes/clickup.ts",
-    "line": 2357,
+    "line": 2377,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6856,7 +6856,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/watchers",
     "file": "server/routes/clickup.ts",
-    "line": 2373,
+    "line": 2393,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6872,7 +6872,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/watchers/:userId",
     "file": "server/routes/clickup.ts",
-    "line": 2387,
+    "line": 2407,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6888,7 +6888,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/move",
     "file": "server/routes/clickup.ts",
-    "line": 2411,
+    "line": 2431,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6904,7 +6904,7 @@
     "method": "POST",
     "path": "/api/clickup/tasks/:taskId/lists/:listId",
     "file": "server/routes/clickup.ts",
-    "line": 2440,
+    "line": 2460,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6920,7 +6920,7 @@
     "method": "DELETE",
     "path": "/api/clickup/tasks/:taskId/lists/:listId",
     "file": "server/routes/clickup.ts",
-    "line": 2463,
+    "line": 2483,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6936,7 +6936,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2509,
+    "line": 2529,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6952,7 +6952,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2524,
+    "line": 2544,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6968,7 +6968,7 @@
     "method": "GET",
     "path": "/api/clickup/spaces/:spaceId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2541,
+    "line": 2561,
     "middleware": [
       "isAuthenticated"
     ],
@@ -6984,7 +6984,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2556,
+    "line": 2576,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7000,7 +7000,7 @@
     "method": "GET",
     "path": "/api/clickup/folders/:folderId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2573,
+    "line": 2593,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7016,7 +7016,7 @@
     "method": "POST",
     "path": "/api/clickup/folders/:folderId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2588,
+    "line": 2608,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7032,7 +7032,7 @@
     "method": "GET",
     "path": "/api/clickup/lists/:listId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2605,
+    "line": 2625,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7048,7 +7048,7 @@
     "method": "POST",
     "path": "/api/clickup/lists/:listId/views",
     "file": "server/routes/clickup.ts",
-    "line": 2620,
+    "line": 2640,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7064,7 +7064,7 @@
     "method": "GET",
     "path": "/api/clickup/views/:viewId",
     "file": "server/routes/clickup.ts",
-    "line": 2637,
+    "line": 2657,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7080,7 +7080,7 @@
     "method": "PUT",
     "path": "/api/clickup/views/:viewId",
     "file": "server/routes/clickup.ts",
-    "line": 2648,
+    "line": 2668,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7096,7 +7096,7 @@
     "method": "DELETE",
     "path": "/api/clickup/views/:viewId",
     "file": "server/routes/clickup.ts",
-    "line": 2659,
+    "line": 2679,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7112,7 +7112,7 @@
     "method": "GET",
     "path": "/api/clickup/views/:viewId/tasks",
     "file": "server/routes/clickup.ts",
-    "line": 2670,
+    "line": 2690,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7128,7 +7128,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/task-templates",
     "file": "server/routes/clickup.ts",
-    "line": 2693,
+    "line": 2713,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7144,7 +7144,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/list-templates",
     "file": "server/routes/clickup.ts",
-    "line": 2708,
+    "line": 2728,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7160,7 +7160,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/folder-templates",
     "file": "server/routes/clickup.ts",
-    "line": 2723,
+    "line": 2743,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7176,7 +7176,7 @@
     "method": "POST",
     "path": "/api/clickup/lists/:listId/tasks-from-template",
     "file": "server/routes/clickup.ts",
-    "line": 2743,
+    "line": 2763,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7192,7 +7192,7 @@
     "method": "POST",
     "path": "/api/clickup/folders/:folderId/lists-from-template",
     "file": "server/routes/clickup.ts",
-    "line": 2779,
+    "line": 2799,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7208,7 +7208,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/lists-from-template",
     "file": "server/routes/clickup.ts",
-    "line": 2820,
+    "line": 2840,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7224,7 +7224,7 @@
     "method": "POST",
     "path": "/api/clickup/spaces/:spaceId/folders-from-template",
     "file": "server/routes/clickup.ts",
-    "line": 2861,
+    "line": 2881,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7240,7 +7240,7 @@
     "method": "GET",
     "path": "/api/clickup/tasks/:taskId/members",
     "file": "server/routes/clickup.ts",
-    "line": 2902,
+    "line": 2922,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7256,7 +7256,7 @@
     "method": "GET",
     "path": "/api/clickup/lists/:listId/members",
     "file": "server/routes/clickup.ts",
-    "line": 2918,
+    "line": 2938,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7272,7 +7272,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/custom-roles",
     "file": "server/routes/clickup.ts",
-    "line": 2936,
+    "line": 2956,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7288,7 +7288,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/shared",
     "file": "server/routes/clickup.ts",
-    "line": 2953,
+    "line": 2973,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7304,7 +7304,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/groups",
     "file": "server/routes/clickup.ts",
-    "line": 2970,
+    "line": 2990,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7320,7 +7320,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/groups",
     "file": "server/routes/clickup.ts",
-    "line": 2985,
+    "line": 3005,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7336,7 +7336,7 @@
     "method": "PUT",
     "path": "/api/clickup/groups/:groupId",
     "file": "server/routes/clickup.ts",
-    "line": 3010,
+    "line": 3030,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7352,7 +7352,7 @@
     "method": "DELETE",
     "path": "/api/clickup/groups/:groupId",
     "file": "server/routes/clickup.ts",
-    "line": 3029,
+    "line": 3049,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7368,7 +7368,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/acl",
     "file": "server/routes/clickup.ts",
-    "line": 3045,
+    "line": 3065,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7384,7 +7384,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/seats",
     "file": "server/routes/clickup.ts",
-    "line": 3065,
+    "line": 3085,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7400,7 +7400,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/plan",
     "file": "server/routes/clickup.ts",
-    "line": 3080,
+    "line": 3100,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7416,7 +7416,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/subtypes",
     "file": "server/routes/clickup.ts",
-    "line": 3125,
+    "line": 3145,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7432,7 +7432,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels",
     "file": "server/routes/clickup.ts",
-    "line": 3141,
+    "line": 3161,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7448,7 +7448,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels",
     "file": "server/routes/clickup.ts",
-    "line": 3157,
+    "line": 3177,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7464,7 +7464,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/location",
     "file": "server/routes/clickup.ts",
-    "line": 3179,
+    "line": 3199,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7480,7 +7480,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/dm",
     "file": "server/routes/clickup.ts",
-    "line": 3203,
+    "line": 3223,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7496,7 +7496,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId",
     "file": "server/routes/clickup.ts",
-    "line": 3226,
+    "line": 3246,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7512,7 +7512,7 @@
     "method": "PATCH",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId",
     "file": "server/routes/clickup.ts",
-    "line": 3242,
+    "line": 3262,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7528,7 +7528,7 @@
     "method": "DELETE",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId",
     "file": "server/routes/clickup.ts",
-    "line": 3263,
+    "line": 3283,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7544,7 +7544,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/members",
     "file": "server/routes/clickup.ts",
-    "line": 3279,
+    "line": 3299,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7560,7 +7560,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages",
     "file": "server/routes/clickup.ts",
-    "line": 3295,
+    "line": 3315,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7576,7 +7576,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages",
     "file": "server/routes/clickup.ts",
-    "line": 3318,
+    "line": 3338,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7592,7 +7592,7 @@
     "method": "PATCH",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId",
     "file": "server/routes/clickup.ts",
-    "line": 3341,
+    "line": 3361,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7608,7 +7608,7 @@
     "method": "DELETE",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId",
     "file": "server/routes/clickup.ts",
-    "line": 3365,
+    "line": 3385,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7624,7 +7624,7 @@
     "method": "GET",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies",
     "file": "server/routes/clickup.ts",
-    "line": 3386,
+    "line": 3406,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7640,7 +7640,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies",
     "file": "server/routes/clickup.ts",
-    "line": 3409,
+    "line": 3429,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7656,7 +7656,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions",
     "file": "server/routes/clickup.ts",
-    "line": 3433,
+    "line": 3453,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7672,7 +7672,7 @@
     "method": "DELETE",
     "path": "/api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions",
     "file": "server/routes/clickup.ts",
-    "line": 3457,
+    "line": 3477,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7688,7 +7688,7 @@
     "method": "POST",
     "path": "/api/clickup/workspaces/:workspaceId/sync",
     "file": "server/routes/clickup.ts",
-    "line": 3483,
+    "line": 3503,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -7946,7 +7946,7 @@
     "method": "PATCH",
     "path": "/api/clients/:id",
     "file": "server/routes/clients.ts",
-    "line": 712,
+    "line": 573,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7962,7 +7962,7 @@
     "method": "POST",
     "path": "/api/clients/:id/offboarding",
     "file": "server/routes/clients.ts",
-    "line": 960,
+    "line": 821,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7978,7 +7978,7 @@
     "method": "DELETE",
     "path": "/api/clients/:id/offboarding",
     "file": "server/routes/clients.ts",
-    "line": 1034,
+    "line": 895,
     "middleware": [
       "isAuthenticated"
     ],
@@ -7994,7 +7994,7 @@
     "method": "DELETE",
     "path": "/api/clients/:id",
     "file": "server/routes/clients.ts",
-    "line": 1088,
+    "line": 949,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -8011,7 +8011,7 @@
     "method": "GET",
     "path": "/api/clients/:clientId/locations",
     "file": "server/routes/clients.ts",
-    "line": 1163,
+    "line": 1024,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8027,7 +8027,7 @@
     "method": "POST",
     "path": "/api/clients/:clientId/locations",
     "file": "server/routes/clients.ts",
-    "line": 1187,
+    "line": 1048,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8043,7 +8043,7 @@
     "method": "PATCH",
     "path": "/api/clients/:clientId/locations/:locationId",
     "file": "server/routes/clients.ts",
-    "line": 1254,
+    "line": 1115,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8059,7 +8059,7 @@
     "method": "DELETE",
     "path": "/api/clients/:clientId/locations/:locationId",
     "file": "server/routes/clients.ts",
-    "line": 1340,
+    "line": 1201,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8075,7 +8075,7 @@
     "method": "GET",
     "path": "/api/clients/:clientId/data-access",
     "file": "server/routes/clients.ts",
-    "line": 1371,
+    "line": 1232,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8091,7 +8091,7 @@
     "method": "GET",
     "path": "/api/clients/:clientId/data-access/detection",
     "file": "server/routes/clients.ts",
-    "line": 1397,
+    "line": 1258,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8107,7 +8107,7 @@
     "method": "GET",
     "path": "/api/all-data-access",
     "file": "server/routes/clients.ts",
-    "line": 1420,
+    "line": 1281,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8123,7 +8123,7 @@
     "method": "GET",
     "path": "/api/admin/locations/ungeocoded",
     "file": "server/routes/clients.ts",
-    "line": 1444,
+    "line": 1305,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8140,7 +8140,7 @@
     "method": "POST",
     "path": "/api/admin/locations/backfill-geocode",
     "file": "server/routes/clients.ts",
-    "line": 1505,
+    "line": 1366,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8157,7 +8157,7 @@
     "method": "PUT",
     "path": "/api/clients/:clientId/data-access/:category",
     "file": "server/routes/clients.ts",
-    "line": 1586,
+    "line": 1447,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8173,7 +8173,7 @@
     "method": "GET",
     "path": "/api/admin/clients/invalid-products",
     "file": "server/routes/clients.ts",
-    "line": 1618,
+    "line": 1479,
     "middleware": [
       "isAuthenticated"
     ],
@@ -8190,7 +8190,7 @@
     "method": "POST",
     "path": "/api/admin/migrate-product-types",
     "file": "server/routes/clients.ts",
-    "line": 1668,
+    "line": 1529,
     "middleware": [
       "isAuthenticated"
     ],
@@ -16979,7 +16979,7 @@
     "method": "GET",
     "path": "/api/integrations/unmatched-feed",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 31,
+    "line": 32,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -16996,7 +16996,7 @@
     "method": "POST",
     "path": "/api/integrations/unmatched/:source/:id/assign",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 671,
+    "line": 672,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -17013,7 +17013,7 @@
     "method": "POST",
     "path": "/api/integrations/unmatched/undo-claim",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 806,
+    "line": 807,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -17030,7 +17030,7 @@
     "method": "POST",
     "path": "/api/integrations/unmatched/:source/:id/dismiss",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 920,
+    "line": 921,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -17047,7 +17047,7 @@
     "method": "POST",
     "path": "/api/integrations/unmatched/:source/:id/block",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 967,
+    "line": 968,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -17064,7 +17064,126 @@
     "method": "POST",
     "path": "/api/integrations/unmatched/:source/:id/promote",
     "file": "server/routes/integrations/unmatched.ts",
-    "line": 1003,
+    "line": 1004,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/unmatched-by-sender",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1076,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/count-by-sender",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1101,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/count-by-domain",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1118,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/count-by-channel",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1135,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/bulk-dismiss-by-sender",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1153,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/bulk-dismiss-by-domain",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1173,
+    "middleware": [
+      "isAuthenticated",
+      "requireAccountManager"
+    ],
+    "protection": "requireAccountManager",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/bulk-dismiss-by-channel",
+    "file": "server/routes/integrations/unmatched.ts",
+    "line": 1193,
     "middleware": [
       "isAuthenticated",
       "requireAccountManager"
@@ -18263,6 +18382,130 @@
     "path": "/api/admin/notifications/:id/deliveries",
     "file": "server/routes/notifications.ts",
     "line": 680,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/onboarding/intake/slots",
+    "file": "server/routes/onboardingIntake.ts",
+    "line": 38,
+    "middleware": [
+      "isAuthenticated"
+    ],
+    "protection": "authenticated",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/onboarding/intake",
+    "file": "server/routes/onboardingIntake.ts",
+    "line": 97,
+    "middleware": [
+      "isAuthenticated",
+      "writeLimiter"
+    ],
+    "protection": "authenticated",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "ai_rate_limited"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": true,
+    "rateLimiterName": "writeLimiter"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/onboarding/roster",
+    "file": "server/routes/onboardingRosterAdmin.ts",
+    "line": 23,
+    "middleware": [
+      "isAuthenticated"
+    ],
+    "protection": "authenticated",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/onboarding/roster",
+    "file": "server/routes/onboardingRosterAdmin.ts",
+    "line": 34,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/onboarding/roster/:id",
+    "file": "server/routes/onboardingRosterAdmin.ts",
+    "line": 48,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/onboarding/roster/:id",
+    "file": "server/routes/onboardingRosterAdmin.ts",
+    "line": 66,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/onboarding/default",
+    "file": "server/routes/onboardingRosterAdmin.ts",
+    "line": 80,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21361,7 +21604,7 @@
     "method": "POST",
     "path": "/api/service-desk/setup/refresh-option-names",
     "file": "server/routes/serviceDesk/clickupImports.ts",
-    "line": 356,
+    "line": 382,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21467,7 +21710,7 @@
     "method": "GET",
     "path": "/api/service-desk/client-options",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 210,
+    "line": 217,
     "middleware": [
       "isAuthenticated"
     ],
@@ -21483,7 +21726,7 @@
     "method": "GET",
     "path": "/api/service-desk/client-team-options",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 267,
+    "line": 274,
     "middleware": [
       "isAuthenticated"
     ],
@@ -21499,7 +21742,7 @@
     "method": "GET",
     "path": "/api/service-desk/departments",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 326,
+    "line": 333,
     "middleware": [
       "isAuthenticated"
     ],
@@ -21515,7 +21758,7 @@
     "method": "POST",
     "path": "/api/service-desk/departments",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 375,
+    "line": 382,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21533,7 +21776,7 @@
     "method": "PUT",
     "path": "/api/service-desk/departments/:id",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 411,
+    "line": 418,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21551,7 +21794,7 @@
     "method": "PUT",
     "path": "/api/service-desk/departments/:id/role-defaults",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 460,
+    "line": 467,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21568,7 +21811,7 @@
     "method": "GET",
     "path": "/api/service-desk/departments/:id/delete-impact",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 537,
+    "line": 544,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21586,7 +21829,7 @@
     "method": "DELETE",
     "path": "/api/service-desk/departments/:id",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 564,
+    "line": 571,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21604,7 +21847,7 @@
     "method": "GET",
     "path": "/api/service-desk/departments/:id/members",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 766,
+    "line": 773,
     "middleware": [
       "isAuthenticated"
     ],
@@ -21620,7 +21863,7 @@
     "method": "POST",
     "path": "/api/service-desk/departments/:id/members",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 787,
+    "line": 794,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21637,7 +21880,7 @@
     "method": "PUT",
     "path": "/api/service-desk/departments/:id/members/:memberId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 838,
+    "line": 845,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21654,7 +21897,7 @@
     "method": "DELETE",
     "path": "/api/service-desk/departments/:id/members/:memberId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 880,
+    "line": 887,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21671,7 +21914,7 @@
     "method": "GET",
     "path": "/api/service-desk/clients/:clientId/assignments",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 918,
+    "line": 925,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21688,7 +21931,7 @@
     "method": "PUT",
     "path": "/api/service-desk/clients/:clientId/assignments/:departmentId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 973,
+    "line": 980,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21705,7 +21948,7 @@
     "method": "GET",
     "path": "/api/service-desk/coverage",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1021,
+    "line": 1028,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21722,7 +21965,7 @@
     "method": "POST",
     "path": "/api/service-desk/assignments/bulk",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1039,
+    "line": 1046,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21739,7 +21982,7 @@
     "method": "GET",
     "path": "/api/admin/role-assignments",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1114,
+    "line": 1121,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21757,7 +22000,7 @@
     "method": "GET",
     "path": "/api/admin/role-assignments/clients/:clientId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1127,
+    "line": 1134,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21775,7 +22018,7 @@
     "method": "PUT",
     "path": "/api/admin/role-assignments/clients/:clientId/departments/:departmentId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1183,
+    "line": 1190,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21793,7 +22036,7 @@
     "method": "PUT",
     "path": "/api/admin/role-assignments/departments/:id",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1227,
+    "line": 1234,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21811,7 +22054,7 @@
     "method": "POST",
     "path": "/api/admin/role-assignments/bulk",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1282,
+    "line": 1289,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21829,7 +22072,7 @@
     "method": "GET",
     "path": "/api/admin/role-assignments/departments/:id/members",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1346,
+    "line": 1353,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21847,7 +22090,7 @@
     "method": "POST",
     "path": "/api/admin/role-assignments/departments/:id/members",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1367,
+    "line": 1374,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21865,7 +22108,7 @@
     "method": "DELETE",
     "path": "/api/admin/role-assignments/departments/:id/members/:memberId",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1414,
+    "line": 1421,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21883,7 +22126,7 @@
     "method": "GET",
     "path": "/api/service-desk/role-projections/configuration",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1451,
+    "line": 1463,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21901,7 +22144,61 @@
     "method": "PUT",
     "path": "/api/service-desk/role-projections/destinations",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1472,
+    "line": 1484,
+    "middleware": [
+      "isAuthenticated",
+      "requireCeo"
+    ],
+    "protection": "requireCeo",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/service-desk/role-projections/client-list/configuration",
+    "file": "server/routes/serviceDesk/departments.ts",
+    "line": 1656,
+    "middleware": [
+      "isAuthenticated",
+      "requireCeo"
+    ],
+    "protection": "requireCeo",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/service-desk/role-projections/client-list/preflight",
+    "file": "server/routes/serviceDesk/departments.ts",
+    "line": 1677,
+    "middleware": [
+      "isAuthenticated",
+      "requireCeo"
+    ],
+    "protection": "requireCeo",
+    "authClass": "session",
+    "classifications": [
+      "authenticated",
+      "admin_only"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/service-desk/role-projections/client-list/mappings",
+    "file": "server/routes/serviceDesk/departments.ts",
+    "line": 1705,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21919,7 +22216,7 @@
     "method": "PUT",
     "path": "/api/service-desk/role-projections/targets",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1542,
+    "line": 1749,
     "middleware": [
       "isAuthenticated",
       "requireCeo"
@@ -21937,7 +22234,7 @@
     "method": "GET",
     "path": "/api/service-desk/role-projections/status",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1571,
+    "line": 1778,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"
@@ -21954,7 +22251,41 @@
     "method": "POST",
     "path": "/api/service-desk/role-projections/resync",
     "file": "server/routes/serviceDesk/departments.ts",
-    "line": 1624,
+    "line": 1831,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/service-desk/client-mirror/status",
+    "file": "server/routes/serviceDesk/departments.ts",
+    "line": 1868,
+    "middleware": [
+      "isAuthenticated",
+      "requireTeamLead"
+    ],
+    "protection": "requireTeamLead",
+    "authClass": "session",
+    "classifications": [
+      "authenticated"
+    ],
+    "hasUpload": false,
+    "hasRateLimiter": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/service-desk/client-mirror/:commandId/retry",
+    "file": "server/routes/serviceDesk/departments.ts",
+    "line": 1908,
     "middleware": [
       "isAuthenticated",
       "requireTeamLead"

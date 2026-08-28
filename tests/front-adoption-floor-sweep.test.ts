@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Front adoption floor sweep (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Sweeps adoption-floor records through the production-facing evaluation path."
 }
 test-registration */
 /**

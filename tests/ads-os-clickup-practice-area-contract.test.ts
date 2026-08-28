@@ -4,7 +4,8 @@
   "regression": true,
   "smoke": true,
   "smokeReason": "Pins the canonical ClickUp Practice Area vendor boundary used by Ads OS. Fetch and write boundaries are fully stubbed: no DB, no vendor traffic, no timers.",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises the public ClickUp read/write boundary across ordered multi-value and outage cases."
 }
 test-registration */
 /**

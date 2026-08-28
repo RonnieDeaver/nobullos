@@ -9,6 +9,7 @@
   "scanPaths": [
     "server/routes/serviceDesk",
     "server/routes/serviceDesk/departments.ts",
+    "server/services/clickUpRoleProjectionAdmin.ts",
     "client/src/components/ui/ClickUpProjectionStatus.tsx",
     "client/src/pages/admin/RoleAssignments.tsx"
   ]
@@ -82,6 +83,16 @@ function routeBlock(source: string, path: string): string {
       src.includes("requireCeo"),
     "PUT /targets must be registered and use requireCeo",
   );
+  for (const path of [
+    "/api/service-desk/role-projections/client-list/configuration",
+    "/api/service-desk/role-projections/client-list/preflight",
+    "/api/service-desk/role-projections/client-list/mappings",
+  ]) {
+    assert.ok(
+      src.includes(`"${path}"`) && routeBlock(src, path).includes("requireCeo"),
+      `${path} must be registered and CEO-only`,
+    );
+  }
 
   // Team-lead+ routes
   assert.ok(
@@ -200,6 +211,9 @@ function routeBlock(source: string, path: string): string {
     "listRoleProjectionConfiguration",
     "upsertRoleProjectionDestination",
     "upsertRoleProjectionClientTarget",
+    "bindCanonicalClientTask",
+    "getCanonicalClientListPreflight",
+    "listCanonicalClientListConfiguration",
     "listRoleProjectionStatuses",
     "manualResyncProjectionByRole",
   ]) {
@@ -224,6 +238,14 @@ function routeBlock(source: string, path: string): string {
     "approval fields must be approve|revoke action enums",
   );
   assert.ok(
+    src.includes("peopleFieldLabel") && src.includes("peopleFieldType"),
+    "destination configuration must accept reviewed exact field label/type facts",
+  );
+  assert.ok(
+    src.includes('z.enum(["manual_review", "name_adoption"])'),
+    "client-list mapping provenance must be a bounded reviewed source enum",
+  );
+  assert.ok(
     src.includes(".strict()"),
     "destinations body must be a strict Zod object (rejects raw timestamp fields)",
   );
@@ -238,6 +260,77 @@ function routeBlock(source: string, path: string): string {
   );
 
   console.log("  ✓ D2: fail-loud static imports + approval-action wiring present");
+}
+
+// ─── D3. Canonical role fields require a fresh exact-ID review ──────────────
+
+{
+  const src = readServiceDeskRouteSources();
+  const destinationBlock = routeBlock(src, "/api/service-desk/role-projections/destinations");
+  const adminSource = readFileSync(
+    resolve("server/services/clickUpRoleProjectionAdmin.ts"),
+    "utf8",
+  );
+
+  assert.ok(
+    destinationBlock.includes("getCanonicalClientListPreflight(500)"),
+    "canonical role-field saves must take a fresh server-side Client List read",
+  );
+  assert.ok(
+    destinationBlock.includes("Selected ClickUp field was not present in the fresh canonical-list read"),
+    "a client-provided field ID must be rejected unless the fresh read returned it",
+  );
+  assert.ok(
+    destinationBlock.includes('["users", "people"].includes(liveField.type.toLowerCase())') &&
+      destinationBlock.includes("liveField.observedMaxCardinality") &&
+      destinationBlock.includes("expected one-person role-column contract"),
+    "fresh field type/cardinality must be validated without treating its label as identity",
+  );
+  assert.ok(
+    !destinationBlock.includes("liveField.label !== getRoleColumnLabel"),
+    "a short freshly observed ClickUp label must not be rejected against the generated NoBull role label",
+  );
+  assert.ok(
+    destinationBlock.includes("Only active per-client Doer/Checker roles"),
+    "company, inactive, and unsupported role rows must not become canonical destinations",
+  );
+  assert.ok(
+    destinationBlock.includes("Production per-client role destinations must use the canonical Client List"),
+    "a privileged caller cannot bypass canonical fresh-field validation through another production list",
+  );
+  assert.ok(
+    destinationBlock.includes("does not match the configured canonical Client List workspace") &&
+      destinationBlock.includes("isCanonicalClientRole") &&
+      destinationBlock.includes("workspaceId ="),
+    "canonical destinations must derive their workspace from Service Desk configuration rather than caller input",
+  );
+  assert.ok(
+    destinationBlock.includes("getListMappingConfig") &&
+      destinationBlock.includes("configuredWorkspaceId"),
+    "the server derives the canonical workspace from reviewed Service Desk configuration",
+  );
+  assert.ok(
+    adminSource.includes("already mapped to") &&
+      adminSource.includes("People field"),
+    "duplicate exact People-field mappings must be rejected in the admin service",
+  );
+  assert.ok(
+    adminSource.includes("cannot be entered per client") &&
+      adminSource.includes("derived from client-list mappings"),
+    "legacy per-destination targets must be rejected for canonical production roles",
+  );
+  for (const policy of [
+    "Inactive departments may not receive a role projection destination",
+    "Per-client departments must use client_list_parent projection destinations",
+    "Company-scoped departments must use direct_task projection destinations",
+  ]) {
+    assert.ok(
+      adminSource.includes(policy),
+      `scope/target policy must prevent a role-column bypass: ${policy}`,
+    );
+  }
+
+  console.log("  ✓ D3: canonical role fields require fresh exact-ID evidence");
 }
 
 // ─── E. projectionToastLabel — correct labels, never synced for pending ────
@@ -405,6 +498,31 @@ function routeBlock(source: string, path: string): string {
   assert.ok(
     pageSrc.includes("projectionToastLabel"),
     "RoleAssignments must import and use projectionToastLabel",
+  );
+  for (const marker of [
+    'data-testid="role-column-setup-section"',
+    'data-testid="role-column-setup-table"',
+    'data-testid="button-recheck-role-columns"',
+    'data-testid={`select-role-column-field-${column.departmentId}-${column.responsibility}`}',
+    "Choose a ClickUp People field",
+    "NoBull role:",
+    "descriptive metadata",
+    "Map field (paused)",
+    "Record owner approval",
+    "Company-scoped and inactive departments are intentionally excluded.",
+  ]) {
+    assert.ok(
+      pageSrc.includes(marker),
+      `RoleAssignments must expose the canonical role-column setup contract: ${marker}`,
+    );
+  }
+  assert.ok(
+    pageSrc.includes("/api/service-desk/role-projections/client-list/preflight") &&
+      pageSrc.includes("observedMaxCardinality") &&
+      pageSrc.includes("peopleFieldId") &&
+      pageSrc.includes("field.id") &&
+      !pageSrc.includes("field.label === column.expectedLabel"),
+    "the setup UI must explicitly select fresh eligible fields by exact ID, not generated label",
   );
 
   console.log("  ✓ F: RoleAssignments has projection status section with re-sync and query invalidation");

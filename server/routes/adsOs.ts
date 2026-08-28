@@ -146,6 +146,7 @@ import { postSlackText } from "../services/adsOs/slackWebhook";
 import {
   clientsCriteriaStore,
   budgetPacingStore,
+  getAlerts,
   getAuditScoreHistory,
   getLsaAuditScoreHistory,
   SCORE_HISTORY_MAX,
@@ -814,12 +815,20 @@ export function registerAdsOsRoutes(app: Express): void {
   // GAds hygiene audit for one account (run or serve cached; 1h TTL).
   app.get("/api/ads-os/audit/:cid", isAuthenticated, requireAccountManager, async (req, res) => {
     try {
+      const cid = String(req.params.cid);
       const [report, fromCache] = await withDeadline(
-        runAuditCached(String(req.params.cid), lookbackParam(req), boolParam(req, "force")),
+        runAuditCached(cid, lookbackParam(req), boolParam(req, "force")),
         DASHBOARD_DEADLINE_MS,
         "Hygiene audit run",
       );
-      res.json({ ...report, from_cache: fromCache });
+      // Task #5332: surface the account's already-persisted Account Alerts
+      // (same store read the combined dashboard uses for its ⚠ badge) so the
+      // Hygiene Audit report page can show them without recomputing anything
+      // or calling any vendor API. No ClickUp task-ref enrichment here — this
+      // panel is read-only, no ClickUp actions render on it.
+      const alertsDoc = ((await getAlerts("gads", cid)) ?? {}) as Record<string, any>;
+      const alerts = Array.isArray(alertsDoc.alerts) ? alertsDoc.alerts : [];
+      res.json({ ...report, from_cache: fromCache, alerts, alerts_at: alertsDoc.generated_at ?? null });
     } catch (err: any) {
       sendAdsOsError(res, err, "audit");
     }

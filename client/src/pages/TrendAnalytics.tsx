@@ -228,7 +228,10 @@ export default function TrendAnalytics() {
                           border: "1px solid hsl(var(--primary))",
                           borderRadius: "0px"
                         }}
-                        formatter={(value: number) => [`${value}%`, ""]}
+                        // Task #5326 — formatter previously hardcoded the label to "",
+                        // dropping the series name so the tooltip showed a bare
+                        // ": 46.3%" with no way to tell the two lines apart.
+                        formatter={(value: number, name: string) => [`${value}%`, name]}
                       />
                       <Legend wrapperStyle={{ fontSize: 14 }} />
                       <Line 

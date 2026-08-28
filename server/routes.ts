@@ -71,6 +71,10 @@ import { initializeStripeSync } from "./stripeSync";
 import { registerBlockedEventsRetentionAdminRoutes } from "./routes/blockedEventsRetentionAdmin";
 // Task #5105 — GHL Marketplace inbound appointment/DND webhook (Ed25519-signed).
 import { registerGhlMarketplaceWebhookRoutes } from "./routes/ghlMarketplaceWebhook";
+// Task #5295 — onboarding roster & default person (stage 1 of the New Client
+// Onboarding epic): admin-managed roster of onboarding assignees + default.
+import { registerOnboardingRosterAdminRoutes } from "./routes/onboardingRosterAdmin";
+import { registerOnboardingIntakeRoutes } from "./routes/onboardingIntake";
 
 // PR9 split (Task f1425127): the former ~6.1k lines of inline route
 // registrations live in per-feature modules under ./routes/, invoked in the
@@ -251,6 +255,8 @@ export async function registerRoutes(
   registerCommsRoutes(app);
   registerServiceDeskRoutes(app);
   registerAdsOsRoutes(app);
+  registerOnboardingRosterAdminRoutes(app);
+  registerOnboardingIntakeRoutes(app);
 
   // Task #1728 (Pool epic Phase 1.5): start the audit flusher and the
   // hourly rollup tick. Both are no-ops until the corresponding Phase 0

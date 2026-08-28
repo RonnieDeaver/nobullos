@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Digest entry auto-prune",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

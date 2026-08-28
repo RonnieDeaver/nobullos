@@ -955,11 +955,12 @@ export const deleteGoogleDriveLegacyKeyAction: ProdAction = {
     "Task #4084 retired the Drive integration; the Sheets read lane now uses the " +
     "dedicated GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY secret. This action (1) verifies " +
     "the Sheets lane works, (2) calls the Google Cloud IAM API to delete the legacy " +
-    "key, and (3) clears the stale `google_service_account_key` DB setting. " +
+    "key, (3) verifies IAM now returns 404, and only then (4) clears the stale " +
+    "`google_service_account_key` DB setting and re-verifies Sheets. " +
     "See GOOGLE_DRIVE.md § Operator follow-through.",
   change:
-    "Google Cloud IAM DELETE …/keys/43d3ab85…; " +
-    "DELETE system_settings WHERE key = 'google_service_account_key'.",
+    "Google Cloud IAM DELETE + GET verification for …/keys/43d3ab85…; " +
+    "only after verified 404, DELETE system_settings WHERE key = 'google_service_account_key'.",
   // Manual lever: this is a one-time, irreversible credential-revocation
   // operation. Excluding it from Apply-all prevents an accidental global
   // "apply all" from revoking the key unintentionally.
@@ -1036,7 +1037,10 @@ export const deleteGoogleDriveLegacyKeyAction: ProdAction = {
     const { getIamAccessTokenFromSheetsKey, getSheetsAccessToken } = await import(
       "../googleDriveIntegration"
     );
-    const { deleteSystemSetting } = await import("../../storage/settingsStorage");
+    const { deleteSystemSetting, getSystemSettingFresh } = await import(
+      "../../storage/settingsStorage"
+    );
+    _driveClosureProbeMemo = null;
 
     // Step 1: verify Sheets lane works before touching anything.
     try {
@@ -1054,49 +1058,122 @@ export const deleteGoogleDriveLegacyKeyAction: ProdAction = {
 
     // Step 2: call the GCP IAM API to delete the legacy key.
     let gcpDetail: string;
-    let gcpFailed = false;
+    let iamToken: string;
     try {
-      const token = await getIamAccessTokenFromSheetsKey();
+      iamToken = await getIamAccessTokenFromSheetsKey();
       const r = await fetch(_LEGACY_GCP_KEY_URL, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${iamToken}` },
       });
       if (r.ok || r.status === 204) {
-        gcpDetail = "GCP key deleted from Google Cloud IAM.";
+        gcpDetail = "GCP IAM accepted the key deletion.";
       } else if (r.status === 404) {
-        gcpDetail = "GCP key was already deleted (404 — skipped).";
+        gcpDetail = "GCP key was already absent at deletion time (404).";
       } else {
         const body = await r.text().catch(() => "");
         if (r.status === 403) {
-          gcpDetail =
-            `GCP returned 403 Forbidden — the Sheets SA lacks iam.serviceAccountKeyAdmin. ` +
-            `Delete the key manually in Google Cloud Console: IAM & Admin → Service Accounts → ` +
-            `nobull-os@core-respect-369420.iam.gserviceaccount.com → Keys → delete 43d3ab85…. ` +
-            `Detail: ${body.slice(0, 300)}`;
-        } else {
-          gcpDetail = `GCP IAM returned ${r.status}: ${body.slice(0, 300)}`;
+          return {
+            state: "blocked",
+            detail:
+              "GCP IAM denied deletion with 403 Forbidden. B-008 remains OPEN and " +
+              "google_service_account_key was preserved for recovery. With owner/security " +
+              "approval, prefer owner-admin deletion in Google Cloud Console → IAM & Admin → " +
+              "Service Accounts → nobull-os@core-respect-369420 → Keys → delete key 43d3ab85…. " +
+              "For automated retry, grant the Sheets service account a resource-scoped custom " +
+              "role on that target service account containing only iam.serviceAccountKeys.delete " +
+              "and iam.serviceAccountKeys.get. Do not grant key-create permission or the predefined " +
+              "Service Account Key Admin role. Revoke the resource-scoped custom grant after the " +
+              `lever verifies closure. Provider detail: ${body.slice(0, 300)}`,
+          };
         }
-        gcpFailed = true;
+        return {
+          state: "error",
+          detail:
+            `GCP IAM deletion returned HTTP ${r.status}: ${body.slice(0, 300)}. ` +
+            "Deletion was not verified, B-008 remains OPEN, and google_service_account_key " +
+            "was preserved for recovery.",
+        };
       }
     } catch (err: any) {
-      gcpDetail = `GCP IAM call threw: ${err?.message ?? String(err)}`;
-      gcpFailed = true;
+      return {
+        state: "error",
+        detail:
+          `GCP IAM deletion could not be completed: ${err?.message ?? String(err)}. ` +
+          "Deletion was not verified, B-008 remains OPEN, and google_service_account_key " +
+          "was preserved for recovery.",
+      };
     }
 
-    if (gcpFailed) {
-      return { state: "error", detail: gcpDetail };
+    // Step 3: prove the key is absent. A successful DELETE response is not
+    // enough: timeout/proxy/provider ambiguity must never erase the recovery
+    // setting or claim closure.
+    try {
+      const verify = await fetch(_LEGACY_GCP_KEY_URL, {
+        headers: { Authorization: `Bearer ${iamToken}` },
+      });
+      if (verify.status !== 404) {
+        const body = await verify.text().catch(() => "");
+        return {
+          state: verify.status === 403 ? "blocked" : "error",
+          detail:
+            `${gcpDetail} Follow-up IAM verification returned HTTP ${verify.status}${
+              body ? `: ${body.slice(0, 300)}` : ""
+            }. Key absence is unverified, B-008 remains OPEN, and ` +
+            "google_service_account_key was preserved for recovery. Confirm the key is absent " +
+            "in Google Cloud Console, or apply the resource-scoped IAM remediation and run this lever again.",
+        };
+      }
+      gcpDetail += " Follow-up IAM GET verified 404 (key absent).";
+    } catch (err: any) {
+      return {
+        state: "error",
+        detail:
+          `${gcpDetail} Follow-up IAM verification failed: ${err?.message ?? String(err)}. ` +
+          "Key absence is ambiguous, B-008 remains OPEN, and google_service_account_key " +
+          "was preserved for recovery.",
+      };
     }
 
-    // Step 3: clear the DB setting (idempotent — migration may have done this).
+    // Step 4: clear and verify the DB setting only after IAM absence is proven.
     let dbDetail: string;
     try {
       await deleteSystemSetting("google_service_account_key");
-      dbDetail = "DB setting cleared.";
-    } catch {
-      dbDetail = "DB setting removal skipped (already absent or migration applied).";
+    } catch (err: any) {
+      const remaining = await getSystemSettingFresh("google_service_account_key").catch(
+        () => undefined,
+      );
+      if (remaining?.value?.trim()) {
+        return {
+          state: "error",
+          detail:
+            `${gcpDetail} The IAM key is verified absent, but removing ` +
+            `google_service_account_key failed: ${err?.message ?? String(err)}. ` +
+            "B-008 is not reported closed until the stale setting is cleared.",
+        };
+      }
     }
+    const remainingSetting = await getSystemSettingFresh(
+      "google_service_account_key",
+    ).catch(() => null);
+    if (remainingSetting === null) {
+      return {
+        state: "error",
+        detail:
+          `${gcpDetail} DB setting verification failed after cleanup. ` +
+          "The IAM key is absent, but B-008 closure remains unverified until the setting can be re-read.",
+      };
+    }
+    if (remainingSetting?.value?.trim()) {
+      return {
+        state: "error",
+        detail:
+          `${gcpDetail} google_service_account_key still exists after the cleanup attempt. ` +
+          "The IAM key is absent, but B-008 is not closed until the stale setting is cleared.",
+      };
+    }
+    dbDetail = "google_service_account_key verified absent.";
 
-    // Step 4: confirm Sheets lane still works after deletion.
+    // Step 5: confirm Sheets lane still works after deletion.
     try {
       await getSheetsAccessToken();
     } catch (err: any) {
@@ -1112,8 +1189,8 @@ export const deleteGoogleDriveLegacyKeyAction: ProdAction = {
     return {
       state: "applied",
       detail:
-        `${gcpDetail} ${dbDetail} Sheets lane (GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY) ` +
-        "verified working post-deletion. B-008 fully closed.",
+        `${gcpDetail} ${dbDetail} Follow-up Sheets lane ` +
+        "(GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY) verified working. B-008 fully closed.",
     };
   },
 };

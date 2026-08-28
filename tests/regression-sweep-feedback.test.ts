@@ -51,16 +51,28 @@ import { sql } from "drizzle-orm";
 import { db } from "../server/db";
 import {
   buildSweepReport,
+  normalizeDeferredFailureIntake,
   type SweepReport,
   type SweepTestResult,
 } from "../server/services/regressionSweep";
 import {
   planSweepFeedbackActions,
+  planDeferredFailureIntake,
+  planDeferredFailureRepairBatch,
+  fileDeferredFailureIntake,
   fileAndResolveSweepFeedback,
   buildSweepFeedbackText,
   __setSweepFeedbackRelayForTest,
+  __setDeferredFailureRepairEnqueuerForTest,
+  DEFERRED_FAILURE_FEEDBACK_USER_ID,
   SWEEP_FEEDBACK_USER_ID,
 } from "../server/services/regressionSweepFeedback";
+import {
+  DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS,
+  DEFERRED_FAILURE_REPAIR_QUEUE,
+  buildDeferredFailureRepairRequest,
+  enqueueDeferredFailureRepairRequest,
+} from "../server/services/repairDispatcher";
 import {
   FEEDBACK_SLACK_RELAY_BUDGET_MS,
   type FeedbackSlackRelayArgs,
@@ -102,6 +114,17 @@ function mkReport(
     skippedGreen: skippedGreenFiles.length,
     skippedGreenFiles,
   });
+}
+
+function mkFreshNightlyReport(results: SweepTestResult[]): SweepReport {
+  const now = new Date();
+  const report = buildSweepReport(results, {
+    startedAt: new Date(now.getTime() - 60_000).toISOString(),
+    finishedAt: now.toISOString(),
+    mode: "regression",
+  });
+  report.deferredFailureSource = "nightly";
+  return report;
 }
 
 interface Row {
@@ -172,6 +195,148 @@ function testPlannerIgnoresQuarantinedFailures(): void {
   assert.deepEqual(plan.toFile, []);
   assert.deepEqual(plan.toResolve, []);
   console.log("  ✓ planner treats quarantined failures as neither failure nor recovery");
+}
+
+function deferredAttribution(
+  file: string,
+  over: Partial<NonNullable<SweepReport["deferredFailureAttribution"]>[number]> = {},
+): NonNullable<SweepReport["deferredFailureAttribution"]>[number] {
+  return {
+    file,
+    verdict: "yours",
+    historyKind: "none",
+    provenInherited: false,
+    proofStatus: "task-caused",
+    ...over,
+  };
+}
+
+function testDeferredFailureIntakeClassificationAndOwnership(): void {
+  const inherited = `tests/${TAG}-inherited.test.ts`;
+  const flaky = `tests/${TAG}-flaky.test.ts`;
+  const changed = `tests/${TAG}-changed.test.ts`;
+  const taskOwned = `tests/${TAG}-task-owned.test.ts`;
+  const quarantined = `tests/${TAG}-quarantined.test.ts`;
+  const report = mkReport([
+    mkResult({ file: inherited, failureReason: "hang 184s" }),
+    mkResult({ file: flaky, failureReason: "exit 1" }),
+    mkResult({ file: changed, failureReason: "secret output must not persist" }),
+    mkResult({ file: taskOwned, failureReason: "exit 2" }),
+    mkResult({ file: quarantined, quarantined: true }),
+  ],);
+  report.deferredFailureSource = "nightly";
+  report.deferredFailureAttribution = [
+    deferredAttribution(inherited, {
+      verdict: "inherited",
+      provenInherited: true,
+      proofStatus: "proven-inherited",
+    }),
+    deferredAttribution(flaky, { historyKind: "flaky" }),
+    deferredAttribution(changed, { proofStatus: "fingerprint-changed" }),
+    deferredAttribution(taskOwned),
+  ];
+
+  const observations = normalizeDeferredFailureIntake(report);
+  assert.deepEqual(
+    observations.map((item) => [item.file, item.classification]),
+    [
+      [inherited, "proven-inherited"],
+      [flaky, "recurring-intermittent"],
+      [changed, "unresolved"],
+      [taskOwned, "task-caused"],
+    ],
+    "complete inheritance, recurrence, changed fingerprints, and task ownership stay distinct",
+  );
+  assert.ok(
+    !JSON.stringify(observations).includes("secret output"),
+    "raw failure output never enters the bounded intake observation",
+  );
+  assert.ok(
+    observations.find((item) => item.file === changed)?.evidenceCodes.includes("proof-fingerprint-changed"),
+    "changed fingerprints remain visibly unresolved rather than being deduped as task-owned",
+  );
+
+  const plan = planDeferredFailureIntake(report, [
+    { id: 71, currentPage: inherited },
+    { id: 72, currentPage: observations.find((item) => item.file === flaky)!.canonicalKey },
+  ]);
+  assert.deepEqual(
+    plan.update.map((item) => item.ownerId),
+    [71, 72],
+    "an existing legacy repair item and a canonical owner receive fresh evidence",
+  );
+  assert.deepEqual(
+    plan.create.map((item) => item.file).sort(),
+    [changed, taskOwned].sort(),
+    "only families without a current owner request new repair work",
+  );
+  assert.deepEqual(
+    plan.unresolved.map((item) => item.file),
+    [changed],
+    "incomplete proof remains visible in the explicit unresolved lane",
+  );
+
+  const handoff = buildDeferredFailureRepairRequest({
+    ownerFeedbackId: 71,
+    canonicalKey: observations[0].canonicalKey,
+    classification: "proven-inherited",
+    evidenceCodes: ["source:nightly", "source:nightly", "inherited-proof-complete", "extra-a", "extra-b", "extra-c", "extra-d", "extra-e", "extra-f"],
+  });
+  assert.equal(handoff.dispatch, "manual-triage", "intake does not create an automatic worker action");
+  assert.equal(handoff.workloadClass, "repair");
+  assert.equal(handoff.evidenceCodes.length, 8, "repair handoff remains bounded");
+  console.log("  ✓ deferred intake classifies conservatively, dedupes one owner, and emits bounded manual handoffs");
+}
+
+function testDeferredFailureIntakeEscalatesIncompleteVerification(): void {
+  const report = mkReport([], []);
+  report.verificationComplete = false;
+  report.incomplete = 2;
+  const observations = normalizeDeferredFailureIntake(report);
+  assert.equal(observations.length, 1, "missing terminal results still produce a visible triage item");
+  assert.equal(observations[0].file, "verification-accounting");
+  assert.equal(observations[0].classification, "unresolved");
+  assert.ok(observations[0].evidenceCodes.includes("verification-incomplete"));
+  console.log("  ✓ incomplete verification escalates as unresolved instead of disappearing");
+}
+
+function testDeferredFailureRepairBatchIsBoundedAndConservative(): void {
+  const observedAt = "2026-08-25T10:00:00.000Z";
+  const request = (
+    ownerFeedbackId: number,
+    canonicalKey: string,
+    classification: "task-caused" | "unresolved" = "task-caused",
+    source: "nightly" | "post-merge" = "nightly",
+    at = observedAt,
+  ) => buildDeferredFailureRepairRequest({
+    ownerFeedbackId,
+    canonicalKey,
+    classification,
+    evidenceCodes: ["source:nightly"],
+    source,
+    observedAt: at,
+  });
+  const plan = planDeferredFailureRepairBatch([
+    request(1, "deferred-failure:tests/a.test.ts:exit"),
+    request(1, "deferred-failure:tests/a.test.ts:exit"), // exact duplicate
+    request(2, "deferred-failure:tests/b.test.ts:hang"), // different signature stays distinct
+    request(3, "deferred-failure:tests/c.test.ts:other", "unresolved"),
+    request(4, "deferred-failure:tests/d.test.ts:exit", "task-caused", "post-merge"),
+    request(5, "deferred-failure:tests/e.test.ts:exit", "task-caused", "nightly", "2026-08-20T10:00:00.000Z"),
+  ], {
+    now: new Date("2026-08-25T10:05:00.000Z"),
+    maxItems: 1,
+  });
+  assert.equal(plan.queued.length, 1, "one fresh family fits the bounded batch");
+  assert.equal(plan.capped.length, 1, "a second distinct fresh family waits for the next pass");
+  assert.equal(plan.manualTriage.length, 1, "ambiguous evidence is feedback-only");
+  assert.equal(plan.stale.length, 2, "post-merge and delayed reports never create fresh repair work");
+  assert.equal(
+    plan.queued[0].canonicalKey,
+    "deferred-failure:tests/a.test.ts:exit",
+    "stable canonical ordering makes capacity disposition deterministic",
+  );
+  console.log("  ✓ repair batching preserves family boundaries, freshness, and daily fan-out");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,12 +506,253 @@ async function testHungRelayCannotStallTheDriver(): Promise<void> {
   }
 }
 
+async function testDeferredFailureDriverLinksExistingOwner(): Promise<void> {
+  const file = `tests/${TAG}-deferred-owner.test.ts`;
+  const rawReason = "sensitive output from a failed assertion";
+  const legacyOwner = `system:legacy-repair-${TAG}`;
+  const report = mkReport([mkResult({ file, failureReason: rawReason })]);
+  report.deferredFailureAttribution = [deferredAttribution(file, {
+    proofStatus: "fingerprint-changed",
+  })];
+  await db.execute(sql`
+    INSERT INTO user_feedback (user_id, user_name, topic, feedback_text, current_page, screenshots)
+    VALUES (${legacyOwner}, 'Existing repair', 'BUG_REPORT', 'Original owner', ${file}, '[]')
+  `);
+  try {
+    const first = await fileDeferredFailureIntake(report);
+    assert.deepEqual(
+      { filed: first.filed, updated: first.updated, unresolved: first.unresolved },
+      { filed: 0, updated: 1, unresolved: 1 },
+      "a matching existing repair owner receives evidence instead of a new item",
+    );
+    const rows: any = await db.execute(sql`
+      SELECT user_id, current_page, feedback_text
+      FROM user_feedback
+      WHERE user_id IN (${legacyOwner}, ${DEFERRED_FAILURE_FEEDBACK_USER_ID})
+      ORDER BY id
+    `);
+    assert.equal(rows.rows.length, 1, "one owner remains open across the legacy and deferred paths");
+    assert.ok(rows.rows[0].feedback_text.includes("proof-fingerprint-changed"));
+    assert.ok(!rows.rows[0].feedback_text.includes(rawReason), "raw failure text is not persisted as intake evidence");
+
+    const second = await fileDeferredFailureIntake(report);
+    assert.deepEqual(
+      { filed: second.filed, updated: second.updated, unresolved: second.unresolved },
+      { filed: 0, updated: 1, unresolved: 1 },
+      "recurrence updates the same open owner with fresh bounded evidence",
+    );
+    console.log("  ✓ deferred intake updates one existing owner with bounded, privacy-safe evidence");
+  } finally {
+    await db.execute(sql`
+      DELETE FROM user_feedback
+      WHERE user_id IN (${legacyOwner}, ${DEFERRED_FAILURE_FEEDBACK_USER_ID})
+        AND (current_page = ${file} OR current_page LIKE ${`deferred-failure:${file}:%`})
+    `);
+  }
+}
+
+async function testDeferredRepairDispatchAndAuthoritativeRecovery(): Promise<void> {
+  const file = `tests/${TAG}-repair-dispatch.test.ts`;
+  const report = mkFreshNightlyReport([mkResult({ file })]);
+  report.deferredFailureAttribution = [deferredAttribution(file)];
+  const prefix = `deferred-failure:${file}:`;
+  try {
+    const first = await fileDeferredFailureIntake(report);
+    assert.equal(first.repairBatch.queued, 1, "fresh eligible nightly failure receives one queue handoff");
+    assert.equal(first.repairBatch.manualTriage, 0);
+
+    const second = await fileDeferredFailureIntake(report);
+    assert.equal(second.repairBatch.existing, 1, "repeat evidence refreshes the owner instead of a new handoff");
+    const jobs: any = await db.execute(sql`
+      SELECT id FROM work_queue
+      WHERE queue_name = ${DEFERRED_FAILURE_REPAIR_QUEUE}
+        AND dedupe_key LIKE ${"deferred-failure-repair:%"}
+        AND payload->>'canonicalKey' LIKE ${prefix + "%"}
+    `);
+    assert.equal(jobs.rows.length, 1, "owner episode has exactly one durable repair queue row");
+
+    const periodicFailure = mkFreshNightlyReport([mkResult({ file })]);
+    periodicFailure.deferredFailureSource = "periodic";
+    periodicFailure.deferredFailureAttribution = [deferredAttribution(file)];
+    const periodicSummary = await fileDeferredFailureIntake(periodicFailure);
+    assert.equal(
+      periodicSummary.repairBatch.stale,
+      1,
+      "periodic integrity observations stay visible but cannot dispatch authoritative repair work",
+    );
+    const afterPeriodic: any = await db.execute(sql`
+      SELECT id FROM work_queue
+      WHERE queue_name = ${DEFERRED_FAILURE_REPAIR_QUEUE}
+        AND dedupe_key LIKE ${"deferred-failure-repair:%"}
+        AND payload->>'canonicalKey' LIKE ${prefix + "%"}
+    `);
+    assert.equal(afterPeriodic.rows.length, 1, "periodic evidence cannot create a second repair episode");
+
+    const partial = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    partial.deferredFailureSource = "post-merge";
+    const partialSummary = await fileDeferredFailureIntake(partial);
+    assert.equal(partialSummary.resolved, 0, "canary/partial evidence cannot close the repair owner");
+
+    const staleRecovery = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    staleRecovery.finishedAt = new Date(Date.now() - 48 * 60 * 60 * 1_000).toISOString();
+    const staleSummary = await fileDeferredFailureIntake(staleRecovery);
+    assert.equal(staleSummary.resolved, 0, "stale nightly evidence cannot close the repair owner");
+
+    const futureRecovery = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    futureRecovery.finishedAt = new Date(Date.now() + 60_000).toISOString();
+    const futureSummary = await fileDeferredFailureIntake(futureRecovery);
+    assert.equal(futureSummary.resolved, 0, "future-dated nightly evidence cannot close repair debt");
+
+    const skippedOnlyRecovery = mkFreshNightlyReport([]);
+    skippedOnlyRecovery.skippedGreen = 1;
+    skippedOnlyRecovery.skippedGreenFiles = [file];
+    const skippedOnlySummary = await fileDeferredFailureIntake(skippedOnlyRecovery);
+    assert.equal(
+      skippedOnlySummary.resolved,
+      0,
+      "cached green-skip metadata is not a direct authoritative observation of recovery",
+    );
+
+    const unaccountedRecovery = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    delete (unaccountedRecovery as Partial<SweepReport>).verificationComplete;
+    const unaccountedSummary = await fileDeferredFailureIntake(unaccountedRecovery);
+    assert.equal(unaccountedSummary.resolved, 0, "a legacy report without explicit completion cannot close repair debt");
+
+    const signatureChanged = mkFreshNightlyReport([mkResult({ file, failureReason: "hang 184s" })]);
+    signatureChanged.deferredFailureAttribution = [deferredAttribution(file)];
+    const signatureSummary = await fileDeferredFailureIntake(signatureChanged);
+    assert.equal(signatureSummary.resolved, 0, "a different red signature is not recovery evidence");
+
+    const fullRecovery = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    const recovery = await fileDeferredFailureIntake(fullRecovery);
+    assert.equal(recovery.resolved, 2, "complete nightly evidence closes both independently-owned recovered signatures");
+    const owner: any = await db.execute(sql`
+      SELECT status FROM user_feedback
+      WHERE user_id = ${DEFERRED_FAILURE_FEEDBACK_USER_ID}
+        AND current_page LIKE ${prefix + "%"}
+    `);
+    assert.equal(owner.rows[0]?.status, "resolved");
+    console.log("  ✓ repair dispatch is owner-deduped and only nightly recovery resolves it");
+  } finally {
+    await db.execute(sql`
+      DELETE FROM work_queue
+      WHERE queue_name = ${DEFERRED_FAILURE_REPAIR_QUEUE}
+        AND payload->>'canonicalKey' LIKE ${prefix + "%"}
+    `);
+    await db.execute(sql`
+      DELETE FROM user_feedback
+      WHERE user_id = ${DEFERRED_FAILURE_FEEDBACK_USER_ID}
+        AND current_page LIKE ${prefix + "%"}
+    `);
+  }
+}
+
+async function testDeferredRepairDispatchRaceAndFailureStayVisible(): Promise<void> {
+  const ownerFeedbackId = 9_000_000 + Math.floor(Math.random() * 100_000);
+  const canonicalKey = `deferred-failure:tests/${TAG}-concurrent.test.ts:exit`;
+  const request = buildDeferredFailureRepairRequest({
+    ownerFeedbackId,
+    canonicalKey,
+    classification: "task-caused",
+    evidenceCodes: ["source:nightly"],
+    source: "nightly",
+    observedAt: new Date().toISOString(),
+  });
+  const dedupeKey = `deferred-failure-repair:${ownerFeedbackId}`;
+  const capacityPrefix = `deferred-failure:tests/${TAG}-daily-cap-`;
+  const capacityDay = "2001-01-01T12:00:00.000Z";
+  try {
+    const results = await Promise.all([
+      enqueueDeferredFailureRepairRequest(request),
+      enqueueDeferredFailureRepairRequest(request),
+    ]);
+    assert.equal(results.filter((result) => result.inserted).length, 1, "concurrent batches atomically create one handoff");
+    const rows: any = await db.execute(sql`
+      SELECT id FROM work_queue WHERE dedupe_key = ${dedupeKey}
+    `);
+    assert.equal(rows.rows.length, 1, "history dedupe survives concurrent batch dispatch");
+
+    const capacityResults = await Promise.all(
+      Array.from({ length: DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS + 1 }, (_, index) =>
+        enqueueDeferredFailureRepairRequest(buildDeferredFailureRepairRequest({
+          ownerFeedbackId: ownerFeedbackId + index + 1,
+          canonicalKey: `${capacityPrefix}${index}.test.ts:exit`,
+          classification: "task-caused",
+          evidenceCodes: ["source:nightly"],
+          source: "nightly",
+          observedAt: capacityDay,
+        })),
+      ),
+    );
+    assert.equal(
+      capacityResults.filter((result) => result.inserted).length,
+      DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS,
+      "concurrent/replayed dispatch cannot exceed the durable daily family budget",
+    );
+    assert.equal(
+      capacityResults.filter((result) => result.capacityExhausted).length,
+      1,
+      "the first overflow remains visible as capacity-capped repair debt",
+    );
+
+    const file = `tests/${TAG}-dispatch-failure.test.ts`;
+    const report = mkFreshNightlyReport([mkResult({ file })]);
+    report.deferredFailureAttribution = [deferredAttribution(file)];
+    __setDeferredFailureRepairEnqueuerForTest(async () => {
+      throw new Error("synthetic repair dispatcher outage");
+    });
+    const summary = await fileDeferredFailureIntake(report);
+    assert.equal(summary.repairBatch.dispatchFailed, 1, "dispatcher failure leaves visible feedback debt");
+    const owner: any = await db.execute(sql`
+      SELECT status FROM user_feedback
+      WHERE user_id = ${DEFERRED_FAILURE_FEEDBACK_USER_ID}
+        AND current_page LIKE ${`deferred-failure:${file}:%`}
+    `);
+    assert.equal(owner.rows[0]?.status, "pending", "failed dispatch never closes repair ownership");
+    console.log("  ✓ concurrent dispatch dedupes and dispatcher failure remains pending");
+  } finally {
+    __setDeferredFailureRepairEnqueuerForTest(null);
+    await db.execute(sql`DELETE FROM work_queue WHERE dedupe_key = ${dedupeKey}`);
+    await db.execute(sql`
+      DELETE FROM work_queue
+      WHERE queue_name = ${DEFERRED_FAILURE_REPAIR_QUEUE}
+        AND payload->>'canonicalKey' LIKE ${capacityPrefix + "%"}
+    `);
+    await db.execute(sql`
+      DELETE FROM user_feedback
+      WHERE user_id = ${DEFERRED_FAILURE_FEEDBACK_USER_ID}
+        AND current_page LIKE ${`deferred-failure:tests/${TAG}-dispatch-failure.test.ts:%`}
+    `);
+  }
+}
+
+async function testDeferredLegacyOwnerRecoversOnNightlyPass(): Promise<void> {
+  const file = `tests/${TAG}-legacy-recovery.test.ts`;
+  const legacyOwner = `system:legacy-repair-${TAG}-recovery`;
+  try {
+    await db.execute(sql`
+      INSERT INTO user_feedback (user_id, user_name, topic, feedback_text, current_page, screenshots)
+      VALUES (${legacyOwner}, 'Existing repair', 'BUG_REPORT', 'Original owner', ${file}, '[]')
+    `);
+    const report = mkFreshNightlyReport([mkResult({ file, outcome: "passed" })]);
+    const summary = await fileDeferredFailureIntake(report);
+    assert.equal(summary.resolved, 1, "complete nightly pass resolves a legacy repair owner too");
+    const row: any = await db.execute(sql`
+      SELECT status FROM user_feedback WHERE user_id = ${legacyOwner} AND current_page = ${file}
+    `);
+    assert.equal(row.rows[0]?.status, "resolved");
+    console.log("  ✓ complete nightly recovery also closes legacy repair ownership");
+  } finally {
+    await db.execute(sql`DELETE FROM user_feedback WHERE user_id = ${legacyOwner}`);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function testAlertFiresBeforeFeedbackFiling(): void {
   // Structural pin for the reviewed failure mode: a slow Slack relay inside
   // the feedback step must never delay the run-level sweep alert, so
-  // runOnce dispatches notifyByType BEFORE fileAndResolveSweepFeedback.
+  // runOnce dispatches notifyByType BEFORE both feedback filing paths.
   const src = readFileSync("server/services/regressionSweepScheduler.ts", "utf8");
   const notifyAt = src.indexOf("await notifyByType(");
   const feedbackAt = src.indexOf("await fileAndResolveSweepFeedback(");
@@ -356,7 +762,9 @@ function testAlertFiresBeforeFeedbackFiling(): void {
     notifyAt < feedbackAt,
     "run-level alert dispatch precedes feedback filing in runOnce",
   );
-  console.log("  ✓ scheduler dispatches the run-level alert before feedback filing");
+  const intakeAt = src.indexOf("await fileDeferredFailureIntake(report)", feedbackAt);
+  assert.ok(intakeAt > feedbackAt, "deferred intake follows legacy owner filing");
+  console.log("  ✓ scheduler dispatches the run-level alert before deferred feedback filing");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,10 +869,17 @@ async function main(): Promise<void> {
   testPlannerFilesOnlyNewHardFailures();
   testPlannerResolvesRecoveredAndDeparted();
   testPlannerIgnoresQuarantinedFailures();
+  testDeferredFailureIntakeClassificationAndOwnership();
+  testDeferredFailureIntakeEscalatesIncompleteVerification();
+  testDeferredFailureRepairBatchIsBoundedAndConservative();
   testTextAndConstants();
   testAlertFiresBeforeFeedbackFiling();
   await testDriverLifecycle();
   await testHungRelayCannotStallTheDriver();
+  await testDeferredFailureDriverLinksExistingOwner();
+  await testDeferredRepairDispatchAndAuthoritativeRecovery();
+  await testDeferredRepairDispatchRaceAndFailureStayVisible();
+  await testDeferredLegacyOwnerRecoversOnNightlyPass();
   await testConcurrentFilingCollapsesToOneRow();
   await testNoAutoResolveKeepsOlderIncidentsOpen();
   console.log("regression-sweep-feedback: PASSED");

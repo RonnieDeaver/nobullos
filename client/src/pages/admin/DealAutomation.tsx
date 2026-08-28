@@ -1437,8 +1437,18 @@ export default function DealAutomation() {
       const res = await apiRequest("DELETE", `/api/deal-automation/rules/${id}`);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: RULES_KEY });
+      // The run-history query key embeds the current filter (dynamic
+      // "/api/deal-automation/runs" or "...?ruleId=<id>") — invalidate by
+      // predicate so a deleted rule's stale runs don't linger in the cache.
+      void queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === "string" && key.startsWith("/api/deal-automation/runs");
+        },
+      });
+      if (runFilterRuleId === id) setRunFilterRuleId(null);
       toast({ title: "Rule deleted" });
       setDeleting(null);
     },

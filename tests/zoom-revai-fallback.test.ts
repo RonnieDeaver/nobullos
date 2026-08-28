@@ -3,7 +3,8 @@
   "name": "Zoom Rev AI transcript fallback (Task #3701)",
   "regression": true,
   "sweepOnlyReason": "Task #3701 — Rev AI generation fallback: seeds raw_communication_records + work_queue rows in the hermetic per-run DB, snapshots/restores zoom token settings AND the kill-switch override row; DB-heavy like the #3689 sweep suite, not a smoke-gate candidate (badge lockstep is gated via zoom-transcript-badge-states).",
-  "tier": "small"
+  "tier": "medium",
+  "tierReason": "Seeds and processes durable Zoom/Rev AI fallback work through the hermetic database."
 }
 test-registration */
 /**

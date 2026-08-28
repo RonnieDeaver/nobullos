@@ -28,6 +28,7 @@ import {
 } from "../server/services/regressionSweep";
 import {
   DEFAULT_CORE_RULES,
+  coreReason,
   computeChangedFiles,
   formatSelectionSummary,
   makeGitRunner,
@@ -209,11 +210,10 @@ const onlyRegression = process.argv.includes("--regression");
 const fullSmokeForced = process.argv.includes("--full-smoke");
 const onlySmoke = process.env.TEST_SMOKE === "1" || process.argv.includes("--smoke") || fullSmokeForced;
 
-// Budget enforcement keys on the selector's ACTUAL outcome, never the
-// requested flag — a related run that falls back to the full universe IS a
-// full-smoke run and must be budget-enforced. `--full-smoke` additionally
-// refuses inherited TEST_SMOKE_RELATED so parent environment state cannot
-// silently narrow an intended-full run.
+// Budget enforcement keys on the selector's ACTUAL outcome. Explicit
+// --full-smoke remains the only task-time path that runs the full universe;
+// selector uncertainty keeps a bounded proof and transfers broad coverage to
+// central integrity.
 const relatedSmokeRequested =
   onlySmoke && (process.env.TEST_SMOKE_RELATED === "1" || process.argv.includes("--related-smoke"));
 const relatedSmoke = relatedSmokeRequested && !fullSmokeForced;
@@ -225,6 +225,13 @@ let smokeSelection = resolveSmokeSelection({
 if (smokeSelection.note) console.log(smokeSelection.note);
 let selected = TESTS;
 let sweepMode: SweepReport["mode"] = "all";
+// Direct rails are the actual diff-selected suites, not every suite in a
+// full universe. The latter can still carry legitimate rotation debt.
+const directRelatedFiles = new Set<string>();
+let centralIntegrityDeferred: {
+  reason: string;
+  selectionManifestGeneratedAt: string | null;
+} | null = null;
 
 if (onlyRegression) {
   selected = TESTS.filter((t) => t.regression === true);
@@ -235,9 +242,9 @@ if (onlyRegression) {
   if (relatedSmoke) {
     // Task #3755: related-only smoke selection — map the files changed
     // since the merge base to the smoke tests that (transitively) depend on
-    // them. selectRelatedSmokeTests never throws; whenever the analysis is
-    // not trustworthy it returns mode "full" with a fallback reason and the
-    // gate runs the entire smoke universe.
+    // them. selectRelatedSmokeTests never throws; when analysis cannot prove
+    // a narrow universe it returns a bounded deferred result instead of
+    // launching the entire smoke universe.
     const manifest = await selectRelatedSmokeTests(
       selected.map((t) => ({ file: t.file, extraNodeArgs: t.extraNodeArgs, scanPaths: t.scanPaths })),
     );
@@ -246,12 +253,21 @@ if (onlyRegression) {
     smokeSelection = resolveSmokeSelection({
       requestedRelated: true,
       fullSmokeForced: false,
-      manifestMode: manifest.mode === "related" ? "related" : "full",
+      manifestMode: manifest.mode,
     });
     if (smokeSelection.note) console.log(smokeSelection.note);
     if (smokeSelection.narrowToRelated) {
       const keep = new Set(manifest.selected.map((s) => s.file));
       selected = selected.filter((t) => keep.has(t.file));
+      for (const entry of manifest.selected) {
+        if (coreReason(entry.file, DEFAULT_CORE_RULES) === null) directRelatedFiles.add(entry.file);
+      }
+    }
+    if (manifest.mode === "deferred") {
+      centralIntegrityDeferred = {
+        reason: manifest.deferredReason ?? "selection uncertainty",
+        selectionManifestGeneratedAt: manifest.generatedAt,
+      };
     }
   }
 }
@@ -656,7 +672,11 @@ try {
 // evidence invalidated by input churn or age) defer — no-record,
 // last-failed, and uncomputable/poisoned suites always execute.
 // Kill switch: TEST_FULL_DEFERRAL=0.
-let deferredFiles: string[] = [];
+let deferredFiles: string[] = centralIntegrityDeferred
+  ? TESTS
+      .filter((test) => SMOKE_FILES.has(test.file) && !selected.some((selectedTest) => selectedTest.file === test.file))
+      .map((test) => test.file)
+  : [];
 const deferralEligible =
   sweepMode === "smoke" &&
   !relatedSmoke &&
@@ -680,6 +700,9 @@ if (deferralEligible && plan) {
       );
     } else {
       const relatedSet = new Set(deferralManifest.selected.map((s) => s.file));
+      for (const file of relatedSet) {
+        if (coreReason(file, DEFAULT_CORE_RULES) === null) directRelatedFiles.add(file);
+      }
       // Reason-gated candidates: the shared helper joins each suite's
       // incremental DECISION (mustExecute + executeReasonKind) with the rail
       // facts — planFullLaneDeferral defers only positively-stale green
@@ -753,6 +776,62 @@ const toRun = [...baseToRun, ...quarantinedGreenSkipped];
 const skippedGreenFiles = plan
   ? plan.skippedFiles.filter((f) => !quarantinedGreenSkipped.some((t) => t.file === f))
   : [];
+
+if (centralIntegrityDeferred) {
+  const coreCount = selected.filter((test) => coreReason(test.file, DEFAULT_CORE_RULES) !== null).length;
+  writeFullLaneDeferralRecord({
+    generatedAt: new Date().toISOString(),
+    reason:
+      `selection uncertainty: ${centralIntegrityDeferred.reason} — broad smoke verification deferred ` +
+      "to the post-merge/nightly/weekly integrity lane",
+    selectionManifestGeneratedAt: centralIntegrityDeferred.selectionManifestGeneratedAt,
+    deferredFiles,
+    keptExecuting: {
+      relatedSelected: directRelatedFiles.size,
+      core: coreCount,
+      expansionAdded: expansionAddedFiles.size,
+      quarantineReAdded: quarantineReAddedFiles.size,
+      smokeOnly: 0,
+      extraNodeArgs: 0,
+      noRecord: 0,
+      lastFailed: 0,
+      notDeferrable: 0,
+    },
+    greenSkipped: skippedGreenFiles.length,
+  });
+  console.log(
+    `[deferral] DEFERRED ${deferredFiles.length} broad smoke suite(s) to the post-merge/nightly/weekly integrity lane — ` +
+      "NOT verified by this run; direct and core rails remain blocking.",
+  );
+}
+
+// Owner-approved bounded task-validation policy: prove, in the private sweep
+// report, that each selected direct/core rail has a terminal allowed
+// disposition. This is accounting only; selection and execution behavior stay
+// owned by the existing selector/runner.
+const requiredDirectFiles = new Set(
+  [
+    ...directRelatedFiles,
+    ...expansionAddedFiles,
+    ...quarantineReAddedFiles,
+  ].filter((file) => coreReason(file, DEFAULT_CORE_RULES) === null),
+);
+const requiredCoreFiles = new Set(
+  onlySmoke
+    ? selected
+      .filter((test) => coreReason(test.file, DEFAULT_CORE_RULES) !== null)
+      .map((test) => test.file)
+    : [],
+);
+function buildTaskGateRailProof(required: ReadonlySet<string>) {
+  const has = (file: string) => required.has(file);
+  return {
+    selected: required.size,
+    executed: sweepResults.filter((result) => has(result.file)).length,
+    skippedGreen: skippedGreenFiles.filter(has).length,
+    deferred: deferredFiles.filter(has).length,
+  };
+}
 
 // Each spawned child re-imports `server/db` and warms a fresh API pool
 // (max 18) + worker pool = ~25 connections at production defaults. Kept
@@ -1346,6 +1425,21 @@ async function runLane(
         elapsedMs,
         ...(passed ? {} : { failureReason }),
       });
+      // Task #5306: same per-suite persistence as the serial path (see the
+      // comment there) — lanes run concurrently but recordRunOutcomes is
+      // synchronous end-to-end, so calls from different lanes in this same
+      // process cannot interleave mid-write; the final end-of-sweep calls
+      // (incomplete-shard invalidation or the full write) still run after
+      // every lane settles and remain the closing safety net.
+      if (plan) {
+        recordRunOutcomes({
+          storePath: plan.storePath,
+          mode: sweepMode,
+          fingerprints: plan.fingerprints,
+          outcomes: [{ file: t.file, passed, flaky: passed && attempts > 1, durationMs: elapsedMs }],
+          fullRunGreen: false,
+        });
+      }
     }
   } finally {
     runner.killAll();
@@ -1682,6 +1776,24 @@ if (effectiveShardCount <= 1) {
       elapsedMs,
       ...(passed ? {} : { failureReason }),
     });
+    // Task #5306: persist this suite's outcome the moment it is known, not
+    // only after the whole sweep loop finishes — a kill mid-sweep must leave
+    // every already-finished, already-passed suite recorded. Reuses the same
+    // atomic read-merge-write recordRunOutcomes already uses at end-of-sweep;
+    // fullRunGreen is a whole-sweep concern and is stamped only there. The
+    // end-of-sweep calls below (incomplete-shard invalidation, or the final
+    // full write) still run unconditionally afterward and remain the closing
+    // safety net — an incomplete/untrustworthy run still overwrites every
+    // per-suite green this loop wrote.
+    if (plan) {
+      recordRunOutcomes({
+        storePath: plan.storePath,
+        mode: sweepMode,
+        fingerprints: plan.fingerprints,
+        outcomes: [{ file: t.file, passed, flaky: passed && attempts > 1, durationMs: elapsedMs }],
+        fullRunGreen: false,
+      });
+    }
   }
   // Batch children are no longer needed; kill them so the run can drain.
   killAllBatchWorkers();
@@ -2059,6 +2171,7 @@ const sweepReport = buildSweepReport(sweepResults, {
   mode: sweepMode,
   relatedSelection:
     sweepMode === "smoke" ? smokeSelection.relatedSelectionForBudget : null,
+  centralIntegrityDeferred: centralIntegrityDeferred !== null,
   skippedGreen: skippedGreenFiles.length,
   skippedGreenFiles,
   // Task #4077 skip-health: committed-baseline freshness rides along in the
@@ -2084,6 +2197,10 @@ const sweepReport = buildSweepReport(sweepResults, {
         ...incompleteShardResults.laneCrashes.map((crash) => `shard-${crash.lane} crashed: ${crash.reason}`),
       ]
     : [],
+  taskGateRailProof: {
+    directAffected: buildTaskGateRailProof(requiredDirectFiles),
+    core: buildTaskGateRailProof(requiredCoreFiles),
+  },
 });
 
 // Aggregate-only telemetry for the parent gate: no lane arrays, suite names,
@@ -2435,18 +2552,6 @@ if (process.env.TEST_GREEN_BASELINE_PUBLISH === "1" && !incompleteShardResults) 
   }
 }
 
-if (jsonReportPath) {
-  try {
-    mkdirSync(dirname(resolve(jsonReportPath)), { recursive: true });
-    writeFileSync(resolve(jsonReportPath), JSON.stringify(sweepReport, null, 2));
-    console.log(`\nWrote sweep report to ${jsonReportPath}`);
-  } catch (err) {
-    console.error(`[run-all] Could not write JSON report to ${jsonReportPath}:`, err);
-  }
-}
-
-console.log(`\n${summarizeSweepResult(sweepReport)}`);
-
 // Task #4101: repeat the repeat-poison warning next to the verdict — the
 // plan-time print scrolls away in long sweeps, and this is the alerting
 // surface the nightly sweep log tails.
@@ -2476,20 +2581,53 @@ if (sweepReport.hardFailed > 0 && !incompleteShardResults) {
     sweepMode === "smoke" &&
     process.env.TEST_GREEN_BASELINE_PUBLISH !== "1" &&
     process.env.TEST_ATTRIBUTION_EXCUSE !== "0";
-  const attribution = attributeRunFailures({
+  // Task #5318 — live-tip fallback arming mirrors excusalArmed exactly (same
+  // lane condition, its own kill switch) and is decided HERE ONLY, never
+  // read from tests/redManifest.ts or tests/liveTipAttribution.ts — pinned
+  // by the same single-wiring-owner discipline TEST_ATTRIBUTION_EXCUSE and
+  // TEST_GREEN_BASELINE_PUBLISH already follow.
+  const liveTipArmed =
+    sweepMode === "smoke" &&
+    process.env.TEST_GREEN_BASELINE_PUBLISH !== "1" &&
+    process.env.TEST_LIVE_TIP_ATTRIBUTION !== "0";
+  const attribution = await attributeRunFailures({
     repoRoot: process.cwd(),
     mode: sweepMode,
     failures: sweepResults
       .filter((r) => r.outcome === "failed" && !r.quarantined)
-      .map((r) => ({ file: r.file, name: r.name, failureReason: r.failureReason ?? "unknown" })),
+      .map((r) => {
+        const t = toRun.find((x) => x.file === r.file);
+        return {
+          file: r.file,
+          name: r.name,
+          failureReason: r.failureReason ?? "unknown",
+          extraNodeArgs: t?.extraNodeArgs,
+          extraEnv: t?.extraEnv,
+          timeoutMs: t?.timeoutMs,
+        };
+      }),
     fingerprints: plan?.fingerprints ?? null,
     excusalArmed,
+    liveTipArmed,
+    publishing: process.env.TEST_GREEN_BASELINE_PUBLISH === "1",
     priorHistory: loadSuiteHistory(),
     reportPath: process.env.TEST_TASK_GATE_ATTRIBUTION_REPORT_PATH || undefined,
   });
   console.log("");
   for (const line of attribution.lines) console.log(line);
   excusedFailureFiles = new Set(attribution.excusedFiles);
+  // Deferred intake receives only the runner's bounded, structured proof
+  // facts. The scheduler normalizes these alongside the report and never
+  // treats this attachment as accepted-green evidence.
+  sweepReport.deferredFailureAttribution = attribution.attributions.map((entry) => ({
+    file: entry.file,
+    verdict: entry.verdict,
+    historyKind: entry.historyKind,
+    provenInherited: entry.verdict === "inherited" && entry.excusable,
+    proofStatus: entry.proofStatus,
+  }));
+  sweepReport.deferredFailureSource =
+    process.env.TEST_GREEN_BASELINE_PUBLISH === "1" ? "nightly" : "periodic";
   if (attribution.manifestStaleness?.stale) {
     const unattributable = attribution.attributions.filter((a) => a.verdict === "unattributable").length;
     const age = attribution.manifestStaleness.ageDays;
@@ -2499,6 +2637,18 @@ if (sweepReport.hardFailed > 0 && !incompleteShardResults) {
       `Evidence: .local/runs/attribution-report.json`;
   }
 }
+
+if (jsonReportPath) {
+  try {
+    mkdirSync(dirname(resolve(jsonReportPath)), { recursive: true });
+    writeFileSync(resolve(jsonReportPath), JSON.stringify(sweepReport, null, 2));
+    console.log(`\nWrote sweep report to ${jsonReportPath}`);
+  } catch (err) {
+    console.error(`[run-all] Could not write JSON report to ${jsonReportPath}:`, err);
+  }
+}
+
+console.log(`\n${summarizeSweepResult(sweepReport)}`);
 
 // Task #3797: flake-history journal — persist per-suite outcomes across
 // runs and surface repeat offenders, so a flake that a retry masked (or
@@ -2577,7 +2727,7 @@ if (durationBudgetBlocks) {
 // the smoke gate was soft for quarantined suites.
 if (onlySmoke && quarantineGateSkippedCount > 0) {
   console.log(
-    `\n[quarantine] ${quarantineGateSkippedCount} quarantined flaky suite(s) ran non-blocking (excluded from gate verdict; see ${QUARANTINE_LEDGER_PATH} for the current list).`,
+    `\n[quarantine] ${quarantineGateSkippedCount} quarantined flaky suite(s) ran non-blocking (excluded from gate verdict; next action: address the established recurring-failure item in ${QUARANTINE_LEDGER_PATH}).`,
   );
 }
 console.log("\nAll tests passed.");

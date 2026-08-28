@@ -3,7 +3,7 @@
   "name": "lint-route-shadowing guard (Task #3102)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #3102: literal-vs-param route shadowing guard (the Sheets last-activity 404 bug class: a literal segment registered AFTER a :param route on the same method + prefix is unreachable). First assertion runs scripts/lint-route-shadowing.ts over the REAL server/routes tree; positive control re-orders the real sheets.ts routes to prove the original bug would be caught. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS and this SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
+  "smokeReason": "Task #3102: literal-vs-param route shadowing guard (the Sheets last-activity 404 bug class: a literal segment registered AFTER a :param route on the same method + prefix is unreachable). First assertion runs scripts/lint-route-shadowing.ts over the REAL server/routes tree; positive control re-orders the real sheets.ts routes to prove the original bug would be caught. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS and this SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -13,8 +13,8 @@ test-registration */
  * Background: the Sheets last-activity 404 bug — the literal route
  * GET /api/sheets/workbooks/last-activity registered AFTER
  * GET /api/sheets/workbooks/:id was silently swallowed by :id (Express
- * matches in registration order). The `.replit` `Validate` workflow runs
- * `npm run gate`; this SMOKE_FILES-gated test's FIRST assertion also runs
+ * matches in registration order). The managed Long validation workflow runs
+ * the reviewed routine-gate profile; this SMOKE_FILES-gated test's FIRST assertion also runs
  * the lint against the real server/routes tree (see
  * .agents/memory/lint-workflow-limit-smoke-gate.md).
  *

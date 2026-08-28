@@ -6,6 +6,39 @@ Operator runbook for the work-queue scheduler, per-queue drain control, and back
 
 NoBull OS uses a fair multi-queue scheduler with in-memory locking and staggered worker startup. Jobs live in the `work_queue` table and are claimed via `FOR UPDATE SKIP LOCKED`.
 
+## Deferred test-failure repair batches
+
+The nightly regression sweep files canonical deferred-verification families into
+the existing feedback queue, then selects a **maximum of 10** fresh,
+non-ambiguous families for `deferred_failure_repair` handoffs. This is a
+bounded daily repair lane, not a test rerun loop and not an automated source
+editor.
+
+- **Queued repair debt:** inspect `work_queue` rows whose
+  `queue_name = 'deferred_failure_repair'` and status is `pending`. They use
+  the normal `repair` workload class, so interactive work, leases, retries,
+  fairness, pause controls, backoff, and dead-letter protections all apply.
+- **Active repair work:** rows in `leased` or `processing` are being handed to
+  the repair lane. Use the normal work-queue status endpoint and lease views;
+  do not delete or re-enqueue a row to accelerate it.
+- **Awaiting manual diagnosis:** feedback rows from **Deferred Verification**
+  that remain pending but have no fresh repair handoff are deliberately
+  ambiguous, incomplete, stale, or beyond the daily fan-out cap. They need
+  operator diagnosis, not a new automatic queue cycle.
+
+Each pending feedback owner id receives at most one queue handoff, including
+after that handoff reaches a terminal queue status. Queue history also enforces
+the ten-family limit across replayed or concurrent runs for the same nightly
+report day. Later observations refresh the same owner's bounded evidence rather
+than creating another repair job.
+When the feedback owner resolves, a later failure creates a new owner episode
+and can receive a new handoff.
+
+Only a complete authoritative **nightly regression** report can auto-resolve a
+deferred owner, and only after it observes that same family/file recovered.
+Canary, post-merge, incomplete, malformed, stale, or partial observations
+never close repair debt.
+
 ## Queue drain control (Task #987)
 
 Per-queue **pause** / **rate-limit** knobs persisted in `system_settings.queue_drain_state`. When a queue is paused via `setQueuePause`, the helper captures pause-time baselines so backlog alerts can fire later:

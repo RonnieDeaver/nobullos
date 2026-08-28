@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Prod actions: report data historical hygiene (Task #4175)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Audit-table prune (admin_setting / queue_timing)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

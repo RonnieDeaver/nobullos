@@ -28,6 +28,10 @@ function legalPolicyPage(input: {
   policy: BookFunnelPolicyRecord;
   bodyHtml?: string;
   legacyTitle?: boolean;
+  /** Points <link rel="canonical"> at a different URL than this page's own
+      path — used for legacy duplicate-content URLs that must keep
+      resolving without being treated as the canonical version. */
+  canonicalPath?: string;
 }): PageDef {
   const { policy } = input;
   const heading = input.legacyTitle
@@ -38,6 +42,7 @@ function legalPolicyPage(input: {
     title: `${policy.title} - NoBull Marketing`,
     desc: `${policy.title} for NoBull Marketing, LLC.`,
     priority: "0.3",
+    canonicalPath: input.canonicalPath,
     render: (r) => `
 ${titleBand(heading, undefined, { eyebrow: "The Fine Print" })}
 
@@ -58,6 +63,10 @@ export function privacyPage(bodyHtml: string): PageDef {
     policy: BOOK_FUNNEL_POLICY_MANIFEST.privacy,
     bodyHtml,
     legacyTitle: true,
+    // Legacy URL: must keep resolving (docs/DO_NOT_BREAK.md §1) but is
+    // byte-identical duplicate content of privacy/ — point search engines
+    // at the canonical URL the manifest already names as authoritative.
+    canonicalPath: BOOK_FUNNEL_POLICY_MANIFEST.privacy.canonicalPath ?? undefined,
   });
 }
 

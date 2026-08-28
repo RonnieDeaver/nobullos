@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "June lead reparse (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #2753 — convergence + surgical-merge regression for the June 2026

@@ -15,6 +15,7 @@ import { requireAccountManager } from "../middleware";
 import type { AuthenticatedRequest, TenantScopedRequest } from "../requestContext";
 import {
   rawCommunicationRecords,
+  frontSyncEmails,
   clients,
 } from "@shared/schema";
 
@@ -1032,6 +1033,178 @@ export function registerIntegrationsUnmatchedRoutes(app: Express) {
       return res.status(400).json({ error: "Promote not supported for this source" });
     } catch (error: any) {
       console.error("[Integrations] Promote error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Bulk noise triage (QA fix, Task #5324): the "By Sender" toggle and the
+  // "Dismiss all from …" chips on each card in UnmatchedFeedSection.tsx have
+  // always called these exact paths, but no server route ever existed for
+  // them — every click 404'd silently (mutations use `meta: { silent: true }`
+  // and the count-preview fetch swallows errors into `count: null`). These
+  // routes close that gap using the same match_status="dismissed_operational"
+  // convention and the same per-item auth guard as the routes above; a bulk
+  // dismiss is reversible the same way a single dismiss is (via /promote, or
+  // the "Dismissed as Operational" view).
+  //
+  // Scope is intentionally narrower than the general unmatched-feed
+  // definition: only rows with no client_id are touched (front_sync_emails,
+  // plus slack/zoom raw records), so a zoom recording still awaiting human
+  // review on an already-claimed client is never silently dismissed.
+  const rawRecordUnmatchedCondition = and(
+    inArray(rawCommunicationRecords.sourceType, ["slack", "zoom"]),
+    sql`${rawCommunicationRecords.clientId} IS NULL`,
+    sql`(${rawCommunicationRecords.matchStatus} IS NULL OR ${rawCommunicationRecords.matchStatus} NOT IN ('dismissed_operational', 'orphaned', 'dismissed', 'blocked'))`,
+  );
+
+  function participantEmailCondition(column: any, senderEmail: string) {
+    return sql`EXISTS (
+      SELECT 1 FROM jsonb_array_elements(COALESCE(${column}, '[]'::jsonb)) AS p
+      WHERE LOWER(p->>'email') = ${senderEmail.toLowerCase()}
+    )`;
+  }
+
+  function participantDomainCondition(column: any, domain: string) {
+    const domainLike = `%@${domain.toLowerCase()}`;
+    return sql`EXISTS (
+      SELECT 1 FROM jsonb_array_elements(COALESCE(${column}, '[]'::jsonb)) AS p
+      WHERE LOWER(p->>'email') LIKE ${domainLike}
+    )`;
+  }
+
+  app.get("/api/integrations/unmatched-by-sender", isAuthenticated, requireAccountManager, async (req: any, res) => {
+    try {
+      const limit = Math.max(1, Math.min(Number(req.query.limit) || 50, 200));
+      const rows = await db.execute(sql`
+        SELECT LOWER(p->>'email') AS "senderEmail", COUNT(DISTINCT fse.id)::int AS "count"
+        FROM front_sync_emails fse,
+             jsonb_array_elements(COALESCE(fse.participants_json, '[]'::jsonb)) AS p
+        WHERE fse.match_status = 'unmatched'
+          AND p->>'email' IS NOT NULL
+          AND (p->>'role' IS NULL OR p->>'role' IN ('external', 'team', 'from', 'sender'))
+        GROUP BY LOWER(p->>'email')
+        ORDER BY "count" DESC, "senderEmail" ASC
+        LIMIT ${limit}
+      `);
+      const senders = (rows.rows as Array<{ senderEmail: string; count: number }>).map(r => ({
+        senderEmail: r.senderEmail,
+        count: Number(r.count),
+      }));
+      res.json({ senders });
+    } catch (error: any) {
+      console.error("[Integrations] unmatched-by-sender error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/integrations/count-by-sender", isAuthenticated, requireAccountManager, async (req: any, res) => {
+    try {
+      const senderEmail = String(req.query.senderEmail || "").trim();
+      if (!senderEmail) return res.status(400).json({ error: "senderEmail required" });
+      const [frontCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(frontSyncEmails)
+        .where(and(eq(frontSyncEmails.matchStatus, "unmatched"), participantEmailCondition(frontSyncEmails.participantsJson, senderEmail)));
+      const [rawCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(rawCommunicationRecords)
+        .where(and(rawRecordUnmatchedCondition, participantEmailCondition(rawCommunicationRecords.participantsJson, senderEmail)));
+      res.json({ count: Number(frontCount?.count || 0) + Number(rawCount?.count || 0) });
+    } catch (error: any) {
+      console.error("[Integrations] count-by-sender error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/integrations/count-by-domain", isAuthenticated, requireAccountManager, async (req: any, res) => {
+    try {
+      const domain = String(req.query.domain || "").trim();
+      if (!domain) return res.status(400).json({ error: "domain required" });
+      const [frontCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(frontSyncEmails)
+        .where(and(eq(frontSyncEmails.matchStatus, "unmatched"), participantDomainCondition(frontSyncEmails.participantsJson, domain)));
+      const [rawCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(rawCommunicationRecords)
+        .where(and(rawRecordUnmatchedCondition, participantDomainCondition(rawCommunicationRecords.participantsJson, domain)));
+      res.json({ count: Number(frontCount?.count || 0) + Number(rawCount?.count || 0) });
+    } catch (error: any) {
+      console.error("[Integrations] count-by-domain error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/integrations/count-by-channel", isAuthenticated, requireAccountManager, async (req: any, res) => {
+    try {
+      const channelName = String(req.query.channelName || "").trim();
+      if (!channelName) return res.status(400).json({ error: "channelName required" });
+      const [rawCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(rawCommunicationRecords)
+        .where(and(
+          eq(rawCommunicationRecords.sourceType, "slack"),
+          rawRecordUnmatchedCondition,
+          sql`${rawCommunicationRecords.rawPayloadJson}->>'channelName' = ${channelName}`,
+        ));
+      res.json({ count: Number(rawCount?.count || 0) });
+    } catch (error: any) {
+      console.error("[Integrations] count-by-channel error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/integrations/bulk-dismiss-by-sender", isAuthenticated, requireAccountManager, async (req: AuthenticatedRequest, res) => {
+    try {
+      const senderEmail = String((req.body as any)?.senderEmail || "").trim();
+      if (!senderEmail) return res.status(400).json({ error: "senderEmail required" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const frontResult = await db.update(frontSyncEmails)
+        .set({ matchStatus: "dismissed_operational", dismissedBy: userId, processedAt: new Date(), operationalClassificationReason: `Bulk dismissed: sender ${senderEmail}` })
+        .where(and(eq(frontSyncEmails.matchStatus, "unmatched"), participantEmailCondition(frontSyncEmails.participantsJson, senderEmail)))
+        .returning({ id: frontSyncEmails.id });
+      const rawResult = await db.update(rawCommunicationRecords)
+        .set({ matchStatus: "dismissed_operational", operationalClassificationReason: `Bulk dismissed: sender ${senderEmail}` })
+        .where(and(rawRecordUnmatchedCondition, participantEmailCondition(rawCommunicationRecords.participantsJson, senderEmail)))
+        .returning({ id: rawCommunicationRecords.id });
+      res.json({ success: true, dismissed: frontResult.length + rawResult.length, senderEmail });
+    } catch (error: any) {
+      console.error("[Integrations] bulk-dismiss-by-sender error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/integrations/bulk-dismiss-by-domain", isAuthenticated, requireAccountManager, async (req: AuthenticatedRequest, res) => {
+    try {
+      const domain = String((req.body as any)?.domain || "").trim();
+      if (!domain) return res.status(400).json({ error: "domain required" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const frontResult = await db.update(frontSyncEmails)
+        .set({ matchStatus: "dismissed_operational", dismissedBy: userId, processedAt: new Date(), operationalClassificationReason: `Bulk dismissed: domain @${domain}` })
+        .where(and(eq(frontSyncEmails.matchStatus, "unmatched"), participantDomainCondition(frontSyncEmails.participantsJson, domain)))
+        .returning({ id: frontSyncEmails.id });
+      const rawResult = await db.update(rawCommunicationRecords)
+        .set({ matchStatus: "dismissed_operational", operationalClassificationReason: `Bulk dismissed: domain @${domain}` })
+        .where(and(rawRecordUnmatchedCondition, participantDomainCondition(rawCommunicationRecords.participantsJson, domain)))
+        .returning({ id: rawCommunicationRecords.id });
+      res.json({ success: true, dismissed: frontResult.length + rawResult.length, domain });
+    } catch (error: any) {
+      console.error("[Integrations] bulk-dismiss-by-domain error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/integrations/bulk-dismiss-by-channel", isAuthenticated, requireAccountManager, async (req: AuthenticatedRequest, res) => {
+    try {
+      const channelName = String((req.body as any)?.channelName || "").trim();
+      if (!channelName) return res.status(400).json({ error: "channelName required" });
+      const rawResult = await db.update(rawCommunicationRecords)
+        .set({ matchStatus: "dismissed_operational", operationalClassificationReason: `Bulk dismissed: channel #${channelName}` })
+        .where(and(
+          eq(rawCommunicationRecords.sourceType, "slack"),
+          rawRecordUnmatchedCondition,
+          sql`${rawCommunicationRecords.rawPayloadJson}->>'channelName' = ${channelName}`,
+        ))
+        .returning({ id: rawCommunicationRecords.id });
+      res.json({ success: true, dismissed: rawResult.length, channelName });
+    } catch (error: any) {
+      console.error("[Integrations] bulk-dismiss-by-channel error:", error);
       res.status(500).json({ error: error.message });
     }
   });

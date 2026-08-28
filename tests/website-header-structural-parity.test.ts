@@ -7,7 +7,8 @@
   "scanPaths": [
     "website/public"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Scans every committed marketing HTML subpage for the structural header contract."
 }
 test-registration */
 // SPDX-License-Identifier: MIT

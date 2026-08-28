@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Booking recurrence (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // future-date-literal-reviewed: the 2027-01-01/2027-12-31 dates are pinned RRULE expansion window bounds compared against pinned dtstart fixtures (literal-vs-literal, no real-clock comparison) — they cannot rot when the calendar passes them.

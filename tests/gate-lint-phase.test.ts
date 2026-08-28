@@ -144,7 +144,46 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log("\n3) every real LINT_CHECKS entry honors the cliMain contract");
+  console.log("\n3) exclusive checks never overlap other lint workers");
+  {
+    const dir = mkdtempSync(join(tmpdir(), "gate-lint-exclusive-fixture-"));
+    const logPath = join(dir, "overlap.log");
+    process.env.GATE_FIXTURE_LOG = logPath;
+    process.env.GATE_FIXTURE_DELAY_MS = "100";
+    const sink: LintPhaseSink = { out: () => {}, err: () => {} };
+    try {
+      const { results } = await runLintPhase(
+        [
+          { name: "before", script: `${FIX}/fixture-slow.ts` },
+          { name: "exclusive", script: `${FIX}/fixture-slow.ts`, exclusive: true },
+          { name: "after", script: `${FIX}/fixture-slow.ts` },
+        ],
+        { concurrency: 3, sink },
+      );
+      ok(results.every((r) => r.passed), "exclusive-lane fixtures all pass");
+      const events = readFileSync(logPath, "utf8") // fs-scan-inputs-ignore -- tmp-dir event log written by this run's fixture scripts
+        .trim()
+        .split("\n")
+        .map((line) => {
+          const [kind, ts] = line.split(" ");
+          return { kind, ts: Number(ts) };
+        })
+        .sort((a, b) => a.ts - b.ts || (a.kind === "E" ? -1 : 1));
+      let active = 0;
+      let maxOverlap = 0;
+      for (const event of events) {
+        active += event.kind === "S" ? 1 : -1;
+        maxOverlap = Math.max(maxOverlap, active);
+      }
+      ok(maxOverlap === 1, `exclusive check ran alone (max overlap ${maxOverlap} = 1)`);
+    } finally {
+      delete process.env.GATE_FIXTURE_LOG;
+      delete process.env.GATE_FIXTURE_DELAY_MS;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  console.log("\n4) every real LINT_CHECKS entry honors the cliMain contract");
   {
     ok(LINT_CHECKS.length >= 22, `LINT_CHECKS lists the full check set (${LINT_CHECKS.length} entries)`);
     ok(
@@ -154,6 +193,11 @@ async function main(): Promise<void> {
     for (const check of LINT_CHECKS) {
       ok(existsSync(check.script), `${check.script} exists`);
     }
+    const bundleCheck = LINT_CHECKS.find((check) => check.name === "lint-bundle-budget");
+    ok(
+      bundleCheck?.exclusive === true,
+      "lint-bundle-budget uses the exclusive lane so cold builds avoid lint-pool contention",
+    );
     // Task #4533 — remedy strings must stay brace-free: the
     // lint-gate-workflow-drift parser extracts LINT_CHECKS entries from
     // scripts/gate.ts by brace-matching the object literals, so a `{` or `}`

@@ -20,11 +20,18 @@
       zoom. The two must always ship together.
    2. text-size-adjust stops mobile browsers inflating text after
       orientation changes.
-   3. body overflow-x: clip = a single wide element can never
-      widen the page; wide content scrolls inside its own
+   3. html + body overflow-x: clip = a single wide element can
+      never widen the page; wide content scrolls inside its own
       container (.os-table-wrap convention below). clip, unlike
       hidden, does not create a scroll container, so position:
       sticky (header, table identity columns) keeps working.
+      Both elements need it: Chromium treats <html>, not <body>,
+      as the scrolling element in standards mode, so a body-only
+      clip leaves off-screen absolutely/fixed-positioned elements
+      (e.g. a visually-hidden sr-only label whose static position
+      lands past the viewport edge in a wide flex/table layout)
+      free to widen documentElement.scrollWidth and make the whole
+      page horizontally scrollable via touch/programmatic scroll.
    4. Safe-area padding keeps content and fixed UI clear of the
       notch / home indicator (index.html sets viewport-fit=cover).
    ================================================================ */
@@ -32,6 +39,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {

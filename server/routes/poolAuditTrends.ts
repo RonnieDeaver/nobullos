@@ -76,7 +76,7 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
             workerDb.execute(sql`
               WITH curr AS (
                 SELECT pool, hold_label,
-                       SUM(count)::int AS c,
+                       SUM(count)::bigint AS c,
                        SUM(total_hold_time_ms)::bigint AS t
                 FROM db_hold_label_rollups
                 WHERE date >= ${sevenDaysAgo} AND date <= ${today}
@@ -84,7 +84,7 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
               ),
               prev AS (
                 SELECT pool, hold_label,
-                       SUM(count)::int AS c,
+                       SUM(count)::bigint AS c,
                        SUM(total_hold_time_ms)::bigint AS t
                 FROM db_hold_label_rollups
                 WHERE date >= ${fourteenDaysAgo} AND date < ${sevenDaysAgo}
@@ -107,7 +107,7 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
           const longestMaxHolds = await rows(
             workerDb.execute(sql`
               SELECT pool, hold_label, MAX(max_duration_ms)::int AS max_duration_ms,
-                     SUM(count)::int AS count
+                     SUM(count)::bigint AS count
               FROM db_hold_label_rollups
               WHERE date >= ${sevenDaysAgo}
               GROUP BY pool, hold_label
@@ -120,7 +120,7 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
           const labelsOver10s = await rows(
             workerDb.execute(sql`
               SELECT pool, hold_label, MAX(max_duration_ms)::int AS max_duration_ms,
-                     SUM(count)::int AS count, MAX(date) AS last_date
+                     SUM(count)::bigint AS count, MAX(date) AS last_date
               FROM db_hold_label_rollups
               WHERE date >= ${sevenDaysAgo} AND max_duration_ms >= 10000
               GROUP BY pool, hold_label
@@ -135,7 +135,7 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
           const backgroundOnApi = await rows(
             workerDb.execute(sql`
               SELECT hold_label,
-                     SUM(count)::int AS count,
+                     SUM(count)::bigint AS count,
                      MAX(max_duration_ms)::int AS max_duration_ms,
                      SUM(total_hold_time_ms)::bigint AS total_hold_time_ms
               FROM db_hold_label_rollups
@@ -153,10 +153,10 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
             workerDb.execute(sql`
               SELECT
                 integration,
-                SUM(call_count)::int AS call_count,
-                SUM(error_count)::int AS error_count,
-                SUM(cache_hit_count)::int AS cache_hit_count,
-                SUM(same_response_count)::int AS same_response_count,
+                SUM(call_count)::bigint AS call_count,
+                SUM(error_count)::bigint AS error_count,
+                SUM(cache_hit_count)::bigint AS cache_hit_count,
+                SUM(same_response_count)::bigint AS same_response_count,
                 CASE WHEN SUM(call_count) > 0
                      THEN (SUM(cache_hit_count)::float / SUM(call_count))
                      ELSE 0 END AS cache_hit_ratio,
@@ -176,9 +176,9 @@ export function registerPoolAuditTrendRoutes(app: Express): void {
           const noisyEndpoints = await rows(
             workerDb.execute(sql`
               SELECT integration, endpoint, caller_label,
-                     SUM(call_count)::int AS call_count,
-                     SUM(same_response_count)::int AS same_response_count,
-                     SUM(cache_hit_count)::int AS cache_hit_count
+                     SUM(call_count)::bigint AS call_count,
+                     SUM(same_response_count)::bigint AS same_response_count,
+                     SUM(cache_hit_count)::bigint AS cache_hit_count
               FROM external_call_audit_daily_rollups
               WHERE date >= ${sevenDaysAgo}
               GROUP BY integration, endpoint, caller_label

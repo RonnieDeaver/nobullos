@@ -6,13 +6,20 @@ import { Label } from "@/components/ui/label";
 import { ChevronDown, ChevronRight, AlertTriangle, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 export function LegacyBackfillDisclosure({ onAfter }: { onAfter: () => void }) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  // The full-backfill route is requireTeamLead server-side; don't show
+  // account managers a control that always ends in a 403.
+  const canRun = user?.role === "ceo" || user?.role === "team_lead";
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirmInternal, setConfirmInternal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  if (!canRun) return null;
 
   const submit = async () => {
     setSubmitting(true);

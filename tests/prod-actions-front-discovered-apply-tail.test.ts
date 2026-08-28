@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Prod actions front discovered apply tail (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

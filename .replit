@@ -31,22 +31,7 @@ outputType = "webview"
 owner = "NoBull OS Control Plane"
 purpose = "Primary interactive application runtime"
 retirementTrigger = "Replace only through an owner-approved runtime cutover"
-slotBudget = "runtime-1-of-3"
-
-[[workflows.workflow]]
-name = "Validate"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run gate"
-
-[workflows.workflow.metadata]
-isValidation = true
-owner = "NoBull OS Control Plane"
-purpose = "Canonical routine validation gate"
-retirementTrigger = "Replace only through an owner-approved gate cutover"
-slotBudget = "control-2-of-3"
+slotBudget = "runtime-1-of-2"
 
 [[workflows.workflow]]
 name = "Long validation"
@@ -59,9 +44,9 @@ args = "npm run validate:long -- --request .local/runs/long-validation-request.j
 [workflows.workflow.metadata]
 outputType = "console"
 owner = "NoBull OS Control Plane"
-purpose = "Explicit reviewed long-control runner"
+purpose = "Durable operator-requested canonical gate and main-workspace-only central-integrity control runner (full-control/matched-comparison refused in task/sub-environments)"
 retirementTrigger = "Remove when long-control evidence is retired by owner decision"
-slotBudget = "control-3-of-3"
+slotBudget = "control-2-of-2"
 
 [agent]
 mockupState = "FULLSTACK"

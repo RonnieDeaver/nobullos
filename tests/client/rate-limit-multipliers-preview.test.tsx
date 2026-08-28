@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Rate limit multipliers preview",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -14,9 +14,9 @@
 
 ## Sitemap
 
-- `/` — homepage (hook → problem → Revenue Engine funnel → proof → team → fit/FAQ → closing ask → book)
+- `/` — homepage (hook → problem → Revenue Engine funnel → proof → team → fit/FAQ → book → closing ask)
 - `/#proof` — Results destination: complete inline case studies + testimonial videos/reviews (not a standalone route)
-- `/about/` — company story, FAQ, complete 18-person team, and the complete 14-item `#practice-areas-served` section
+- `/about/` — company story, FAQ, complete 20-person team, and the complete 14-item `#practice-areas-served` section
 - `/resources/` — Library index; `/resource/<slug>/` × 15 canonical articles/videos/webinars/podcasts
 - `/free-chapters/` — book excerpt reader (Introduction + Chapters 1–2, no email required)
 - `/#booking` — canonical High Impact Revenue Session scheduler
@@ -46,16 +46,19 @@ hamburger menu carries it below that).
 
 ### / (home)
 - Purpose & primary conversion action: sell the Revenue Engine story end-to-end; **Book a High Impact Revenue Session** (hero + closing ask → `#booking`).
-- Message (decided copy: `docs/website-final-copy.md`): more leads aren't enough — the engine turns the same leads into more revenue; REE is the score.
+- Message (decided copy: `docs/website-final-copy.md`): more leads aren't enough — the engine turns the same leads into more revenue. REE remains on `/calculator/`, not the homepage.
 - CTA (direct + transitional): `Book a High Impact Revenue Session →` (direct; the #4124/#4261 sitewide session ask — was `BOOK A STRATEGY CALL →`); secondary `Read the Book →` → `/free-chapters/` on hero + header + footer (book-funnel entry since Task #5017 — was `SEE THE THREE CORE COMPONENTS →` → `#system`, itself relabeled Task #4923 from `SEE THE SYSTEM →`; `#system` stays reachable from homepage sections and the footer OUR SERVICES Revenue Engine link) and the book band → `/free-chapters/` (transitional). Hierarchy locked.
 - Copy blocks: see `docs/website-final-copy.md` §§1–14 (canonical spec) and #4119 §3 (rendered transcript).
 
 ### /about/
 - Purpose: persuasion depth about who NoBull is; the page owns the complete team and the sitewide
   practice-area destination. It does not depend on a standalone services page.
-- Team/practice contract: all 18 canonical team members and all 14 canonical practice areas render in
-  full; the section heading is `Practice Areas Served`, its stable id is `#practice-areas-served`, and
-  its introduction begins `Our Marketing, Intake, and Sales services…`.
+- Team/practice contract: all 20 canonical team members and all 14 canonical practice areas render in
+  full from the shared homepage/About sources. Team order, photos, names, and roles come only from
+  `TEAM_ROSTER`; only Ronnie, Oliver, and Jake have approved biographies. The homepage preserves its
+  first-two-row reveal (12 / 6 / 4 / 2 cards at the 6 / 3 / 2 / 1-column breakpoints), while About
+  renders all 20. The practice-area heading is `Practice Areas Served`, its stable id is
+  `#practice-areas-served`, and its introduction begins `Our Marketing, Intake, and Sales services…`.
 - CTA: the shared "The Next Step" booking band links back to homepage `#booking`; subpages never embed the scheduler.
 
 ### /services/ — retired
@@ -68,11 +71,11 @@ hamburger menu carries it below that).
 - Purpose: awareness/authority ("the thinking behind the Revenue Engine"); ONE action: enter an article → sidebar **Book a High Impact Revenue Session** to homepage `#booking` (soft; low intent surface).
 
 ### /free-chapters/
-- Purpose: transitional asset — read the method, then book; ONE action: **Book a High Impact Revenue Session** to homepage `#booking` (endcap + floating bar). Tertiary Amazon/Audible buy links (locked hierarchy) exit off-site.
+- Purpose: transitional asset — read the method, then book; ONE action: **Book a High Impact Revenue Session** to homepage `#booking` (endcap + floating bar). Amazon and Audible remain non-interactive `Coming Soon!` notices until client-confirmed current-edition destinations exist.
 - Promise: "no email required" is stated copy — any capture experiment must preserve it (see D8 in the tracker).
 
 ### Homepage conversion hub (`/#booking` + `/#contact`)
-- Purpose: **the macro-conversion**: complete a Calendly booking from the one canonical homepage widget, or send a protected inquiry through the one canonical contact form.
+- Purpose: **the macro-conversion**: open the canonical Calendly booking action from the one homepage handoff, or send a protected inquiry through the one canonical contact form. The homepage does not embed a third-party scheduler.
 
 ### /privacy-policy/ · /unsubscribe/ · 404
 - Utility; no conversion action. 404 is a dedicated page served with a real 404 status, clear
@@ -126,7 +129,7 @@ localhost — treat as optimistic floor). Status values: open · owner-gated (D#
 | F-12 | Decided-copy drift (successor to #4119 §11, re-verified 2026-08-09): (a) rendered hero trust line keeps "— and counting" tail the spec dropped (`<small>350+ law firms grown — and counting</small>` vs final-copy §1); (b) rendered home meta is a ≤160-char trim of the 219-char spec sentence (final-copy L12); (c) `docs/website-final-copy.md` Presti body still reads "and counting" while the rendered pages say "in twelve months" (doc lags #4120). #4119 §11's two items remain live in these forms. | 1 | Reconcile per D10 (E-05) | open (direction = D10) |
 | F-13 | "AS SEEN ON" strip labels associations/podcasts (ABA — a speaking venue per the bio; Profit with Law, Law Firm Growth, Wealthy Woman Lawyer — podcasts/communities) as if media coverage. Proof-discipline nuance on a trust element; contents are real, the label overclaims slightly. | 1 | Accuracy-safe label wording (E-10, owner-gated D9) | owner-gated (D9) |
 | F-14 | **Crimson Pro is double-sourced** (corrected 2026-08-09 — the Phase-1 "dead preconnects" claim was wrong): the head loads BOTH the Google css2 stylesheet AND the Typekit kit, and runtime font-host capture shows both foundries serving — Typekit 5 files (~234 KB, Sweet Sans + Crimson cuts) + fonts.gstatic 2 files (~97 KB duplicate Crimson). Total 332 KB / 7 files (> 200 KB budget) behind two render-blocking cross-origin stylesheets. | 1 | One foundry owns Crimson: audit cuts used, confirm kit coverage, drop the css2 line (E-18); then Phase 4 subsetting (E-04) | open |
-| F-15 | Macro-conversion single-point dependency: Calendly embed is the only booking mechanism (same-page contact form is the fallback). Lab note: the widget did not initialize headlessly on the preview host (0 bytes fetched after load) — likely domain-locked like Vimeo (project memory); verify on the live domain after cutover. | 1 | Verify live; make the fallback visible near the scheduler (E-13) | lab-note / open |
+| F-15 | **Resolved:** the former embedded Calendly widget was a preview-host single point of failure. The homepage now uses one explicit `View Available Times →` external action to the canonical scheduler, with the protected contact form beside it for non-booking inquiries. | — | Preserve the external handoff; do not restore the embed, its script, or recovery copy without a new owner decision. | resolved |
 | F-16 | CLS at load is green everywhere (0.000–0.06; home 0.009 — stamped image dims work). The 1.63 "shift sum" on home is a full-scroll lab sum across the pinned cinematic, **not** windowed CWV CLS; field/windowed measurement pending. | 0 | Field CWV once live (E-06) | open |
 
 **Phase 6 additions (2026-08-09):**

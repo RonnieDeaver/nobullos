@@ -3,7 +3,7 @@
   "name": "lint-comms-popup-overlay guard (Task #3364)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #3364: the comms popup-overlay drift guard. Its first assertion runs the lint over the REAL client/src/components/comms/ tree, so any NEW hand-rolled `absolute + z>=40` overlay panel in a comms component (the clipped-menu bug class of Tasks #3332/#3347) fails the routine gate even for popup variants the DOM-level section-G guard never mounts. The Validate workflow runs npm run gate, including this SMOKE_FILES coverage. Fast, DB-free, deterministic (source scan + tmpdir fixtures).",
+  "smokeReason": "Task #3364: the comms popup-overlay drift guard. Its first assertion runs the lint over the REAL client/src/components/comms/ tree, so any NEW hand-rolled `absolute + z>=40` overlay panel in a comms component (the clipped-menu bug class of Tasks #3332/#3347) fails the routine gate even for popup variants the DOM-level section-G guard never mounts. The managed Long validation workflow runs the reviewed routine-gate profile, including this SMOKE_FILES coverage. Fast, DB-free, deterministic (source scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */

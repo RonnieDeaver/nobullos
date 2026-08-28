@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "API smoke (HTTP)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

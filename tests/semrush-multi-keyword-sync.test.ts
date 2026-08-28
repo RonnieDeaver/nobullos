@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "SEMrush multi-keyword sync",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

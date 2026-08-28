@@ -435,60 +435,6 @@ import type { Express } from "express";
       // Extract locations + team assignments from body before parsing client
       // data (neither belongs to insertClientSchema).
       const { locations, teamAssignments, ...clientBody } = req.body;
-      
-      let bodyData = clientBody;
-      if (!hasRole(user?.role, 'account_manager')) {
-        const { ownerId, ...rest } = bodyData;
-        bodyData = { ...rest, ownerId: userId };
-      }
-      
-      // Convert date strings to Date objects
-      if (bodyData.clientStartDate && typeof bodyData.clientStartDate === 'string') {
-        bodyData.clientStartDate = new Date(bodyData.clientStartDate);
-      }
-      
-      const parsed = insertClientSchema.safeParse(bodyData);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.issues });
-      }
-
-      const clientData = parsed.data;
-      const { validateProductList, CANONICAL_PRODUCTS } = await import("../utils/productResolution");
-      const productsInput = Array.isArray(clientData.products) ? clientData.products : [];
-      const { normalized: normalizedProducts, invalid: invalidProducts } = validateProductList(productsInput);
-      if (invalidProducts.length > 0) {
-        return res.status(400).json({
-          error: "Unknown product value(s) submitted. Allowed products: " + CANONICAL_PRODUCTS.join(", ") + ".",
-          code: "INVALID_PRODUCTS",
-          invalid: invalidProducts,
-          allowed: [...CANONICAL_PRODUCTS],
-        });
-      }
-      if (normalizedProducts.length === 0) {
-        return res.status(400).json({ error: "At least one product is required to create a client." });
-      }
-      clientData.products = normalizedProducts;
-
-      // Task #4790 — vendor/receipt identifiers are never client identifiers.
-      // Screen trusted domains + the legacy primary contact email here so this
-      // authoritative writer can't (re-)poison client identity data the way
-      // the Dellutri vendor-domain incident did.
-      {
-        const { findVendorIdentifierViolations, vendorIdentifierRefusalMessage } = await import(
-          "../services/seedingTrustPolicy"
-        );
-        const violations = findVendorIdentifierViolations({
-          emailDomains: clientData.emailDomains,
-          emails: clientData.contactEmail ? [clientData.contactEmail] : undefined,
-        });
-        if (violations.length > 0) {
-          return res.status(400).json({
-            error: vendorIdentifierRefusalMessage(violations),
-            code: "VENDOR_IDENTIFIER_REFUSED",
-            violations,
-          });
-        }
-      }
 
       // Task #4171 — validate the Add Client form's per-department role
       // selections and build the seed plan BEFORE creating the client, so a
@@ -502,36 +448,21 @@ import type { Express } from "express";
         return res.status(teamSeed.status).json({ error: teamSeed.error });
       }
 
-      const client = await storage.createClient(clientData);
-
-      // Task #4329 — rule tags + segment membership evaluate on write
-      // (never fails the write; the periodic sweep heals any miss).
-      const { evaluateRecordWriteSafe } = await import("../services/tagSegmentEngine");
-      await evaluateRecordWriteSafe("client", client.id);
-
-      // Task #4762 — a client created WITH trusted email domains drains its
-      // own backlog: kick the scoped deterministic re-match so pre-existing
-      // unmatched Front traffic on those domains attaches without an operator
-      // press (the 6h-enrolled full re-match is the backstop). Non-fatal.
-      const createdEmailDomains = (client as any)?.emailDomains;
-      if (Array.isArray(createdEmailDomains) && createdEmailDomains.length > 0) {
-        try {
-          const { enqueueRetroactiveReprocessSafe, periodicDedupeKey } = await import(
-            "../services/retroactiveReprocessControl"
-          );
-          await enqueueRetroactiveReprocessSafe({
-            clientId: client.id,
-            source: "client_domain_edit",
-            workloadClass: "interactive_repair",
-            dedupeKey: periodicDedupeKey(client.id),
-          });
-        } catch (err: any) {
-          console.warn(
-            "[CreateClient] domain re-match enqueue failed (non-fatal):",
-            err?.message ?? err,
-          );
-        }
+      // Task #5297 — client-creation core (ownerId rules, product/vendor
+      // validation, storage.createClient, tag/segment eval, audit log, comms
+      // provisioning) now lives in one shared function so the onboarding
+      // intake endpoint creates clients under the exact same rules.
+      const { createValidatedClient } = await import("../services/clientIntake");
+      const result = await createValidatedClient({
+        rawBody: clientBody,
+        actingUserId: userId,
+        actingUserRole: user?.role,
+        route: "/admin/clients",
+      });
+      if (!result.ok) {
+        return res.status(result.status).json(result.body);
       }
+      const { client } = result;
 
       // Seed the client's department role assignments (Task #4171). The
       // client already exists — a seeding failure must never fail or retry
@@ -547,22 +478,6 @@ import type { Express } from "express";
         teamAssignmentWarning =
           "The client was created, but its team role assignments could not be saved. Set them from the client's page or the Role Assignments console.";
       }
-
-      // Provision a private comms channel for the new client (fire-and-forget —
-      // a channel failure must never block client creation; errors logged inside).
-      void (async () => {
-        try {
-          const { provisionClientChannel } = await import("../storage/commsStorage");
-          const slug = (client.firmName ?? "")
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "")
-            .slice(0, 40);
-          await provisionClientChannel(client.id, `client-${slug || client.id.slice(0, 8)}`);
-        } catch (e: any) {
-          console.warn("[Clients] Comms channel provision skipped:", e?.message);
-        }
-      })();
 
       // Each draft location must carry a name and a full street address. The
       // address is geocoded (street + city + state + ZIP) for MCU capacity
@@ -633,64 +548,10 @@ import type { Express } from "express";
       if (locationsCreated) {
         onLocationChanged();
       }
-      
-      // Task #1941 — Audit-log client creation (and the initial product
-      // set) so the History popover has a starting row to render.
-      const createAuditEvents: any[] = [];
-      try {
-        const { insertActivityLogs } = await import("../storage/activityStorage");
-        const actorId = userId ?? null;
-        const events = createAuditEvents;
-        events.push({
-          userId: actorId,
-          actionType: "client_created",
-          route: "/admin/clients",
-          actionDetail: `Created client ${client.firmName ?? client.id}`,
-          metadata: {
-            clientId: client.id,
-            clientFirmName: client.firmName ?? null,
-            products: normalizedProducts,
-          },
-          sessionId: null,
-          duration: null,
-          timestamp: new Date(),
-        });
-        for (const p of normalizedProducts) {
-          events.push({
-            userId: actorId,
-            actionType: "product_added",
-            route: "/admin/clients",
-            actionDetail: `Added product ${p} to ${client.firmName ?? client.id}`,
-            metadata: { clientId: client.id, clientFirmName: client.firmName ?? null, product: p },
-            sessionId: null,
-            duration: null,
-            timestamp: new Date(),
-          });
-        }
-        await insertActivityLogs(events);
-      } catch (logErr: any) {
-        console.error("[ClientCreate] Audit log failed:", logErr?.message);
-        // Task #1986 — best-effort logging just silently emptied the History
-        // popover before; surface a persistent failure to operators (Slack +
-        // in-app bell) without letting the alert path break the response.
-        try {
-          const { recordClientAuditLogWriteFailure } = await import(
-            "../services/clientAuditLogFailureAlerts"
-          );
-          void recordClientAuditLogWriteFailure({
-            operation: "create",
-            clientId: client.id,
-            clientFirmName: client.firmName ?? null,
-            eventCount: createAuditEvents.length,
-            error: logErr,
-          });
-        } catch (alertErr: any) {
-          console.error(
-            "[ClientCreate] Audit-log failure alert errored:",
-            alertErr?.message ?? alertErr,
-          );
-        }
-      }
+
+      // Task #1941 audit-log entry + Task #5297 comms provisioning now live
+      // in `createValidatedClient` above (shared with the onboarding intake
+      // endpoint) rather than being duplicated here.
 
       res.status(201).json(
         locationWarnings.length > 0 || teamAssignmentWarning

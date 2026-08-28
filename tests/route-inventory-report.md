@@ -1,16 +1,16 @@
 # Route Inventory Report
-Generated: 2026-08-25T03:29:44.552Z
-Total routes discovered: 1539
+Generated: 2026-08-27T20:56:58.685Z
+Total routes discovered: 1558
 
 ## Summary by Protection Level
 
 | Protection | Count |
 |---|---|
-| authenticated | 543 |
-| requireAccountManager | 305 |
-| requireCeo | 133 |
+| authenticated | 546 |
+| requireAccountManager | 312 |
+| requireCeo | 136 |
 | public | 64 |
-| requireTeamLead | 402 |
+| requireTeamLead | 408 |
 | requireCommandCenterAccess | 34 |
 | requireCeoToolsAuth | 3 |
 | requireInternal | 6 |
@@ -84,7 +84,7 @@ Total routes discovered: 1539
 | server/routes/integrations/hub.ts | 7 |
 | server/routes/integrations/pipeline.ts | 3 |
 | server/routes/integrations/semrush.ts | 8 |
-| server/routes/integrations/unmatched.ts | 6 |
+| server/routes/integrations/unmatched.ts | 13 |
 | server/routes/integrations/workQueue.ts | 19 |
 | server/routes/integrations/zoom.ts | 2 |
 | server/routes/internalUsage.ts | 2 |
@@ -94,6 +94,8 @@ Total routes discovered: 1539
 | server/routes/matchSettings.ts | 11 |
 | server/routes/mcu.ts | 10 |
 | server/routes/notifications.ts | 14 |
+| server/routes/onboardingIntake.ts | 2 |
+| server/routes/onboardingRosterAdmin.ts | 5 |
 | server/routes/orphanedUserHeal.ts | 1 |
 | server/routes/outboundEmail.ts | 18 |
 | server/routes/poolAuditTrends.ts | 1 |
@@ -112,7 +114,7 @@ Total routes discovered: 1539
 | server/routes/semrushCadence.ts | 2 |
 | server/routes/serviceDesk/clickupImports.ts | 3 |
 | server/routes/serviceDesk/configSetup.ts | 5 |
-| server/routes/serviceDesk/departments.ts | 29 |
+| server/routes/serviceDesk/departments.ts | 34 |
 | server/routes/serviceDesk/reports.ts | 3 |
 | server/routes/serviceDesk/requestTypes.ts | 8 |
 | server/routes/serviceDesk/templates.ts | 9 |
@@ -133,26 +135,26 @@ Total routes discovered: 1539
 
 | Classification | Count |
 |---|---|
-| authenticated | 1459 |
-| admin_only | 287 |
+| authenticated | 1478 |
+| admin_only | 295 |
 | public | 64 |
 | upload | 8 |
 | token_auth | 3 |
-| ai_rate_limited | 117 |
+| ai_rate_limited | 118 |
 | webhook | 32 |
 
 ## Public Routes (No Auth Required)
 
 | Method | Path | File | Middleware |
 |---|---|---|---|
-| GET | /api/ads-os/cron/clickup-health | server/routes/adsOs.ts:1356 | none |
-| POST | /api/ads-os/cron/refresh-pacing | server/routes/adsOs.ts:1378 | none |
+| GET | /api/ads-os/cron/clickup-health | server/routes/adsOs.ts:1365 | none |
+| POST | /api/ads-os/cron/refresh-pacing | server/routes/adsOs.ts:1387 | none |
 | GET | /api/ats/portal/:token | server/routes/ats.ts:1282 | none |
-| POST | /api/ats/portal/:token/submit | server/routes/ats.ts:1345 | none |
-| POST | /api/ats/portal/:token/complete-screening | server/routes/ats.ts:1450 | none |
-| POST | /api/ats/portal/:token/complete-video | server/routes/ats.ts:1500 | none |
-| POST | /api/ats/portal/:token/video-upload-url | server/routes/ats.ts:1883 | none |
-| POST | /api/ats/portal/:token/submit-video | server/routes/ats.ts:1913 | none |
+| POST | /api/ats/portal/:token/submit | server/routes/ats.ts:1350 | none |
+| POST | /api/ats/portal/:token/complete-screening | server/routes/ats.ts:1455 | none |
+| POST | /api/ats/portal/:token/complete-video | server/routes/ats.ts:1505 | none |
+| POST | /api/ats/portal/:token/video-upload-url | server/routes/ats.ts:1888 | none |
+| POST | /api/ats/portal/:token/submit-video | server/routes/ats.ts:1918 | none |
 | POST | /api/stripe/webhook | server/routes/billing.ts:151 | none |
 | POST | /api/book/journey/start | server/routes/bookBuyerJourney.ts:275 | bookCheckoutLimiter |
 | POST | /api/book/journey/submit | server/routes/bookBuyerJourney.ts:350 | bookCheckoutLimiter |
@@ -172,8 +174,8 @@ Total routes discovered: 1539
 | POST | /api/book/:slug/recurrence/preview-availability | server/routes/booking.ts:2923 | none |
 | DELETE | /api/booking/:id | server/routes/booking.ts:3153 | writeLimiter |
 | GET | /api/ceo-tools/call-analysis/:analysisId | server/routes/ceoTools.ts:397 | none |
-| GET | /api/integrations/clickup/callback | server/routes/clickup.ts:182 | none |
-| POST | /api/webhooks/clickup | server/routes/clickup.ts:2040 | none |
+| GET | /api/integrations/clickup/callback | server/routes/clickup.ts:187 | none |
+| POST | /api/webhooks/clickup | server/routes/clickup.ts:2047 | none |
 | GET | /share/file/:token | server/routes/clientFiles.ts:1057 | none |
 | POST | /api/comms/incoming/:token | server/routes/comms/bookmarks.ts:233 | none |
 | POST | /api/comms/webhook/livekit | server/routes/comms/calls.ts:269 | none |
@@ -215,10 +217,10 @@ Total routes discovered: 1539
 | Method | Path | File | Protection | Middleware |
 |---|---|---|---|---|
 | POST | /api/stripe/webhook | server/routes/billing.ts:151 | public | none |
-| GET | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1968 | requireAccountManager | isAuthenticated, requireAccountManager |
-| POST | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1984 | requireAccountManager | isAuthenticated, requireAccountManager |
-| DELETE | /api/clickup/webhooks/:webhookId | server/routes/clickup.ts:2018 | requireAccountManager | isAuthenticated, requireAccountManager |
-| POST | /api/webhooks/clickup | server/routes/clickup.ts:2040 | public | none |
+| GET | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1973 | requireAccountManager | isAuthenticated, requireAccountManager |
+| POST | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1989 | requireAccountManager | isAuthenticated, requireAccountManager |
+| DELETE | /api/clickup/webhooks/:webhookId | server/routes/clickup.ts:2025 | requireAccountManager | isAuthenticated, requireAccountManager |
+| POST | /api/webhooks/clickup | server/routes/clickup.ts:2047 | public | none |
 | POST | /api/comms/webhook/livekit | server/routes/comms/calls.ts:269 | public | none |
 | POST | /api/comms/webhooks | server/routes/comms/webhooksEmoji.ts:30 | authenticated | isAuthenticated |
 | GET | /api/comms/webhooks | server/routes/comms/webhooksEmoji.ts:79 | authenticated | isAuthenticated |
@@ -337,6 +339,7 @@ Total routes discovered: 1539
 | PUT | /api/email-sequences/:id/steps | server/routes/emailSequences.ts:640 | writeLimiter | authenticated |
 | POST | /api/email-sequences/:id/enroll | server/routes/emailSequences.ts:671 | writeLimiter | authenticated |
 | POST | /api/email-sequences/:id/enroll-segment | server/routes/emailSequences.ts:705 | writeLimiter | authenticated |
+| POST | /api/onboarding/intake | server/routes/onboardingIntake.ts:97 | writeLimiter | authenticated |
 | POST | /api/outbound-email/compose | server/routes/outboundEmail.ts:168 | writeLimiter | authenticated |
 | POST | /api/outbound-email/suppressions | server/routes/outboundEmail.ts:259 | writeLimiter | requireTeamLead |
 | DELETE | /api/outbound-email/suppressions/:id | server/routes/outboundEmail.ts:283 | writeLimiter | requireTeamLead |
@@ -384,8 +387,8 @@ Total routes discovered: 1539
 | POST | /api/ats/parse-jd | server/routes/ats.ts:232 | jdUpload.single | requireTeamLead |
 | POST | /api/ats/parse-scorecard | server/routes/ats.ts:301 | jdUpload.single | requireTeamLead |
 | POST | /api/ats/candidates/:id/upload-resume | server/routes/ats.ts:771 | jdUpload.single | requireTeamLead |
-| POST | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1028 | upload.single | authenticated |
-| POST | /api/clickup/entity/:entityId/attachments | server/routes/clickup.ts:1101 | upload.single | authenticated |
+| POST | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1033 | upload.single | authenticated |
+| POST | /api/clickup/entity/:entityId/attachments | server/routes/clickup.ts:1106 | upload.single | authenticated |
 | POST | /api/reports/import-pdf | server/routes/reports.ts:1911 | upload.single | requireAccountManager |
 | POST | /api/webhooks/report-import | server/routes/reports.ts:1983 | upload.single | public |
 | POST | /api/reports/:id/reimport | server/routes/reports.ts:3059 | upload.single | requireAccountManager |
@@ -398,59 +401,59 @@ Total routes discovered: 1539
 | 2 | GET | /api/activity | server/routes/activity.ts:77 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 3 | GET | /api/audit-history | server/routes/activity.ts:123 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 4 | GET | /api/activity/stats | server/routes/activity.ts:140 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 5 | GET | /api/ads-os/status | server/routes/adsOs.ts:186 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 6 | GET | /api/ads-os/proofs/accounts | server/routes/adsOs.ts:221 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 7 | GET | /api/ads-os/proofs/clickup | server/routes/adsOs.ts:246 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 8 | GET | /api/ads-os/proofs/openai | server/routes/adsOs.ts:291 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 9 | GET | /api/ads-os/proofs/store | server/routes/adsOs.ts:327 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 10 | GET | /api/ads-os/dashboard | server/routes/adsOs.ts:425 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 11 | GET | /api/ads-os/lsa/dashboard | server/routes/adsOs.ts:442 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 12 | GET | /api/ads-os/combined/dashboard | server/routes/adsOs.ts:459 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 13 | GET | /api/ads-os/accounts | server/routes/adsOs.ts:481 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 14 | GET | /api/ads-os/monitored-accounts | server/routes/adsOs.ts:502 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 15 | GET | /api/ads-os/lsa/monitored-accounts | server/routes/adsOs.ts:518 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 16 | GET | /api/ads-os/clients | server/routes/adsOs.ts:537 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 17 | GET | /api/ads-os/dashboard/pacing | server/routes/adsOs.ts:558 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 18 | POST | /api/ads-os/directory/refresh | server/routes/adsOs.ts:605 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 19 | GET | /api/ads-os/budget-pacing/:cid | server/routes/adsOs.ts:632 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 20 | GET | /api/ads-os/lsa/pacing/:cid | server/routes/adsOs.ts:647 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 21 | GET | /api/ads-os/clients/:cid/criteria | server/routes/adsOs.ts:772 | authenticated | isAuthenticated | authenticated |
-| 22 | GET | /api/ads-os/keyword-intel/:cid/criteria | server/routes/adsOs.ts:777 | authenticated | isAuthenticated | authenticated |
-| 23 | PUT | /api/ads-os/clients/:cid/criteria | server/routes/adsOs.ts:782 | authenticated | isAuthenticated | authenticated |
-| 24 | PUT | /api/ads-os/keyword-intel/:cid/criteria | server/routes/adsOs.ts:787 | authenticated | isAuthenticated | authenticated |
-| 25 | GET | /api/ads-os/audit/:cid | server/routes/adsOs.ts:815 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 26 | POST | /api/ads-os/audit/:cid/run | server/routes/adsOs.ts:831 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 27 | GET | /api/ads-os/audit/:cid/report.html | server/routes/adsOs.ts:845 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 28 | POST | /api/ads-os/dashboard/run-audits | server/routes/adsOs.ts:866 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 29 | GET | /api/ads-os/audit/:cid/history | server/routes/adsOs.ts:876 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 30 | GET | /api/ads-os/lsa/hygiene/:cid | server/routes/adsOs.ts:886 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 31 | GET | /api/ads-os/lsa/hygiene/:cid/history | server/routes/adsOs.ts:900 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 32 | GET | /api/ads-os/lsa/hygiene/:cid/report.html | server/routes/adsOs.ts:910 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 33 | POST | /api/ads-os/lsa/dashboard/run-audits | server/routes/adsOs.ts:929 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 34 | GET | /api/ads-os/keyword-intel/:cid | server/routes/adsOs.ts:946 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 35 | GET | /api/ads-os/keyword-intel/:cid/keywords | server/routes/adsOs.ts:960 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 36 | GET | /api/ads-os/pyramid/:cid | server/routes/adsOs.ts:979 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 37 | POST | /api/ads-os/keyword-intel/:cid/keywords/actioned | server/routes/adsOs.ts:995 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 38 | GET | /api/ads-os/client/profile | server/routes/adsOs.ts:1013 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 39 | GET | /api/ads-os/client/performance | server/routes/adsOs.ts:1035 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 40 | GET | /api/ads-os/client/log-summary | server/routes/adsOs.ts:1073 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 41 | GET | /api/ads-os/clients/:cid/sibling | server/routes/adsOs.ts:1097 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 42 | POST | /api/ads-os/dashboard/run-alerts | server/routes/adsOs.ts:1110 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 43 | POST | /api/ads-os/lsa/dashboard/run-alerts | server/routes/adsOs.ts:1118 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 44 | POST | /api/ads-os/combined/dashboard/run-alerts | server/routes/adsOs.ts:1129 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 45 | GET | /api/ads-os/am/dashboard | server/routes/adsOs.ts:1144 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 46 | POST | /api/ads-os/dashboard/run-status-checks | server/routes/adsOs.ts:1176 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 47 | POST | /api/ads-os/lsa/dashboard/run-status-checks | server/routes/adsOs.ts:1197 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 48 | POST | /api/ads-os/am/dashboard/refresh | server/routes/adsOs.ts:1215 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 49 | GET | /api/ads-os/clickup/enabled | server/routes/adsOs.ts:1258 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 50 | POST | /api/ads-os/clickup/task | server/routes/adsOs.ts:1265 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 51 | GET | /api/ads-os/health | server/routes/adsOs.ts:1292 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 52 | GET | /api/ads-os/accounts/:cid/probe | server/routes/adsOs.ts:1304 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 53 | GET | /api/ads-os/cron/clickup-health | server/routes/adsOs.ts:1356 | public | none | public |
-| 54 | POST | /api/ads-os/cron/refresh-pacing | server/routes/adsOs.ts:1378 | public | none | public |
-| 55 | GET | /api/ads-os/admin/paid-search-role-cutover | server/routes/adsOs.ts:1426 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 56 | GET | /api/ads-os/admin/paid-search-role-cutover/state | server/routes/adsOs.ts:1448 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 57 | PUT | /api/ads-os/admin/paid-search-role-cutover/state | server/routes/adsOs.ts:1481 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 5 | GET | /api/ads-os/status | server/routes/adsOs.ts:187 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 6 | GET | /api/ads-os/proofs/accounts | server/routes/adsOs.ts:222 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 7 | GET | /api/ads-os/proofs/clickup | server/routes/adsOs.ts:247 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 8 | GET | /api/ads-os/proofs/openai | server/routes/adsOs.ts:292 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 9 | GET | /api/ads-os/proofs/store | server/routes/adsOs.ts:328 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 10 | GET | /api/ads-os/dashboard | server/routes/adsOs.ts:426 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 11 | GET | /api/ads-os/lsa/dashboard | server/routes/adsOs.ts:443 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 12 | GET | /api/ads-os/combined/dashboard | server/routes/adsOs.ts:460 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 13 | GET | /api/ads-os/accounts | server/routes/adsOs.ts:482 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 14 | GET | /api/ads-os/monitored-accounts | server/routes/adsOs.ts:503 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 15 | GET | /api/ads-os/lsa/monitored-accounts | server/routes/adsOs.ts:519 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 16 | GET | /api/ads-os/clients | server/routes/adsOs.ts:538 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 17 | GET | /api/ads-os/dashboard/pacing | server/routes/adsOs.ts:559 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 18 | POST | /api/ads-os/directory/refresh | server/routes/adsOs.ts:606 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 19 | GET | /api/ads-os/budget-pacing/:cid | server/routes/adsOs.ts:633 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 20 | GET | /api/ads-os/lsa/pacing/:cid | server/routes/adsOs.ts:648 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 21 | GET | /api/ads-os/clients/:cid/criteria | server/routes/adsOs.ts:773 | authenticated | isAuthenticated | authenticated |
+| 22 | GET | /api/ads-os/keyword-intel/:cid/criteria | server/routes/adsOs.ts:778 | authenticated | isAuthenticated | authenticated |
+| 23 | PUT | /api/ads-os/clients/:cid/criteria | server/routes/adsOs.ts:783 | authenticated | isAuthenticated | authenticated |
+| 24 | PUT | /api/ads-os/keyword-intel/:cid/criteria | server/routes/adsOs.ts:788 | authenticated | isAuthenticated | authenticated |
+| 25 | GET | /api/ads-os/audit/:cid | server/routes/adsOs.ts:816 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 26 | POST | /api/ads-os/audit/:cid/run | server/routes/adsOs.ts:840 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 27 | GET | /api/ads-os/audit/:cid/report.html | server/routes/adsOs.ts:854 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 28 | POST | /api/ads-os/dashboard/run-audits | server/routes/adsOs.ts:875 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 29 | GET | /api/ads-os/audit/:cid/history | server/routes/adsOs.ts:885 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 30 | GET | /api/ads-os/lsa/hygiene/:cid | server/routes/adsOs.ts:895 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 31 | GET | /api/ads-os/lsa/hygiene/:cid/history | server/routes/adsOs.ts:909 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 32 | GET | /api/ads-os/lsa/hygiene/:cid/report.html | server/routes/adsOs.ts:919 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 33 | POST | /api/ads-os/lsa/dashboard/run-audits | server/routes/adsOs.ts:938 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 34 | GET | /api/ads-os/keyword-intel/:cid | server/routes/adsOs.ts:955 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 35 | GET | /api/ads-os/keyword-intel/:cid/keywords | server/routes/adsOs.ts:969 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 36 | GET | /api/ads-os/pyramid/:cid | server/routes/adsOs.ts:988 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 37 | POST | /api/ads-os/keyword-intel/:cid/keywords/actioned | server/routes/adsOs.ts:1004 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 38 | GET | /api/ads-os/client/profile | server/routes/adsOs.ts:1022 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 39 | GET | /api/ads-os/client/performance | server/routes/adsOs.ts:1044 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 40 | GET | /api/ads-os/client/log-summary | server/routes/adsOs.ts:1082 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 41 | GET | /api/ads-os/clients/:cid/sibling | server/routes/adsOs.ts:1106 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 42 | POST | /api/ads-os/dashboard/run-alerts | server/routes/adsOs.ts:1119 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 43 | POST | /api/ads-os/lsa/dashboard/run-alerts | server/routes/adsOs.ts:1127 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 44 | POST | /api/ads-os/combined/dashboard/run-alerts | server/routes/adsOs.ts:1138 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 45 | GET | /api/ads-os/am/dashboard | server/routes/adsOs.ts:1153 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 46 | POST | /api/ads-os/dashboard/run-status-checks | server/routes/adsOs.ts:1185 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 47 | POST | /api/ads-os/lsa/dashboard/run-status-checks | server/routes/adsOs.ts:1206 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 48 | POST | /api/ads-os/am/dashboard/refresh | server/routes/adsOs.ts:1224 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 49 | GET | /api/ads-os/clickup/enabled | server/routes/adsOs.ts:1267 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 50 | POST | /api/ads-os/clickup/task | server/routes/adsOs.ts:1274 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 51 | GET | /api/ads-os/health | server/routes/adsOs.ts:1301 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 52 | GET | /api/ads-os/accounts/:cid/probe | server/routes/adsOs.ts:1313 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 53 | GET | /api/ads-os/cron/clickup-health | server/routes/adsOs.ts:1365 | public | none | public |
+| 54 | POST | /api/ads-os/cron/refresh-pacing | server/routes/adsOs.ts:1387 | public | none | public |
+| 55 | GET | /api/ads-os/admin/paid-search-role-cutover | server/routes/adsOs.ts:1435 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 56 | GET | /api/ads-os/admin/paid-search-role-cutover/state | server/routes/adsOs.ts:1457 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 57 | PUT | /api/ads-os/admin/paid-search-role-cutover/state | server/routes/adsOs.ts:1490 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
 | 58 | GET | /api/clients/:clientId/contacts | server/routes/agents.ts:149 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 59 | GET | /api/clients/:clientId/contacts/audit | server/routes/agents.ts:161 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 60 | GET | /api/clients/:clientId/locations/audit | server/routes/agents.ts:174 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
@@ -549,27 +552,27 @@ Total routes discovered: 1539
 | 153 | POST | /api/ats/batch-rescore | server/routes/ats.ts:857 | requireCeoToolsAuth | requireCeoToolsAuth | token_auth |
 | 154 | POST | /api/ats/candidates/:id/score | server/routes/ats.ts:1020 | requireTeamLead | isAuthenticated, requireTeamLead, aiLimiter | authenticated, ai_rate_limited |
 | 155 | GET | /api/ats/portal/:token | server/routes/ats.ts:1282 | public | none | public |
-| 156 | POST | /api/ats/portal/:token/submit | server/routes/ats.ts:1345 | public | none | public |
-| 157 | POST | /api/ats/portal/:token/complete-screening | server/routes/ats.ts:1450 | public | none | public |
-| 158 | POST | /api/ats/portal/:token/complete-video | server/routes/ats.ts:1500 | public | none | public |
-| 159 | POST | /api/ats/jobs/:jobId/candidates/import-csv | server/routes/ats.ts:1732 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 160 | POST | /api/ats/jobs/:jobId/candidates/bulk-update | server/routes/ats.ts:1792 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 161 | POST | /api/ats/jobs/:jobId/recalibrate | server/routes/ats.ts:1820 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 162 | GET | /api/ats/jobs/:jobId/analytics | server/routes/ats.ts:1831 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 163 | POST | /api/ats/portal/:token/video-upload-url | server/routes/ats.ts:1883 | public | none | public |
-| 164 | POST | /api/ats/portal/:token/submit-video | server/routes/ats.ts:1913 | public | none | public |
-| 165 | POST | /api/ats/candidates/:id/retry-transcription | server/routes/ats.ts:2066 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 166 | GET | /api/ats/email-templates | server/routes/ats.ts:2098 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 167 | POST | /api/ats/email-templates | server/routes/ats.ts:2127 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 168 | PATCH | /api/ats/email-templates/:id | server/routes/ats.ts:2154 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 169 | DELETE | /api/ats/email-templates/:id | server/routes/ats.ts:2184 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 170 | GET | /api/ats/candidates/:id/interviews | server/routes/ats.ts:2200 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 171 | POST | /api/ats/candidates/:id/interviews | server/routes/ats.ts:2231 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 172 | POST | /api/ats/candidates/:id/interviews/:interviewId/analyze | server/routes/ats.ts:2266 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 173 | DELETE | /api/ats/candidates/:id/interviews/:interviewId | server/routes/ats.ts:2370 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 174 | PATCH | /api/ats/candidates/:id/interviews/:interviewId | server/routes/ats.ts:2421 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 175 | GET | /api/ats/candidates/:id/final-decision | server/routes/ats.ts:2445 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 176 | POST | /api/ats/candidates/:id/final-decision | server/routes/ats.ts:2458 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 156 | POST | /api/ats/portal/:token/submit | server/routes/ats.ts:1350 | public | none | public |
+| 157 | POST | /api/ats/portal/:token/complete-screening | server/routes/ats.ts:1455 | public | none | public |
+| 158 | POST | /api/ats/portal/:token/complete-video | server/routes/ats.ts:1505 | public | none | public |
+| 159 | POST | /api/ats/jobs/:jobId/candidates/import-csv | server/routes/ats.ts:1737 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 160 | POST | /api/ats/jobs/:jobId/candidates/bulk-update | server/routes/ats.ts:1797 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 161 | POST | /api/ats/jobs/:jobId/recalibrate | server/routes/ats.ts:1825 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 162 | GET | /api/ats/jobs/:jobId/analytics | server/routes/ats.ts:1836 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 163 | POST | /api/ats/portal/:token/video-upload-url | server/routes/ats.ts:1888 | public | none | public |
+| 164 | POST | /api/ats/portal/:token/submit-video | server/routes/ats.ts:1918 | public | none | public |
+| 165 | POST | /api/ats/candidates/:id/retry-transcription | server/routes/ats.ts:2071 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 166 | GET | /api/ats/email-templates | server/routes/ats.ts:2103 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 167 | POST | /api/ats/email-templates | server/routes/ats.ts:2132 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 168 | PATCH | /api/ats/email-templates/:id | server/routes/ats.ts:2159 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 169 | DELETE | /api/ats/email-templates/:id | server/routes/ats.ts:2189 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 170 | GET | /api/ats/candidates/:id/interviews | server/routes/ats.ts:2205 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 171 | POST | /api/ats/candidates/:id/interviews | server/routes/ats.ts:2236 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 172 | POST | /api/ats/candidates/:id/interviews/:interviewId/analyze | server/routes/ats.ts:2271 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 173 | DELETE | /api/ats/candidates/:id/interviews/:interviewId | server/routes/ats.ts:2375 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 174 | PATCH | /api/ats/candidates/:id/interviews/:interviewId | server/routes/ats.ts:2426 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 175 | GET | /api/ats/candidates/:id/final-decision | server/routes/ats.ts:2450 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 176 | POST | /api/ats/candidates/:id/final-decision | server/routes/ats.ts:2463 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
 | 177 | GET | /api/admin/audit-retention | server/routes/auditRetentionAdmin.ts:21 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
 | 178 | PUT | /api/admin/audit-retention | server/routes/auditRetentionAdmin.ts:45 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
 | 179 | GET | /api/admin/blocked-ip-audit-retention | server/routes/auditRetentionAdmin.ts:81 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
@@ -698,161 +701,161 @@ Total routes discovered: 1539
 | 302 | GET | /api/churn/radar/runs/:id/results | server/routes/churn.ts:1047 | authenticated | isAuthenticated | authenticated |
 | 303 | GET | /api/admin/clerk/restrictions | server/routes/clerkAdmin.ts:48 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
 | 304 | POST | /api/admin/clerk/enable-restricted-signup | server/routes/clerkAdmin.ts:78 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 305 | GET | /api/integrations/clickup/authorize | server/routes/clickup.ts:156 | authenticated | isAuthenticated | authenticated |
-| 306 | GET | /api/integrations/clickup/callback | server/routes/clickup.ts:182 | public | none | public |
-| 307 | POST | /api/integrations/clickup/disconnect | server/routes/clickup.ts:216 | authenticated | isAuthenticated | authenticated |
-| 308 | GET | /api/integrations/clickup/status | server/routes/clickup.ts:233 | authenticated | isAuthenticated | authenticated |
-| 309 | GET | /api/integrations/clickup/connected-users | server/routes/clickup.ts:251 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 310 | GET | /api/clickup/workspaces | server/routes/clickup.ts:278 | authenticated | isAuthenticated | authenticated |
-| 311 | GET | /api/clickup/workspaces/:workspaceId/hierarchy | server/routes/clickup.ts:289 | authenticated | isAuthenticated | authenticated |
-| 312 | GET | /api/clickup/workspaces/:workspaceId/spaces | server/routes/clickup.ts:322 | authenticated | isAuthenticated | authenticated |
-| 313 | POST | /api/clickup/workspaces/:workspaceId/spaces | server/routes/clickup.ts:337 | authenticated | isAuthenticated | authenticated |
-| 314 | PUT | /api/clickup/spaces/:spaceId | server/routes/clickup.ts:380 | authenticated | isAuthenticated | authenticated |
-| 315 | DELETE | /api/clickup/spaces/:spaceId | server/routes/clickup.ts:401 | authenticated | isAuthenticated | authenticated |
-| 316 | GET | /api/clickup/spaces/:spaceId/folders | server/routes/clickup.ts:420 | authenticated | isAuthenticated | authenticated |
-| 317 | POST | /api/clickup/spaces/:spaceId/folders | server/routes/clickup.ts:431 | authenticated | isAuthenticated | authenticated |
-| 318 | PUT | /api/clickup/folders/:folderId | server/routes/clickup.ts:469 | authenticated | isAuthenticated | authenticated |
-| 319 | DELETE | /api/clickup/folders/:folderId | server/routes/clickup.ts:488 | authenticated | isAuthenticated | authenticated |
-| 320 | GET | /api/clickup/spaces/:spaceId/lists | server/routes/clickup.ts:506 | authenticated | isAuthenticated | authenticated |
-| 321 | GET | /api/clickup/folders/:folderId/lists | server/routes/clickup.ts:517 | authenticated | isAuthenticated | authenticated |
-| 322 | POST | /api/clickup/spaces/:spaceId/lists | server/routes/clickup.ts:528 | authenticated | isAuthenticated | authenticated |
-| 323 | POST | /api/clickup/folders/:folderId/lists | server/routes/clickup.ts:563 | authenticated | isAuthenticated | authenticated |
-| 324 | PUT | /api/clickup/lists/:listId | server/routes/clickup.ts:598 | authenticated | isAuthenticated | authenticated |
-| 325 | DELETE | /api/clickup/lists/:listId | server/routes/clickup.ts:620 | authenticated | isAuthenticated | authenticated |
-| 326 | GET | /api/clickup/lists/:listId/custom-fields | server/routes/clickup.ts:638 | authenticated | isAuthenticated | authenticated |
-| 327 | GET | /api/clickup/lists/:listId/tasks | server/routes/clickup.ts:651 | authenticated | isAuthenticated | authenticated |
-| 328 | GET | /api/clickup/tasks/:taskId | server/routes/clickup.ts:677 | authenticated | isAuthenticated | authenticated |
-| 329 | POST | /api/clickup/lists/:listId/tasks | server/routes/clickup.ts:688 | authenticated | isAuthenticated | authenticated |
-| 330 | PUT | /api/clickup/tasks/:taskId | server/routes/clickup.ts:699 | authenticated | isAuthenticated | authenticated |
-| 331 | DELETE | /api/clickup/tasks/:taskId | server/routes/clickup.ts:710 | authenticated | isAuthenticated | authenticated |
-| 332 | POST | /api/clickup/tasks/:taskId/fields/:fieldId | server/routes/clickup.ts:721 | authenticated | isAuthenticated | authenticated |
-| 333 | DELETE | /api/clickup/tasks/:taskId/fields/:fieldId | server/routes/clickup.ts:740 | authenticated | isAuthenticated | authenticated |
-| 334 | GET | /api/clickup/workspaces/:workspaceId/custom-item-types | server/routes/clickup.ts:759 | authenticated | isAuthenticated | authenticated |
-| 335 | GET | /api/clickup/folders/:folderId/custom-fields | server/routes/clickup.ts:778 | authenticated | isAuthenticated | authenticated |
-| 336 | GET | /api/clickup/spaces/:spaceId/custom-fields | server/routes/clickup.ts:797 | authenticated | isAuthenticated | authenticated |
-| 337 | GET | /api/clickup/workspaces/:workspaceId/custom-fields | server/routes/clickup.ts:816 | authenticated | isAuthenticated | authenticated |
-| 338 | POST | /api/clickup/tasks/:taskId/checklists | server/routes/clickup.ts:833 | authenticated | isAuthenticated | authenticated |
-| 339 | POST | /api/clickup/checklists/:checklistId/items | server/routes/clickup.ts:844 | authenticated | isAuthenticated | authenticated |
-| 340 | PUT | /api/clickup/checklists/:checklistId/items/:itemId | server/routes/clickup.ts:859 | authenticated | isAuthenticated | authenticated |
-| 341 | DELETE | /api/clickup/checklists/:checklistId | server/routes/clickup.ts:879 | authenticated | isAuthenticated | authenticated |
-| 342 | GET | /api/clickup/tasks/:taskId/comments | server/routes/clickup.ts:912 | authenticated | isAuthenticated | authenticated |
-| 343 | POST | /api/clickup/tasks/:taskId/comments | server/routes/clickup.ts:925 | authenticated | isAuthenticated | authenticated |
-| 344 | GET | /api/clickup/comments/:commentId/replies | server/routes/clickup.ts:936 | authenticated | isAuthenticated | authenticated |
-| 345 | POST | /api/clickup/comments/:commentId/replies | server/routes/clickup.ts:947 | authenticated | isAuthenticated | authenticated |
-| 346 | PUT | /api/clickup/comments/:commentId | server/routes/clickup.ts:958 | authenticated | isAuthenticated | authenticated |
-| 347 | DELETE | /api/clickup/comments/:commentId | server/routes/clickup.ts:969 | authenticated | isAuthenticated | authenticated |
-| 348 | GET | /api/clickup/lists/:listId/comments | server/routes/clickup.ts:980 | authenticated | isAuthenticated | authenticated |
-| 349 | POST | /api/clickup/lists/:listId/comments | server/routes/clickup.ts:993 | authenticated | isAuthenticated | authenticated |
-| 350 | GET | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1013 | authenticated | isAuthenticated | authenticated |
-| 351 | POST | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1028 | authenticated | isAuthenticated, upload.single | authenticated, upload |
-| 352 | GET | /api/clickup/attachments/proxy | server/routes/clickup.ts:1056 | authenticated | isAuthenticated | authenticated |
-| 353 | POST | /api/clickup/entity/:entityId/attachments | server/routes/clickup.ts:1101 | authenticated | isAuthenticated, upload.single | authenticated, upload |
-| 354 | DELETE | /api/clickup/tasks/:taskId/attachments/:attachmentId | server/routes/clickup.ts:1128 | authenticated | isAuthenticated | authenticated |
-| 355 | GET | /api/clickup/workspaces/:workspaceId/time-entries | server/routes/clickup.ts:1168 | authenticated | isAuthenticated | authenticated |
-| 356 | POST | /api/clickup/workspaces/:workspaceId/time-entries | server/routes/clickup.ts:1196 | authenticated | isAuthenticated | authenticated |
-| 357 | PUT | /api/clickup/workspaces/:workspaceId/time-entries/:entryId | server/routes/clickup.ts:1211 | authenticated | isAuthenticated | authenticated |
-| 358 | DELETE | /api/clickup/workspaces/:workspaceId/time-entries/:entryId | server/routes/clickup.ts:1231 | authenticated | isAuthenticated | authenticated |
-| 359 | POST | /api/clickup/workspaces/:workspaceId/timer/start | server/routes/clickup.ts:1246 | authenticated | isAuthenticated | authenticated |
-| 360 | POST | /api/clickup/workspaces/:workspaceId/timer/stop | server/routes/clickup.ts:1266 | authenticated | isAuthenticated | authenticated |
-| 361 | GET | /api/clickup/workspaces/:workspaceId/timer/current | server/routes/clickup.ts:1281 | authenticated | isAuthenticated | authenticated |
-| 362 | GET | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/history | server/routes/clickup.ts:1298 | authenticated | isAuthenticated | authenticated |
-| 363 | GET | /api/clickup/workspaces/:workspaceId/time-entry-tags | server/routes/clickup.ts:1320 | authenticated | isAuthenticated | authenticated |
-| 364 | POST | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags | server/routes/clickup.ts:1336 | authenticated | isAuthenticated | authenticated |
-| 365 | DELETE | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags | server/routes/clickup.ts:1355 | authenticated | isAuthenticated | authenticated |
-| 366 | PUT | /api/clickup/workspaces/:workspaceId/time-entry-tags/rename | server/routes/clickup.ts:1373 | authenticated | isAuthenticated | authenticated |
-| 367 | PUT | /api/clickup/tasks/:taskId/time-estimates/user/:userId | server/routes/clickup.ts:1399 | authenticated | isAuthenticated | authenticated |
-| 368 | GET | /api/clickup/tasks/:taskId/time-in-status | server/routes/clickup.ts:1425 | authenticated | isAuthenticated | authenticated |
-| 369 | GET | /api/clickup/workspaces/:workspaceId/tasks/time-in-status | server/routes/clickup.ts:1446 | authenticated | isAuthenticated | authenticated |
-| 370 | GET | /api/clickup/workspaces/:workspaceId/goals | server/routes/clickup.ts:1466 | authenticated | isAuthenticated | authenticated |
-| 371 | GET | /api/clickup/goals/:goalId | server/routes/clickup.ts:1477 | authenticated | isAuthenticated | authenticated |
-| 372 | POST | /api/clickup/workspaces/:workspaceId/goals | server/routes/clickup.ts:1488 | authenticated | isAuthenticated | authenticated |
-| 373 | PUT | /api/clickup/goals/:goalId | server/routes/clickup.ts:1538 | authenticated | isAuthenticated | authenticated |
-| 374 | DELETE | /api/clickup/goals/:goalId | server/routes/clickup.ts:1561 | authenticated | isAuthenticated | authenticated |
-| 375 | POST | /api/clickup/goals/:goalId/key-results | server/routes/clickup.ts:1577 | authenticated | isAuthenticated | authenticated |
-| 376 | PUT | /api/clickup/goals/:goalId/key-results/:krId | server/routes/clickup.ts:1618 | authenticated | isAuthenticated | authenticated |
-| 377 | DELETE | /api/clickup/goals/:goalId/key-results/:krId | server/routes/clickup.ts:1651 | authenticated | isAuthenticated | authenticated |
-| 378 | GET | /api/clickup/workspaces/:workspaceId/docs | server/routes/clickup.ts:1684 | authenticated | isAuthenticated | authenticated |
-| 379 | POST | /api/clickup/workspaces/:workspaceId/docs | server/routes/clickup.ts:1697 | authenticated | isAuthenticated | authenticated |
-| 380 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId | server/routes/clickup.ts:1716 | authenticated | isAuthenticated | authenticated |
-| 381 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/page-listing | server/routes/clickup.ts:1732 | authenticated | isAuthenticated | authenticated |
-| 382 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/pages | server/routes/clickup.ts:1751 | authenticated | isAuthenticated | authenticated |
-| 383 | POST | /api/clickup/workspaces/:workspaceId/docs/:docId/pages | server/routes/clickup.ts:1767 | authenticated | isAuthenticated | authenticated |
-| 384 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId | server/routes/clickup.ts:1789 | authenticated | isAuthenticated | authenticated |
-| 385 | PUT | /api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId | server/routes/clickup.ts:1809 | authenticated | isAuthenticated | authenticated |
-| 386 | GET | /api/clickup/spaces/:spaceId/tags | server/routes/clickup.ts:1833 | authenticated | isAuthenticated | authenticated |
-| 387 | POST | /api/clickup/spaces/:spaceId/tags | server/routes/clickup.ts:1844 | authenticated | isAuthenticated | authenticated |
-| 388 | PUT | /api/clickup/spaces/:spaceId/tags/:tagName | server/routes/clickup.ts:1863 | authenticated | isAuthenticated | authenticated |
-| 389 | DELETE | /api/clickup/spaces/:spaceId/tags/:tagName | server/routes/clickup.ts:1883 | authenticated | isAuthenticated | authenticated |
-| 390 | POST | /api/clickup/tasks/:taskId/tags/:tagName | server/routes/clickup.ts:1900 | authenticated | isAuthenticated | authenticated |
-| 391 | DELETE | /api/clickup/tasks/:taskId/tags/:tagName | server/routes/clickup.ts:1934 | authenticated | isAuthenticated | authenticated |
-| 392 | GET | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1968 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
-| 393 | POST | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1984 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
-| 394 | DELETE | /api/clickup/webhooks/:webhookId | server/routes/clickup.ts:2018 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
-| 395 | POST | /api/webhooks/clickup | server/routes/clickup.ts:2040 | public | none | public, webhook |
-| 396 | GET | /api/clickup/workspaces/:workspaceId/facets | server/routes/clickup.ts:2079 | authenticated | isAuthenticated | authenticated |
-| 397 | GET | /api/clickup/workspaces/:workspaceId/search | server/routes/clickup.ts:2170 | authenticated | isAuthenticated | authenticated |
-| 398 | GET | /api/clickup/tasks/:taskId/full | server/routes/clickup.ts:2217 | authenticated | isAuthenticated | authenticated |
-| 399 | GET | /api/clickup/filter-presets | server/routes/clickup.ts:2230 | authenticated | isAuthenticated | authenticated |
-| 400 | POST | /api/clickup/tasks/:taskId/dependencies | server/routes/clickup.ts:2252 | authenticated | isAuthenticated | authenticated |
-| 401 | POST | /api/clickup/filter-presets | server/routes/clickup.ts:2267 | authenticated | isAuthenticated | authenticated |
-| 402 | DELETE | /api/clickup/filter-presets/:presetId | server/routes/clickup.ts:2288 | authenticated | isAuthenticated | authenticated |
-| 403 | DELETE | /api/clickup/tasks/:taskId/dependencies | server/routes/clickup.ts:2309 | authenticated | isAuthenticated | authenticated |
-| 404 | POST | /api/clickup/tasks/:taskId/links/:linksTo | server/routes/clickup.ts:2326 | authenticated | isAuthenticated | authenticated |
-| 405 | DELETE | /api/clickup/tasks/:taskId/links/:linksTo | server/routes/clickup.ts:2341 | authenticated | isAuthenticated | authenticated |
-| 406 | POST | /api/clickup/tasks/:taskId/merge | server/routes/clickup.ts:2357 | authenticated | isAuthenticated | authenticated |
-| 407 | POST | /api/clickup/tasks/:taskId/watchers | server/routes/clickup.ts:2373 | authenticated | isAuthenticated | authenticated |
-| 408 | DELETE | /api/clickup/tasks/:taskId/watchers/:userId | server/routes/clickup.ts:2387 | authenticated | isAuthenticated | authenticated |
-| 409 | POST | /api/clickup/tasks/:taskId/move | server/routes/clickup.ts:2411 | authenticated | isAuthenticated | authenticated |
-| 410 | POST | /api/clickup/tasks/:taskId/lists/:listId | server/routes/clickup.ts:2440 | authenticated | isAuthenticated | authenticated |
-| 411 | DELETE | /api/clickup/tasks/:taskId/lists/:listId | server/routes/clickup.ts:2463 | authenticated | isAuthenticated | authenticated |
-| 412 | GET | /api/clickup/workspaces/:workspaceId/views | server/routes/clickup.ts:2509 | authenticated | isAuthenticated | authenticated |
-| 413 | POST | /api/clickup/workspaces/:workspaceId/views | server/routes/clickup.ts:2524 | authenticated | isAuthenticated | authenticated |
-| 414 | GET | /api/clickup/spaces/:spaceId/views | server/routes/clickup.ts:2541 | authenticated | isAuthenticated | authenticated |
-| 415 | POST | /api/clickup/spaces/:spaceId/views | server/routes/clickup.ts:2556 | authenticated | isAuthenticated | authenticated |
-| 416 | GET | /api/clickup/folders/:folderId/views | server/routes/clickup.ts:2573 | authenticated | isAuthenticated | authenticated |
-| 417 | POST | /api/clickup/folders/:folderId/views | server/routes/clickup.ts:2588 | authenticated | isAuthenticated | authenticated |
-| 418 | GET | /api/clickup/lists/:listId/views | server/routes/clickup.ts:2605 | authenticated | isAuthenticated | authenticated |
-| 419 | POST | /api/clickup/lists/:listId/views | server/routes/clickup.ts:2620 | authenticated | isAuthenticated | authenticated |
-| 420 | GET | /api/clickup/views/:viewId | server/routes/clickup.ts:2637 | authenticated | isAuthenticated | authenticated |
-| 421 | PUT | /api/clickup/views/:viewId | server/routes/clickup.ts:2648 | authenticated | isAuthenticated | authenticated |
-| 422 | DELETE | /api/clickup/views/:viewId | server/routes/clickup.ts:2659 | authenticated | isAuthenticated | authenticated |
-| 423 | GET | /api/clickup/views/:viewId/tasks | server/routes/clickup.ts:2670 | authenticated | isAuthenticated | authenticated |
-| 424 | GET | /api/clickup/workspaces/:workspaceId/task-templates | server/routes/clickup.ts:2693 | authenticated | isAuthenticated | authenticated |
-| 425 | GET | /api/clickup/workspaces/:workspaceId/list-templates | server/routes/clickup.ts:2708 | authenticated | isAuthenticated | authenticated |
-| 426 | GET | /api/clickup/workspaces/:workspaceId/folder-templates | server/routes/clickup.ts:2723 | authenticated | isAuthenticated | authenticated |
-| 427 | POST | /api/clickup/lists/:listId/tasks-from-template | server/routes/clickup.ts:2743 | authenticated | isAuthenticated | authenticated |
-| 428 | POST | /api/clickup/folders/:folderId/lists-from-template | server/routes/clickup.ts:2779 | authenticated | isAuthenticated | authenticated |
-| 429 | POST | /api/clickup/spaces/:spaceId/lists-from-template | server/routes/clickup.ts:2820 | authenticated | isAuthenticated | authenticated |
-| 430 | POST | /api/clickup/spaces/:spaceId/folders-from-template | server/routes/clickup.ts:2861 | authenticated | isAuthenticated | authenticated |
-| 431 | GET | /api/clickup/tasks/:taskId/members | server/routes/clickup.ts:2902 | authenticated | isAuthenticated | authenticated |
-| 432 | GET | /api/clickup/lists/:listId/members | server/routes/clickup.ts:2918 | authenticated | isAuthenticated | authenticated |
-| 433 | GET | /api/clickup/workspaces/:workspaceId/custom-roles | server/routes/clickup.ts:2936 | authenticated | isAuthenticated | authenticated |
-| 434 | GET | /api/clickup/workspaces/:workspaceId/shared | server/routes/clickup.ts:2953 | authenticated | isAuthenticated | authenticated |
-| 435 | GET | /api/clickup/workspaces/:workspaceId/groups | server/routes/clickup.ts:2970 | authenticated | isAuthenticated | authenticated |
-| 436 | POST | /api/clickup/workspaces/:workspaceId/groups | server/routes/clickup.ts:2985 | authenticated | isAuthenticated | authenticated |
-| 437 | PUT | /api/clickup/groups/:groupId | server/routes/clickup.ts:3010 | authenticated | isAuthenticated | authenticated |
-| 438 | DELETE | /api/clickup/groups/:groupId | server/routes/clickup.ts:3029 | authenticated | isAuthenticated | authenticated |
-| 439 | POST | /api/clickup/workspaces/:workspaceId/acl | server/routes/clickup.ts:3045 | authenticated | isAuthenticated | authenticated |
-| 440 | GET | /api/clickup/workspaces/:workspaceId/seats | server/routes/clickup.ts:3065 | authenticated | isAuthenticated | authenticated |
-| 441 | GET | /api/clickup/workspaces/:workspaceId/plan | server/routes/clickup.ts:3080 | authenticated | isAuthenticated | authenticated |
-| 442 | GET | /api/clickup/workspaces/:workspaceId/chat/subtypes | server/routes/clickup.ts:3125 | authenticated | isAuthenticated | authenticated |
-| 443 | GET | /api/clickup/workspaces/:workspaceId/chat/channels | server/routes/clickup.ts:3141 | authenticated | isAuthenticated | authenticated |
-| 444 | POST | /api/clickup/workspaces/:workspaceId/chat/channels | server/routes/clickup.ts:3157 | authenticated | isAuthenticated | authenticated |
-| 445 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/location | server/routes/clickup.ts:3179 | authenticated | isAuthenticated | authenticated |
-| 446 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/dm | server/routes/clickup.ts:3203 | authenticated | isAuthenticated | authenticated |
-| 447 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3226 | authenticated | isAuthenticated | authenticated |
-| 448 | PATCH | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3242 | authenticated | isAuthenticated | authenticated |
-| 449 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3263 | authenticated | isAuthenticated | authenticated |
-| 450 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/members | server/routes/clickup.ts:3279 | authenticated | isAuthenticated | authenticated |
-| 451 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages | server/routes/clickup.ts:3295 | authenticated | isAuthenticated | authenticated |
-| 452 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages | server/routes/clickup.ts:3318 | authenticated | isAuthenticated | authenticated |
-| 453 | PATCH | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId | server/routes/clickup.ts:3341 | authenticated | isAuthenticated | authenticated |
-| 454 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId | server/routes/clickup.ts:3365 | authenticated | isAuthenticated | authenticated |
-| 455 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies | server/routes/clickup.ts:3386 | authenticated | isAuthenticated | authenticated |
-| 456 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies | server/routes/clickup.ts:3409 | authenticated | isAuthenticated | authenticated |
-| 457 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions | server/routes/clickup.ts:3433 | authenticated | isAuthenticated | authenticated |
-| 458 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions | server/routes/clickup.ts:3457 | authenticated | isAuthenticated | authenticated |
-| 459 | POST | /api/clickup/workspaces/:workspaceId/sync | server/routes/clickup.ts:3483 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 305 | GET | /api/integrations/clickup/authorize | server/routes/clickup.ts:161 | authenticated | isAuthenticated | authenticated |
+| 306 | GET | /api/integrations/clickup/callback | server/routes/clickup.ts:187 | public | none | public |
+| 307 | POST | /api/integrations/clickup/disconnect | server/routes/clickup.ts:221 | authenticated | isAuthenticated | authenticated |
+| 308 | GET | /api/integrations/clickup/status | server/routes/clickup.ts:238 | authenticated | isAuthenticated | authenticated |
+| 309 | GET | /api/integrations/clickup/connected-users | server/routes/clickup.ts:256 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 310 | GET | /api/clickup/workspaces | server/routes/clickup.ts:283 | authenticated | isAuthenticated | authenticated |
+| 311 | GET | /api/clickup/workspaces/:workspaceId/hierarchy | server/routes/clickup.ts:294 | authenticated | isAuthenticated | authenticated |
+| 312 | GET | /api/clickup/workspaces/:workspaceId/spaces | server/routes/clickup.ts:327 | authenticated | isAuthenticated | authenticated |
+| 313 | POST | /api/clickup/workspaces/:workspaceId/spaces | server/routes/clickup.ts:342 | authenticated | isAuthenticated | authenticated |
+| 314 | PUT | /api/clickup/spaces/:spaceId | server/routes/clickup.ts:385 | authenticated | isAuthenticated | authenticated |
+| 315 | DELETE | /api/clickup/spaces/:spaceId | server/routes/clickup.ts:406 | authenticated | isAuthenticated | authenticated |
+| 316 | GET | /api/clickup/spaces/:spaceId/folders | server/routes/clickup.ts:425 | authenticated | isAuthenticated | authenticated |
+| 317 | POST | /api/clickup/spaces/:spaceId/folders | server/routes/clickup.ts:436 | authenticated | isAuthenticated | authenticated |
+| 318 | PUT | /api/clickup/folders/:folderId | server/routes/clickup.ts:474 | authenticated | isAuthenticated | authenticated |
+| 319 | DELETE | /api/clickup/folders/:folderId | server/routes/clickup.ts:493 | authenticated | isAuthenticated | authenticated |
+| 320 | GET | /api/clickup/spaces/:spaceId/lists | server/routes/clickup.ts:511 | authenticated | isAuthenticated | authenticated |
+| 321 | GET | /api/clickup/folders/:folderId/lists | server/routes/clickup.ts:522 | authenticated | isAuthenticated | authenticated |
+| 322 | POST | /api/clickup/spaces/:spaceId/lists | server/routes/clickup.ts:533 | authenticated | isAuthenticated | authenticated |
+| 323 | POST | /api/clickup/folders/:folderId/lists | server/routes/clickup.ts:568 | authenticated | isAuthenticated | authenticated |
+| 324 | PUT | /api/clickup/lists/:listId | server/routes/clickup.ts:603 | authenticated | isAuthenticated | authenticated |
+| 325 | DELETE | /api/clickup/lists/:listId | server/routes/clickup.ts:625 | authenticated | isAuthenticated | authenticated |
+| 326 | GET | /api/clickup/lists/:listId/custom-fields | server/routes/clickup.ts:643 | authenticated | isAuthenticated | authenticated |
+| 327 | GET | /api/clickup/lists/:listId/tasks | server/routes/clickup.ts:656 | authenticated | isAuthenticated | authenticated |
+| 328 | GET | /api/clickup/tasks/:taskId | server/routes/clickup.ts:682 | authenticated | isAuthenticated | authenticated |
+| 329 | POST | /api/clickup/lists/:listId/tasks | server/routes/clickup.ts:693 | authenticated | isAuthenticated | authenticated |
+| 330 | PUT | /api/clickup/tasks/:taskId | server/routes/clickup.ts:704 | authenticated | isAuthenticated | authenticated |
+| 331 | DELETE | /api/clickup/tasks/:taskId | server/routes/clickup.ts:715 | authenticated | isAuthenticated | authenticated |
+| 332 | POST | /api/clickup/tasks/:taskId/fields/:fieldId | server/routes/clickup.ts:726 | authenticated | isAuthenticated | authenticated |
+| 333 | DELETE | /api/clickup/tasks/:taskId/fields/:fieldId | server/routes/clickup.ts:745 | authenticated | isAuthenticated | authenticated |
+| 334 | GET | /api/clickup/workspaces/:workspaceId/custom-item-types | server/routes/clickup.ts:764 | authenticated | isAuthenticated | authenticated |
+| 335 | GET | /api/clickup/folders/:folderId/custom-fields | server/routes/clickup.ts:783 | authenticated | isAuthenticated | authenticated |
+| 336 | GET | /api/clickup/spaces/:spaceId/custom-fields | server/routes/clickup.ts:802 | authenticated | isAuthenticated | authenticated |
+| 337 | GET | /api/clickup/workspaces/:workspaceId/custom-fields | server/routes/clickup.ts:821 | authenticated | isAuthenticated | authenticated |
+| 338 | POST | /api/clickup/tasks/:taskId/checklists | server/routes/clickup.ts:838 | authenticated | isAuthenticated | authenticated |
+| 339 | POST | /api/clickup/checklists/:checklistId/items | server/routes/clickup.ts:849 | authenticated | isAuthenticated | authenticated |
+| 340 | PUT | /api/clickup/checklists/:checklistId/items/:itemId | server/routes/clickup.ts:864 | authenticated | isAuthenticated | authenticated |
+| 341 | DELETE | /api/clickup/checklists/:checklistId | server/routes/clickup.ts:884 | authenticated | isAuthenticated | authenticated |
+| 342 | GET | /api/clickup/tasks/:taskId/comments | server/routes/clickup.ts:917 | authenticated | isAuthenticated | authenticated |
+| 343 | POST | /api/clickup/tasks/:taskId/comments | server/routes/clickup.ts:930 | authenticated | isAuthenticated | authenticated |
+| 344 | GET | /api/clickup/comments/:commentId/replies | server/routes/clickup.ts:941 | authenticated | isAuthenticated | authenticated |
+| 345 | POST | /api/clickup/comments/:commentId/replies | server/routes/clickup.ts:952 | authenticated | isAuthenticated | authenticated |
+| 346 | PUT | /api/clickup/comments/:commentId | server/routes/clickup.ts:963 | authenticated | isAuthenticated | authenticated |
+| 347 | DELETE | /api/clickup/comments/:commentId | server/routes/clickup.ts:974 | authenticated | isAuthenticated | authenticated |
+| 348 | GET | /api/clickup/lists/:listId/comments | server/routes/clickup.ts:985 | authenticated | isAuthenticated | authenticated |
+| 349 | POST | /api/clickup/lists/:listId/comments | server/routes/clickup.ts:998 | authenticated | isAuthenticated | authenticated |
+| 350 | GET | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1018 | authenticated | isAuthenticated | authenticated |
+| 351 | POST | /api/clickup/tasks/:taskId/attachments | server/routes/clickup.ts:1033 | authenticated | isAuthenticated, upload.single | authenticated, upload |
+| 352 | GET | /api/clickup/attachments/proxy | server/routes/clickup.ts:1061 | authenticated | isAuthenticated | authenticated |
+| 353 | POST | /api/clickup/entity/:entityId/attachments | server/routes/clickup.ts:1106 | authenticated | isAuthenticated, upload.single | authenticated, upload |
+| 354 | DELETE | /api/clickup/tasks/:taskId/attachments/:attachmentId | server/routes/clickup.ts:1133 | authenticated | isAuthenticated | authenticated |
+| 355 | GET | /api/clickup/workspaces/:workspaceId/time-entries | server/routes/clickup.ts:1173 | authenticated | isAuthenticated | authenticated |
+| 356 | POST | /api/clickup/workspaces/:workspaceId/time-entries | server/routes/clickup.ts:1201 | authenticated | isAuthenticated | authenticated |
+| 357 | PUT | /api/clickup/workspaces/:workspaceId/time-entries/:entryId | server/routes/clickup.ts:1216 | authenticated | isAuthenticated | authenticated |
+| 358 | DELETE | /api/clickup/workspaces/:workspaceId/time-entries/:entryId | server/routes/clickup.ts:1236 | authenticated | isAuthenticated | authenticated |
+| 359 | POST | /api/clickup/workspaces/:workspaceId/timer/start | server/routes/clickup.ts:1251 | authenticated | isAuthenticated | authenticated |
+| 360 | POST | /api/clickup/workspaces/:workspaceId/timer/stop | server/routes/clickup.ts:1271 | authenticated | isAuthenticated | authenticated |
+| 361 | GET | /api/clickup/workspaces/:workspaceId/timer/current | server/routes/clickup.ts:1286 | authenticated | isAuthenticated | authenticated |
+| 362 | GET | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/history | server/routes/clickup.ts:1303 | authenticated | isAuthenticated | authenticated |
+| 363 | GET | /api/clickup/workspaces/:workspaceId/time-entry-tags | server/routes/clickup.ts:1325 | authenticated | isAuthenticated | authenticated |
+| 364 | POST | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags | server/routes/clickup.ts:1341 | authenticated | isAuthenticated | authenticated |
+| 365 | DELETE | /api/clickup/workspaces/:workspaceId/time-entries/:entryId/tags | server/routes/clickup.ts:1360 | authenticated | isAuthenticated | authenticated |
+| 366 | PUT | /api/clickup/workspaces/:workspaceId/time-entry-tags/rename | server/routes/clickup.ts:1378 | authenticated | isAuthenticated | authenticated |
+| 367 | PUT | /api/clickup/tasks/:taskId/time-estimates/user/:userId | server/routes/clickup.ts:1404 | authenticated | isAuthenticated | authenticated |
+| 368 | GET | /api/clickup/tasks/:taskId/time-in-status | server/routes/clickup.ts:1430 | authenticated | isAuthenticated | authenticated |
+| 369 | GET | /api/clickup/workspaces/:workspaceId/tasks/time-in-status | server/routes/clickup.ts:1451 | authenticated | isAuthenticated | authenticated |
+| 370 | GET | /api/clickup/workspaces/:workspaceId/goals | server/routes/clickup.ts:1471 | authenticated | isAuthenticated | authenticated |
+| 371 | GET | /api/clickup/goals/:goalId | server/routes/clickup.ts:1482 | authenticated | isAuthenticated | authenticated |
+| 372 | POST | /api/clickup/workspaces/:workspaceId/goals | server/routes/clickup.ts:1493 | authenticated | isAuthenticated | authenticated |
+| 373 | PUT | /api/clickup/goals/:goalId | server/routes/clickup.ts:1543 | authenticated | isAuthenticated | authenticated |
+| 374 | DELETE | /api/clickup/goals/:goalId | server/routes/clickup.ts:1566 | authenticated | isAuthenticated | authenticated |
+| 375 | POST | /api/clickup/goals/:goalId/key-results | server/routes/clickup.ts:1582 | authenticated | isAuthenticated | authenticated |
+| 376 | PUT | /api/clickup/goals/:goalId/key-results/:krId | server/routes/clickup.ts:1623 | authenticated | isAuthenticated | authenticated |
+| 377 | DELETE | /api/clickup/goals/:goalId/key-results/:krId | server/routes/clickup.ts:1656 | authenticated | isAuthenticated | authenticated |
+| 378 | GET | /api/clickup/workspaces/:workspaceId/docs | server/routes/clickup.ts:1689 | authenticated | isAuthenticated | authenticated |
+| 379 | POST | /api/clickup/workspaces/:workspaceId/docs | server/routes/clickup.ts:1702 | authenticated | isAuthenticated | authenticated |
+| 380 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId | server/routes/clickup.ts:1721 | authenticated | isAuthenticated | authenticated |
+| 381 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/page-listing | server/routes/clickup.ts:1737 | authenticated | isAuthenticated | authenticated |
+| 382 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/pages | server/routes/clickup.ts:1756 | authenticated | isAuthenticated | authenticated |
+| 383 | POST | /api/clickup/workspaces/:workspaceId/docs/:docId/pages | server/routes/clickup.ts:1772 | authenticated | isAuthenticated | authenticated |
+| 384 | GET | /api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId | server/routes/clickup.ts:1794 | authenticated | isAuthenticated | authenticated |
+| 385 | PUT | /api/clickup/workspaces/:workspaceId/docs/:docId/pages/:pageId | server/routes/clickup.ts:1814 | authenticated | isAuthenticated | authenticated |
+| 386 | GET | /api/clickup/spaces/:spaceId/tags | server/routes/clickup.ts:1838 | authenticated | isAuthenticated | authenticated |
+| 387 | POST | /api/clickup/spaces/:spaceId/tags | server/routes/clickup.ts:1849 | authenticated | isAuthenticated | authenticated |
+| 388 | PUT | /api/clickup/spaces/:spaceId/tags/:tagName | server/routes/clickup.ts:1868 | authenticated | isAuthenticated | authenticated |
+| 389 | DELETE | /api/clickup/spaces/:spaceId/tags/:tagName | server/routes/clickup.ts:1888 | authenticated | isAuthenticated | authenticated |
+| 390 | POST | /api/clickup/tasks/:taskId/tags/:tagName | server/routes/clickup.ts:1905 | authenticated | isAuthenticated | authenticated |
+| 391 | DELETE | /api/clickup/tasks/:taskId/tags/:tagName | server/routes/clickup.ts:1939 | authenticated | isAuthenticated | authenticated |
+| 392 | GET | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1973 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
+| 393 | POST | /api/clickup/workspaces/:workspaceId/webhooks | server/routes/clickup.ts:1989 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
+| 394 | DELETE | /api/clickup/webhooks/:webhookId | server/routes/clickup.ts:2025 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, webhook |
+| 395 | POST | /api/webhooks/clickup | server/routes/clickup.ts:2047 | public | none | public, webhook |
+| 396 | GET | /api/clickup/workspaces/:workspaceId/facets | server/routes/clickup.ts:2099 | authenticated | isAuthenticated | authenticated |
+| 397 | GET | /api/clickup/workspaces/:workspaceId/search | server/routes/clickup.ts:2190 | authenticated | isAuthenticated | authenticated |
+| 398 | GET | /api/clickup/tasks/:taskId/full | server/routes/clickup.ts:2237 | authenticated | isAuthenticated | authenticated |
+| 399 | GET | /api/clickup/filter-presets | server/routes/clickup.ts:2250 | authenticated | isAuthenticated | authenticated |
+| 400 | POST | /api/clickup/tasks/:taskId/dependencies | server/routes/clickup.ts:2272 | authenticated | isAuthenticated | authenticated |
+| 401 | POST | /api/clickup/filter-presets | server/routes/clickup.ts:2287 | authenticated | isAuthenticated | authenticated |
+| 402 | DELETE | /api/clickup/filter-presets/:presetId | server/routes/clickup.ts:2308 | authenticated | isAuthenticated | authenticated |
+| 403 | DELETE | /api/clickup/tasks/:taskId/dependencies | server/routes/clickup.ts:2329 | authenticated | isAuthenticated | authenticated |
+| 404 | POST | /api/clickup/tasks/:taskId/links/:linksTo | server/routes/clickup.ts:2346 | authenticated | isAuthenticated | authenticated |
+| 405 | DELETE | /api/clickup/tasks/:taskId/links/:linksTo | server/routes/clickup.ts:2361 | authenticated | isAuthenticated | authenticated |
+| 406 | POST | /api/clickup/tasks/:taskId/merge | server/routes/clickup.ts:2377 | authenticated | isAuthenticated | authenticated |
+| 407 | POST | /api/clickup/tasks/:taskId/watchers | server/routes/clickup.ts:2393 | authenticated | isAuthenticated | authenticated |
+| 408 | DELETE | /api/clickup/tasks/:taskId/watchers/:userId | server/routes/clickup.ts:2407 | authenticated | isAuthenticated | authenticated |
+| 409 | POST | /api/clickup/tasks/:taskId/move | server/routes/clickup.ts:2431 | authenticated | isAuthenticated | authenticated |
+| 410 | POST | /api/clickup/tasks/:taskId/lists/:listId | server/routes/clickup.ts:2460 | authenticated | isAuthenticated | authenticated |
+| 411 | DELETE | /api/clickup/tasks/:taskId/lists/:listId | server/routes/clickup.ts:2483 | authenticated | isAuthenticated | authenticated |
+| 412 | GET | /api/clickup/workspaces/:workspaceId/views | server/routes/clickup.ts:2529 | authenticated | isAuthenticated | authenticated |
+| 413 | POST | /api/clickup/workspaces/:workspaceId/views | server/routes/clickup.ts:2544 | authenticated | isAuthenticated | authenticated |
+| 414 | GET | /api/clickup/spaces/:spaceId/views | server/routes/clickup.ts:2561 | authenticated | isAuthenticated | authenticated |
+| 415 | POST | /api/clickup/spaces/:spaceId/views | server/routes/clickup.ts:2576 | authenticated | isAuthenticated | authenticated |
+| 416 | GET | /api/clickup/folders/:folderId/views | server/routes/clickup.ts:2593 | authenticated | isAuthenticated | authenticated |
+| 417 | POST | /api/clickup/folders/:folderId/views | server/routes/clickup.ts:2608 | authenticated | isAuthenticated | authenticated |
+| 418 | GET | /api/clickup/lists/:listId/views | server/routes/clickup.ts:2625 | authenticated | isAuthenticated | authenticated |
+| 419 | POST | /api/clickup/lists/:listId/views | server/routes/clickup.ts:2640 | authenticated | isAuthenticated | authenticated |
+| 420 | GET | /api/clickup/views/:viewId | server/routes/clickup.ts:2657 | authenticated | isAuthenticated | authenticated |
+| 421 | PUT | /api/clickup/views/:viewId | server/routes/clickup.ts:2668 | authenticated | isAuthenticated | authenticated |
+| 422 | DELETE | /api/clickup/views/:viewId | server/routes/clickup.ts:2679 | authenticated | isAuthenticated | authenticated |
+| 423 | GET | /api/clickup/views/:viewId/tasks | server/routes/clickup.ts:2690 | authenticated | isAuthenticated | authenticated |
+| 424 | GET | /api/clickup/workspaces/:workspaceId/task-templates | server/routes/clickup.ts:2713 | authenticated | isAuthenticated | authenticated |
+| 425 | GET | /api/clickup/workspaces/:workspaceId/list-templates | server/routes/clickup.ts:2728 | authenticated | isAuthenticated | authenticated |
+| 426 | GET | /api/clickup/workspaces/:workspaceId/folder-templates | server/routes/clickup.ts:2743 | authenticated | isAuthenticated | authenticated |
+| 427 | POST | /api/clickup/lists/:listId/tasks-from-template | server/routes/clickup.ts:2763 | authenticated | isAuthenticated | authenticated |
+| 428 | POST | /api/clickup/folders/:folderId/lists-from-template | server/routes/clickup.ts:2799 | authenticated | isAuthenticated | authenticated |
+| 429 | POST | /api/clickup/spaces/:spaceId/lists-from-template | server/routes/clickup.ts:2840 | authenticated | isAuthenticated | authenticated |
+| 430 | POST | /api/clickup/spaces/:spaceId/folders-from-template | server/routes/clickup.ts:2881 | authenticated | isAuthenticated | authenticated |
+| 431 | GET | /api/clickup/tasks/:taskId/members | server/routes/clickup.ts:2922 | authenticated | isAuthenticated | authenticated |
+| 432 | GET | /api/clickup/lists/:listId/members | server/routes/clickup.ts:2938 | authenticated | isAuthenticated | authenticated |
+| 433 | GET | /api/clickup/workspaces/:workspaceId/custom-roles | server/routes/clickup.ts:2956 | authenticated | isAuthenticated | authenticated |
+| 434 | GET | /api/clickup/workspaces/:workspaceId/shared | server/routes/clickup.ts:2973 | authenticated | isAuthenticated | authenticated |
+| 435 | GET | /api/clickup/workspaces/:workspaceId/groups | server/routes/clickup.ts:2990 | authenticated | isAuthenticated | authenticated |
+| 436 | POST | /api/clickup/workspaces/:workspaceId/groups | server/routes/clickup.ts:3005 | authenticated | isAuthenticated | authenticated |
+| 437 | PUT | /api/clickup/groups/:groupId | server/routes/clickup.ts:3030 | authenticated | isAuthenticated | authenticated |
+| 438 | DELETE | /api/clickup/groups/:groupId | server/routes/clickup.ts:3049 | authenticated | isAuthenticated | authenticated |
+| 439 | POST | /api/clickup/workspaces/:workspaceId/acl | server/routes/clickup.ts:3065 | authenticated | isAuthenticated | authenticated |
+| 440 | GET | /api/clickup/workspaces/:workspaceId/seats | server/routes/clickup.ts:3085 | authenticated | isAuthenticated | authenticated |
+| 441 | GET | /api/clickup/workspaces/:workspaceId/plan | server/routes/clickup.ts:3100 | authenticated | isAuthenticated | authenticated |
+| 442 | GET | /api/clickup/workspaces/:workspaceId/chat/subtypes | server/routes/clickup.ts:3145 | authenticated | isAuthenticated | authenticated |
+| 443 | GET | /api/clickup/workspaces/:workspaceId/chat/channels | server/routes/clickup.ts:3161 | authenticated | isAuthenticated | authenticated |
+| 444 | POST | /api/clickup/workspaces/:workspaceId/chat/channels | server/routes/clickup.ts:3177 | authenticated | isAuthenticated | authenticated |
+| 445 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/location | server/routes/clickup.ts:3199 | authenticated | isAuthenticated | authenticated |
+| 446 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/dm | server/routes/clickup.ts:3223 | authenticated | isAuthenticated | authenticated |
+| 447 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3246 | authenticated | isAuthenticated | authenticated |
+| 448 | PATCH | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3262 | authenticated | isAuthenticated | authenticated |
+| 449 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId | server/routes/clickup.ts:3283 | authenticated | isAuthenticated | authenticated |
+| 450 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/members | server/routes/clickup.ts:3299 | authenticated | isAuthenticated | authenticated |
+| 451 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages | server/routes/clickup.ts:3315 | authenticated | isAuthenticated | authenticated |
+| 452 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages | server/routes/clickup.ts:3338 | authenticated | isAuthenticated | authenticated |
+| 453 | PATCH | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId | server/routes/clickup.ts:3361 | authenticated | isAuthenticated | authenticated |
+| 454 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId | server/routes/clickup.ts:3385 | authenticated | isAuthenticated | authenticated |
+| 455 | GET | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies | server/routes/clickup.ts:3406 | authenticated | isAuthenticated | authenticated |
+| 456 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/replies | server/routes/clickup.ts:3429 | authenticated | isAuthenticated | authenticated |
+| 457 | POST | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions | server/routes/clickup.ts:3453 | authenticated | isAuthenticated | authenticated |
+| 458 | DELETE | /api/clickup/workspaces/:workspaceId/chat/channels/:channelId/messages/:messageId/reactions | server/routes/clickup.ts:3477 | authenticated | isAuthenticated | authenticated |
+| 459 | POST | /api/clickup/workspaces/:workspaceId/sync | server/routes/clickup.ts:3503 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 460 | GET | /api/integrations/clickup/company-token/status | server/routes/clickupCompanyToken.ts:95 | authenticated | isAuthenticated | authenticated |
 | 461 | POST | /api/integrations/clickup/company-token/test | server/routes/clickupCompanyToken.ts:136 | authenticated | isAuthenticated | authenticated |
 | 462 | POST | /api/integrations/clickup/company-token | server/routes/clickupCompanyToken.ts:165 | authenticated | isAuthenticated | authenticated |
@@ -868,22 +871,22 @@ Total routes discovered: 1539
 | 472 | GET | /api/clients/:id/summary | server/routes/clients.ts:374 | authenticated | isAuthenticated | authenticated |
 | 473 | GET | /api/clients/:id/reports | server/routes/clients.ts:406 | authenticated | isAuthenticated | authenticated |
 | 474 | POST | /api/clients | server/routes/clients.ts:430 | authenticated | isAuthenticated | authenticated |
-| 475 | PATCH | /api/clients/:id | server/routes/clients.ts:712 | authenticated | isAuthenticated | authenticated |
-| 476 | POST | /api/clients/:id/offboarding | server/routes/clients.ts:960 | authenticated | isAuthenticated | authenticated |
-| 477 | DELETE | /api/clients/:id/offboarding | server/routes/clients.ts:1034 | authenticated | isAuthenticated | authenticated |
-| 478 | DELETE | /api/clients/:id | server/routes/clients.ts:1088 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 479 | GET | /api/clients/:clientId/locations | server/routes/clients.ts:1163 | authenticated | isAuthenticated | authenticated |
-| 480 | POST | /api/clients/:clientId/locations | server/routes/clients.ts:1187 | authenticated | isAuthenticated | authenticated |
-| 481 | PATCH | /api/clients/:clientId/locations/:locationId | server/routes/clients.ts:1254 | authenticated | isAuthenticated | authenticated |
-| 482 | DELETE | /api/clients/:clientId/locations/:locationId | server/routes/clients.ts:1340 | authenticated | isAuthenticated | authenticated |
-| 483 | GET | /api/clients/:clientId/data-access | server/routes/clients.ts:1371 | authenticated | isAuthenticated | authenticated |
-| 484 | GET | /api/clients/:clientId/data-access/detection | server/routes/clients.ts:1397 | authenticated | isAuthenticated | authenticated |
-| 485 | GET | /api/all-data-access | server/routes/clients.ts:1420 | authenticated | isAuthenticated | authenticated |
-| 486 | GET | /api/admin/locations/ungeocoded | server/routes/clients.ts:1444 | authenticated | isAuthenticated | authenticated, admin_only |
-| 487 | POST | /api/admin/locations/backfill-geocode | server/routes/clients.ts:1505 | authenticated | isAuthenticated | authenticated, admin_only |
-| 488 | PUT | /api/clients/:clientId/data-access/:category | server/routes/clients.ts:1586 | authenticated | isAuthenticated | authenticated |
-| 489 | GET | /api/admin/clients/invalid-products | server/routes/clients.ts:1618 | authenticated | isAuthenticated | authenticated, admin_only |
-| 490 | POST | /api/admin/migrate-product-types | server/routes/clients.ts:1668 | authenticated | isAuthenticated | authenticated, admin_only |
+| 475 | PATCH | /api/clients/:id | server/routes/clients.ts:573 | authenticated | isAuthenticated | authenticated |
+| 476 | POST | /api/clients/:id/offboarding | server/routes/clients.ts:821 | authenticated | isAuthenticated | authenticated |
+| 477 | DELETE | /api/clients/:id/offboarding | server/routes/clients.ts:895 | authenticated | isAuthenticated | authenticated |
+| 478 | DELETE | /api/clients/:id | server/routes/clients.ts:949 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 479 | GET | /api/clients/:clientId/locations | server/routes/clients.ts:1024 | authenticated | isAuthenticated | authenticated |
+| 480 | POST | /api/clients/:clientId/locations | server/routes/clients.ts:1048 | authenticated | isAuthenticated | authenticated |
+| 481 | PATCH | /api/clients/:clientId/locations/:locationId | server/routes/clients.ts:1115 | authenticated | isAuthenticated | authenticated |
+| 482 | DELETE | /api/clients/:clientId/locations/:locationId | server/routes/clients.ts:1201 | authenticated | isAuthenticated | authenticated |
+| 483 | GET | /api/clients/:clientId/data-access | server/routes/clients.ts:1232 | authenticated | isAuthenticated | authenticated |
+| 484 | GET | /api/clients/:clientId/data-access/detection | server/routes/clients.ts:1258 | authenticated | isAuthenticated | authenticated |
+| 485 | GET | /api/all-data-access | server/routes/clients.ts:1281 | authenticated | isAuthenticated | authenticated |
+| 486 | GET | /api/admin/locations/ungeocoded | server/routes/clients.ts:1305 | authenticated | isAuthenticated | authenticated, admin_only |
+| 487 | POST | /api/admin/locations/backfill-geocode | server/routes/clients.ts:1366 | authenticated | isAuthenticated | authenticated, admin_only |
+| 488 | PUT | /api/clients/:clientId/data-access/:category | server/routes/clients.ts:1447 | authenticated | isAuthenticated | authenticated |
+| 489 | GET | /api/admin/clients/invalid-products | server/routes/clients.ts:1479 | authenticated | isAuthenticated | authenticated, admin_only |
+| 490 | POST | /api/admin/migrate-product-types | server/routes/clients.ts:1529 | authenticated | isAuthenticated | authenticated, admin_only |
 | 491 | GET | /api/clients/:clientId/command-panel | server/routes/commandCenter.ts:202 | authenticated | isAuthenticated | authenticated |
 | 492 | PUT | /api/clients/:clientId/command-panel | server/routes/commandCenter.ts:222 | authenticated | isAuthenticated | authenticated |
 | 493 | POST | /api/clients/:clientId/command-panel/review | server/routes/commandCenter.ts:358 | authenticated | isAuthenticated | authenticated |
@@ -1402,534 +1405,553 @@ Total routes discovered: 1539
 | 1006 | GET | /api/integrations/semrush/heatmap-coverage/:clientId/:locationId | server/routes/integrations/semrush.ts:541 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 1007 | POST | /api/integrations/semrush/heatmap-coverage/campaign/:campaignId/refresh-metadata | server/routes/integrations/semrush.ts:577 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
 | 1008 | POST | /api/integrations/semrush/heatmap-coverage/:clientId/:locationId/rerun | server/routes/integrations/semrush.ts:607 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1009 | GET | /api/integrations/unmatched-feed | server/routes/integrations/unmatched.ts:31 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1010 | POST | /api/integrations/unmatched/:source/:id/assign | server/routes/integrations/unmatched.ts:671 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1011 | POST | /api/integrations/unmatched/undo-claim | server/routes/integrations/unmatched.ts:806 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1012 | POST | /api/integrations/unmatched/:source/:id/dismiss | server/routes/integrations/unmatched.ts:920 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1013 | POST | /api/integrations/unmatched/:source/:id/block | server/routes/integrations/unmatched.ts:967 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1014 | POST | /api/integrations/unmatched/:source/:id/promote | server/routes/integrations/unmatched.ts:1003 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1015 | GET | /api/integrations/work-queue/dead-letter/queue-names | server/routes/integrations/workQueue.ts:20 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1016 | GET | /api/integrations/work-queue/dead-letter | server/routes/integrations/workQueue.ts:30 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1017 | POST | /api/integrations/work-queue/dead-letter/:id/replay | server/routes/integrations/workQueue.ts:43 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1018 | POST | /api/integrations/work-queue/dead-letter/replay-all | server/routes/integrations/workQueue.ts:63 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1019 | GET | /api/integrations/work-queue/stale-lease-thresholds | server/routes/integrations/workQueue.ts:96 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1020 | GET | /api/integrations/work-queue/stale-lease-thresholds/history | server/routes/integrations/workQueue.ts:113 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1021 | PUT | /api/integrations/work-queue/stale-lease-thresholds | server/routes/integrations/workQueue.ts:148 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1022 | GET | /api/integrations/work-queue/timings | server/routes/integrations/workQueue.ts:167 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1023 | GET | /api/integrations/work-queue/timings/history | server/routes/integrations/workQueue.ts:177 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1024 | PUT | /api/integrations/work-queue/timings | server/routes/integrations/workQueue.ts:237 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1025 | GET | /api/integrations/work-queue/audit-prune-events | server/routes/integrations/workQueue.ts:257 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1026 | PUT | /api/integrations/work-queue/audit-prune-events/stale-lease-threshold-audit/retention | server/routes/integrations/workQueue.ts:339 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1027 | PUT | /api/integrations/work-queue/audit-prune-events/queue-timing-audit/retention | server/routes/integrations/workQueue.ts:357 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1028 | GET | /api/integrations/work-queue/audit-prune-events/stale-lease-threshold-audit/retention/history | server/routes/integrations/workQueue.ts:379 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1029 | GET | /api/integrations/work-queue/audit-prune-events/queue-timing-audit/retention/history | server/routes/integrations/workQueue.ts:406 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1030 | GET | /api/integrations/work-queue/audit-prune-events/preview | server/routes/integrations/workQueue.ts:439 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1031 | GET | /api/integrations/work-queue/status | server/routes/integrations/workQueue.ts:476 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1032 | GET | /api/integrations/work-queue/stuck-processing | server/routes/integrations/workQueue.ts:563 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1033 | POST | /api/integrations/work-queue/:id/reclaim | server/routes/integrations/workQueue.ts:685 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1034 | POST | /api/integrations/zoom/transcript-backfill | server/routes/integrations/zoom.ts:15 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1035 | POST | /api/integrations/zoom/webhook | server/routes/integrations/zoom.ts:34 | public | none | public, webhook |
-| 1036 | GET | /api/internal-usage | server/routes/internalUsage.ts:24 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1037 | GET | /api/internal-usage/wins-weekly | server/routes/internalUsage.ts:46 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1038 | POST | /api/health/block-ip | server/routes/ipBlocking.ts:20 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1039 | PATCH | /api/health/blocked-ips/:ip/expiry | server/routes/ipBlocking.ts:78 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1040 | POST | /api/health/unblock-ip | server/routes/ipBlocking.ts:137 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1041 | GET | /api/health/blocked-ips/activity | server/routes/ipBlocking.ts:176 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1042 | GET | /api/health/blocked-ips/trim-notifications | server/routes/ipBlocking.ts:191 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1043 | GET | /api/leads | server/routes/leads.ts:68 | authenticated | isAuthenticated | authenticated |
-| 1044 | GET | /api/leads/merge-candidates | server/routes/leads.ts:98 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1045 | GET | /api/leads/:id | server/routes/leads.ts:126 | authenticated | isAuthenticated | authenticated |
-| 1046 | POST | /api/leads/:id/lifecycle | server/routes/leads.ts:157 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1047 | POST | /api/leads/:id/merge | server/routes/leads.ts:200 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1048 | GET | /api/live-data/clients/:clientId | server/routes/liveData.ts:41 | authenticated | isAuthenticated | authenticated |
-| 1049 | POST | /api/live-data/clients/:clientId/refresh | server/routes/liveData.ts:101 | authenticated | isAuthenticated | authenticated |
-| 1050 | GET | /api/admin/match-settings | server/routes/matchSettings.ts:307 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1051 | PUT | /api/admin/match-settings | server/routes/matchSettings.ts:344 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1052 | GET | /api/admin/match-settings/common-first-names | server/routes/matchSettings.ts:502 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1053 | PUT | /api/admin/match-settings/common-first-names | server/routes/matchSettings.ts:521 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1054 | GET | /api/admin/match-settings/common-first-names/history | server/routes/matchSettings.ts:681 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1055 | GET | /api/admin/match-settings/impact | server/routes/matchSettings.ts:728 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1056 | POST | /api/admin/match-settings/history/:id/retry-alerts | server/routes/matchSettings.ts:1072 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1057 | POST | /api/admin/match-settings/common-first-names/history/:id/retry-alerts | server/routes/matchSettings.ts:1275 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1058 | POST | /api/admin/match-settings/common-first-names/history/retry-failed | server/routes/matchSettings.ts:1302 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1059 | POST | /api/admin/match-settings/history/retry-failed | server/routes/matchSettings.ts:1399 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1060 | GET | /api/admin/match-settings/history | server/routes/matchSettings.ts:1480 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1061 | GET | /api/mcu/practice-areas | server/routes/mcu.ts:12 | public | none | public |
-| 1062 | POST | /api/mcu/evaluate | server/routes/mcu.ts:16 | public | none | public |
-| 1063 | POST | /api/mcu/internal/evaluate | server/routes/mcu.ts:64 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1064 | GET | /api/mcu/internal/summary | server/routes/mcu.ts:98 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1065 | POST | /api/mcu/internal/summary/refresh | server/routes/mcu.ts:143 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1066 | GET | /api/mcu/internal/hex-grid | server/routes/mcu.ts:172 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1067 | GET | /api/config/maptiler-key | server/routes/mcu.ts:189 | authenticated | isAuthenticated | authenticated |
-| 1068 | GET | /api/public/config/maptiler-key | server/routes/mcu.ts:197 | public | none | public |
-| 1069 | GET | /api/mcu/internal/hex-grid-geojson | server/routes/mcu.ts:205 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1070 | GET | /api/mcu/internal/evaluations | server/routes/mcu.ts:283 | requireInternal | isAuthenticated, requireInternal | authenticated |
-| 1071 | GET | /api/admin/notifications | server/routes/notifications.ts:91 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1072 | GET | /api/admin/notifications/kill-switch | server/routes/notifications.ts:190 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1073 | PUT | /api/admin/notifications/kill-switch | server/routes/notifications.ts:206 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1074 | GET | /api/admin/notifications/categories | server/routes/notifications.ts:230 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1075 | POST | /api/admin/notifications/retention/run | server/routes/notifications.ts:240 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1076 | GET | /api/admin/notifications/call-archive-thresholds | server/routes/notifications.ts:296 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1077 | PUT | /api/admin/notifications/call-archive-thresholds | server/routes/notifications.ts:309 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1078 | GET | /api/admin/notifications/call-archive-thresholds/live-counts | server/routes/notifications.ts:370 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1079 | GET | /api/admin/notifications/call-analysis-failure-spike-thresholds | server/routes/notifications.ts:399 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1080 | PUT | /api/admin/notifications/call-analysis-failure-spike-thresholds | server/routes/notifications.ts:413 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1081 | POST | /api/admin/notifications/call-analysis-failure-spike-thresholds/preview | server/routes/notifications.ts:519 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1082 | PUT | /api/admin/notifications/:id | server/routes/notifications.ts:541 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1083 | POST | /api/admin/notifications/:id/test | server/routes/notifications.ts:615 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1084 | GET | /api/admin/notifications/:id/deliveries | server/routes/notifications.ts:680 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1085 | GET | /api/admin/orphaned-user-heal/status | server/routes/orphanedUserHeal.ts:24 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1086 | POST | /api/outbound-email/compose | server/routes/outboundEmail.ts:168 | authenticated | isAuthenticated, writeLimiter | authenticated, ai_rate_limited |
-| 1087 | GET | /api/outbound-email/log | server/routes/outboundEmail.ts:210 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1088 | GET | /api/outbound-email/batches/:batchId | server/routes/outboundEmail.ts:218 | authenticated | isAuthenticated | authenticated |
-| 1089 | GET | /api/outbound-email/counters | server/routes/outboundEmail.ts:233 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1090 | GET | /api/outbound-email/suppressions | server/routes/outboundEmail.ts:250 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1091 | POST | /api/outbound-email/suppressions | server/routes/outboundEmail.ts:259 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
-| 1092 | DELETE | /api/outbound-email/suppressions/:id | server/routes/outboundEmail.ts:283 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
-| 1093 | GET | /api/outbound-email/identities | server/routes/outboundEmail.ts:296 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1094 | GET | /api/outbound-email/front-channels | server/routes/outboundEmail.ts:301 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1095 | PUT | /api/outbound-email/identities/:userId | server/routes/outboundEmail.ts:321 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
-| 1096 | GET | /api/outbound-email/settings | server/routes/outboundEmail.ts:347 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1097 | PUT | /api/outbound-email/settings | server/routes/outboundEmail.ts:370 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
-| 1098 | POST | /api/outbound-email/pause | server/routes/outboundEmail.ts:403 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
-| 1099 | POST | /api/outbound-email/verify-domain | server/routes/outboundEmail.ts:417 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
-| 1100 | POST | /api/outbound-email/fallback-enabled | server/routes/outboundEmail.ts:432 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
-| 1101 | GET | /api/email/unsubscribe | server/routes/outboundEmail.ts:455 | public | none | public |
-| 1102 | POST | /api/email/unsubscribe | server/routes/outboundEmail.ts:475 | public | none | public |
-| 1103 | POST | /api/webhooks/sendgrid-events | server/routes/outboundEmail.ts:506 | public | none | public, webhook |
-| 1104 | GET | /api/admin/db-attribution/trends | server/routes/poolAuditTrends.ts:48 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1105 | GET | /api/admin/prod-actions | server/routes/prodActions.ts:53 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1106 | GET | /api/admin/prod-actions/runs | server/routes/prodActions.ts:70 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1107 | POST | /api/admin/prod-actions/failure-alert-threshold | server/routes/prodActions.ts:108 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1108 | POST | /api/admin/prod-actions/apply | server/routes/prodActions.ts:140 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1109 | POST | /api/admin/prod-actions/:actionId/apply | server/routes/prodActions.ts:168 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1110 | GET | /api/admin/queue-control | server/routes/queueControl.ts:32 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1111 | POST | /api/admin/queue-control/:queueName/pause | server/routes/queueControl.ts:48 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1112 | POST | /api/admin/queue-control/:queueName/resume | server/routes/queueControl.ts:74 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1113 | POST | /api/admin/queue-control/:queueName/rate-limit | server/routes/queueControl.ts:92 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1114 | GET | /api/admin/queue-control/backlog-alerts | server/routes/queueControl.ts:128 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1115 | POST | /api/admin/queue-control/backlog-alerts/config | server/routes/queueControl.ts:187 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1116 | POST | /api/admin/queue-control/backlog-alerts/test | server/routes/queueControl.ts:272 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1117 | GET | /api/admin/queue-control/starvation-alerts | server/routes/queueControl.ts:367 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1118 | POST | /api/admin/queue-control/starvation-alerts/config | server/routes/queueControl.ts:433 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1119 | GET | /api/admin/queue-control/retroactive-reprocess/pending-by-client | server/routes/queueControl.ts:540 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1120 | GET | /api/admin/queue-control/history | server/routes/queueControl.ts:577 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1121 | POST | /api/admin/queue-control/:queueName/cancel-pending | server/routes/queueControl.ts:622 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1122 | GET | /api/health/rate-limits | server/routes/rateLimitAdmin.ts:69 | authenticated | isAuthenticated | authenticated |
-| 1123 | POST | /api/health/rate-limits/reset | server/routes/rateLimitAdmin.ts:105 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1124 | GET | /api/health/rate-limits/suggestions | server/routes/rateLimitAdmin.ts:110 | authenticated | isAuthenticated | authenticated |
-| 1125 | POST | /api/health/rate-limits/apply-suggestion | server/routes/rateLimitAdmin.ts:120 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1126 | GET | /api/health/rate-limits/auto-tune | server/routes/rateLimitAdmin.ts:134 | authenticated | isAuthenticated | authenticated |
-| 1127 | PUT | /api/health/rate-limits/auto-tune | server/routes/rateLimitAdmin.ts:138 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1128 | POST | /api/health/rate-limits/auto-tune/run | server/routes/rateLimitAdmin.ts:147 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1129 | GET | /api/health/rate-limits/adjustments | server/routes/rateLimitAdmin.ts:157 | authenticated | isAuthenticated | authenticated |
-| 1130 | GET | /api/health/rate-limits/by-user | server/routes/rateLimitAdmin.ts:161 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1131 | GET | /api/health/rate-limits/events | server/routes/rateLimitAdmin.ts:172 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1132 | GET | /api/health/rate-limits/events.csv | server/routes/rateLimitAdmin.ts:236 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1133 | GET | /api/health/rate-limits/by-user/:userId/timeseries | server/routes/rateLimitAdmin.ts:243 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1134 | GET | /api/health/rate-limits/by-user/:userId/events.csv | server/routes/rateLimitAdmin.ts:270 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1135 | GET | /api/health/rate-limits/by-ip/:ip/timeseries | server/routes/rateLimitAdmin.ts:277 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1136 | GET | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:304 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1137 | PUT | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:318 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1138 | DELETE | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:369 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1139 | DELETE | /api/health/rate-limits/thresholds/:category | server/routes/rateLimitAdmin.ts:424 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1140 | GET | /api/health/rate-limits/thresholds/history | server/routes/rateLimitAdmin.ts:458 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1141 | GET | /api/health/rate-limits/warning-percents | server/routes/rateLimitAdmin.ts:477 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1142 | PUT | /api/health/rate-limits/warning-percents | server/routes/rateLimitAdmin.ts:491 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1143 | GET | /api/health/rate-limits/warning-percents/history | server/routes/rateLimitAdmin.ts:541 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1144 | GET | /api/admin/rate-limit-multipliers | server/routes/rateLimitMultipliers.ts:35 | authenticated | isAuthenticated | authenticated, admin_only |
-| 1145 | PUT | /api/admin/rate-limit-multipliers | server/routes/rateLimitMultipliers.ts:63 | authenticated | isAuthenticated | authenticated, admin_only |
-| 1146 | POST | /api/admin/rate-limit-multipliers/reset | server/routes/rateLimitMultipliers.ts:130 | authenticated | isAuthenticated | authenticated, admin_only |
-| 1147 | GET | /api/admin/rate-limit-multipliers/history | server/routes/rateLimitMultipliers.ts:183 | authenticated | isAuthenticated | authenticated, admin_only |
-| 1148 | GET | /api/admin/route-limiters | server/routes/rateLimitMultipliers.ts:240 | authenticated | isAuthenticated | authenticated, admin_only |
-| 1149 | GET | /api/health/blocked-ips | server/routes/rateLimitMultipliers.ts:317 | authenticated | isAuthenticated | authenticated |
-| 1150 | GET | /api/health/rate-limits/default-block-duration | server/routes/rateLimitMultipliers.ts:365 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1151 | PUT | /api/health/rate-limits/default-block-duration | server/routes/rateLimitMultipliers.ts:377 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1152 | GET | /api/health/rate-limits/alerts | server/routes/rateLimitNotifications.ts:21 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1153 | POST | /api/health/rate-limits/alerts/clear | server/routes/rateLimitNotifications.ts:25 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1154 | GET | /api/health/rate-limits/notifications.csv | server/routes/rateLimitNotifications.ts:34 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1155 | GET | /api/health/rate-limits/notifications | server/routes/rateLimitNotifications.ts:170 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1156 | GET | /api/health/rate-limits/notify-config | server/routes/rateLimitNotifications.ts:287 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1157 | PUT | /api/health/rate-limits/notify-config | server/routes/rateLimitNotifications.ts:318 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1158 | GET | /api/health/rate-limits/notify-config/history | server/routes/rateLimitNotifications.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1159 | POST | /api/health/rate-limits/notify-config/history/:id/resend | server/routes/rateLimitNotifications.ts:393 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1160 | GET | /api/health/rate-limits/digest-status | server/routes/rateLimitNotifications.ts:435 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1161 | POST | /api/health/rate-limits/digest-flush | server/routes/rateLimitNotifications.ts:445 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1162 | GET | /api/health/rate-limits/notifications/:id/chain | server/routes/rateLimitNotifications.ts:460 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1163 | POST | /api/health/rate-limits/notifications/:id/retry | server/routes/rateLimitNotifications.ts:500 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1164 | POST | /api/health/rate-limits/notifications/bulk-retry | server/routes/rateLimitNotifications.ts:528 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1165 | GET | /api/health/rate-limits/auto-retry-config | server/routes/rateLimitNotifications.ts:571 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1166 | PUT | /api/health/rate-limits/auto-retry-config | server/routes/rateLimitNotifications.ts:585 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1167 | POST | /api/health/rate-limits/auto-retry-run | server/routes/rateLimitNotifications.ts:610 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1168 | GET | /api/health/rate-limits/digest-growth | server/routes/rateLimitNotifications.ts:628 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1169 | GET | /api/health/rate-limits/digest-growth/history | server/routes/rateLimitNotifications.ts:644 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1170 | PUT | /api/health/rate-limits/digest-growth | server/routes/rateLimitNotifications.ts:658 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1171 | GET | /api/health/rate-limits/max-attempts-warning | server/routes/rateLimitNotifications.ts:685 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1172 | PUT | /api/health/rate-limits/max-attempts-warning | server/routes/rateLimitNotifications.ts:704 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1173 | GET | /api/health/rate-limits/last-test-alert | server/routes/rateLimitNotifications.ts:734 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1174 | POST | /api/health/rate-limits/test-alert | server/routes/rateLimitNotifications.ts:748 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1175 | GET | /api/health/rate-limits/notification-retention | server/routes/rateLimitRetention.ts:21 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1176 | PUT | /api/health/rate-limits/notification-retention | server/routes/rateLimitRetention.ts:103 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1177 | POST | /api/health/rate-limits/notification-retention/prune | server/routes/rateLimitRetention.ts:175 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1178 | GET | /api/health/rate-limits/notification-retention/history | server/routes/rateLimitRetention.ts:237 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1179 | GET | /api/health/rate-limits/pending-digest-retention | server/routes/rateLimitRetention.ts:300 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1180 | PUT | /api/health/rate-limits/pending-digest-retention | server/routes/rateLimitRetention.ts:381 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1181 | GET | /api/health/rate-limits/pending-digest-retention/history | server/routes/rateLimitRetention.ts:452 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1182 | POST | /api/health/rate-limits/pending-digest-retention/prune | server/routes/rateLimitRetention.ts:496 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1183 | GET | /api/all-report-sections | server/routes/reports.ts:284 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1184 | GET | /api/ceo-pulses | server/routes/reports.ts:322 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1185 | GET | /api/ceo-pulses/:id | server/routes/reports.ts:332 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1186 | GET | /api/ceo-pulses/month/:monthKey | server/routes/reports.ts:345 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1187 | POST | /api/ceo-pulses | server/routes/reports.ts:356 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1188 | PATCH | /api/ceo-pulses/:id | server/routes/reports.ts:378 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1189 | POST | /api/ceo-pulses/:id/analyze | server/routes/reports.ts:574 | requireCeo | isAuthenticated, requireCeo, aiLimiter | authenticated, admin_only, ai_rate_limited |
-| 1190 | POST | /api/ceo-pulses/:id/refine | server/routes/reports.ts:897 | requireCeo | isAuthenticated, requireCeo, aiLimiter | authenticated, admin_only, ai_rate_limited |
-| 1191 | POST | /api/ceo-pulses/:id/images | server/routes/reports.ts:1293 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1192 | PATCH | /api/ceo-pulses/:id/images | server/routes/reports.ts:1364 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1193 | DELETE | /api/ceo-pulses/:id/images/:slot | server/routes/reports.ts:1412 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1194 | POST | /api/ceo-pulses/:id/share | server/routes/reports.ts:1445 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1195 | POST | /api/ceo-pulses/:id/regenerate-charts | server/routes/reports.ts:1463 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1196 | GET | /api/ceo-pulse/share/:token | server/routes/reports.ts:1484 | public | none | public |
-| 1197 | GET | /api/ceo-pulse-charts/:monthKey/chart-:index.png | server/routes/reports.ts:1531 | public | none | public |
-| 1198 | GET | /api/ceo-pulse-charts/:monthKey/image-:slot | server/routes/reports.ts:1567 | public | none | public |
-| 1199 | GET | /api/reports | server/routes/reports.ts:1623 | authenticated | isAuthenticated | authenticated |
-| 1200 | GET | /api/reports/matrix | server/routes/reports.ts:1645 | authenticated | isAuthenticated | authenticated |
-| 1201 | GET | /api/reports/:id | server/routes/reports.ts:1758 | authenticated | isAuthenticated | authenticated |
-| 1202 | POST | /api/ai/format-issues | server/routes/reports.ts:1847 | authenticated | isAuthenticated, aiLimiter | authenticated, ai_rate_limited |
-| 1203 | POST | /api/reports/import-pdf | server/routes/reports.ts:1911 | requireAccountManager | isAuthenticated, requireAccountManager, upload.single | authenticated, upload |
-| 1204 | POST | /api/webhooks/report-import | server/routes/reports.ts:1983 | public | upload.single | public, webhook, upload |
-| 1205 | GET | /api/webhook-import-logs | server/routes/reports.ts:3012 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only, webhook |
-| 1206 | GET | /api/webhook-import-logs/:id/extracted-text | server/routes/reports.ts:3044 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only, webhook |
-| 1207 | POST | /api/reports/:id/reimport | server/routes/reports.ts:3059 | requireAccountManager | isAuthenticated, requireAccountManager, upload.single | authenticated, upload |
-| 1208 | POST | /api/reports | server/routes/reports.ts:3611 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1209 | PATCH | /api/reports/:id | server/routes/reports.ts:3678 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1210 | DELETE | /api/reports/:id | server/routes/reports.ts:3961 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1211 | POST | /api/reports/:id/duplicate | server/routes/reports.ts:3977 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1212 | GET | /api/reports/:id/sections | server/routes/reports.ts:4074 | authenticated | isAuthenticated | authenticated |
-| 1213 | PUT | /api/reports/:id/sections/:sectionKey | server/routes/reports.ts:4093 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1214 | GET | /api/reports/:id/sections/:sectionKey/history | server/routes/reports.ts:4500 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1215 | POST | /api/reports/:id/verdicts/draft | server/routes/reports.ts:4531 | requireAccountManager | isAuthenticated, requireAccountManager, aiLimiter | authenticated, ai_rate_limited |
-| 1216 | GET | /api/share/:token | server/routes/reports.ts:5270 | public | none | public |
-| 1217 | GET | /api/preview/:reportId | server/routes/reports.ts:5297 | authenticated | isAuthenticated | authenticated |
-| 1218 | GET | /api/admin/demo-report-setting | server/routes/reports.ts:5325 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1219 | POST | /api/admin/demo-report-setting | server/routes/reports.ts:5338 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1220 | GET | /api/demo-report | server/routes/reports.ts:5418 | public | none | public |
-| 1221 | POST | /api/webhooks/rev-ai | server/routes/revAiWebhook.ts:42 | public | none | public, webhook |
-| 1222 | GET | /api/ris/checks | server/routes/ris.ts:59 | authenticated | isAuthenticated | authenticated |
-| 1223 | POST | /api/ris/checks | server/routes/ris.ts:76 | authenticated | isAuthenticated | authenticated |
-| 1224 | PATCH | /api/ris/checks/:id | server/routes/ris.ts:99 | authenticated | isAuthenticated | authenticated |
-| 1225 | POST | /api/ris/checks/reorder | server/routes/ris.ts:119 | authenticated | isAuthenticated | authenticated |
-| 1226 | GET | /api/ris/portfolio | server/routes/ris.ts:139 | authenticated | isAuthenticated | authenticated |
-| 1227 | GET | /api/ris/clients/:clientId | server/routes/ris.ts:157 | authenticated | isAuthenticated | authenticated |
-| 1228 | GET | /api/ris/performance/portfolio | server/routes/ris.ts:184 | authenticated | isAuthenticated | authenticated |
-| 1229 | GET | /api/ris/performance/clients/:clientId | server/routes/ris.ts:205 | authenticated | isAuthenticated | authenticated |
-| 1230 | POST | /api/ris/clients/:clientId/results | server/routes/ris.ts:227 | authenticated | isAuthenticated | authenticated |
-| 1231 | POST | /api/ris/refresh | server/routes/ris.ts:304 | authenticated | isAuthenticated | authenticated |
-| 1232 | POST | /api/ris/results/:id/confirm | server/routes/ris.ts:331 | authenticated | isAuthenticated | authenticated |
-| 1233 | GET | /api/ris/auto-mappings | server/routes/ris.ts:355 | authenticated | isAuthenticated | authenticated |
-| 1234 | PUT | /api/ris/auto-mappings/:autoSource | server/routes/ris.ts:383 | authenticated | isAuthenticated | authenticated |
-| 1235 | GET | /api/ris/client-bindings/:clientId | server/routes/ris.ts:420 | authenticated | isAuthenticated | authenticated |
-| 1236 | PUT | /api/ris/client-bindings/:clientId/bigquery-key | server/routes/ris.ts:453 | authenticated | isAuthenticated | authenticated |
-| 1237 | PUT | /api/ris/client-bindings/:clientId/overrides/:autoSource | server/routes/ris.ts:490 | authenticated | isAuthenticated | authenticated |
-| 1238 | DELETE | /api/ris/client-bindings/:clientId/overrides/:autoSource | server/routes/ris.ts:525 | authenticated | isAuthenticated | authenticated |
-| 1239 | GET | /api/public/roadmap | server/routes/roadmap.ts:197 | public | none | public |
-| 1240 | GET | /api/roadmap/admin | server/routes/roadmap.ts:259 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1241 | POST | /api/roadmap/initiatives | server/routes/roadmap.ts:324 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1242 | PATCH | /api/roadmap/initiatives/:id | server/routes/roadmap.ts:379 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1243 | DELETE | /api/roadmap/initiatives/:id | server/routes/roadmap.ts:443 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1244 | POST | /api/roadmap/initiatives/reorder | server/routes/roadmap.ts:467 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1245 | POST | /api/roadmap/${kind} | server/routes/roadmap.ts:504 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1246 | PATCH | /api/roadmap/${kind}/:id | server/routes/roadmap.ts:534 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1247 | DELETE | /api/roadmap/${kind}/:id | server/routes/roadmap.ts:560 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1248 | GET | /api/clients/:clientId/save-plays | server/routes/savePlays.ts:94 | authenticated | isAuthenticated | authenticated |
-| 1249 | GET | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:108 | authenticated | isAuthenticated | authenticated |
-| 1250 | POST | /api/clients/:clientId/save-plays | server/routes/savePlays.ts:123 | authenticated | isAuthenticated | authenticated |
-| 1251 | PATCH | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:161 | authenticated | isAuthenticated | authenticated |
-| 1252 | DELETE | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:205 | authenticated | isAuthenticated | authenticated |
-| 1253 | GET | /api/churn/save-plays | server/routes/savePlays.ts:222 | authenticated | isAuthenticated | authenticated |
-| 1254 | GET | /api/scoring/:entityType/config | server/routes/scoring.ts:79 | authenticated | isAuthenticated | authenticated |
-| 1255 | PUT | /api/scoring/:entityType/config | server/routes/scoring.ts:118 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1256 | POST | /api/scoring/:entityType/rules | server/routes/scoring.ts:158 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1257 | PATCH | /api/scoring/rules/:id | server/routes/scoring.ts:212 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1258 | DELETE | /api/scoring/rules/:id | server/routes/scoring.ts:279 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1259 | POST | /api/scoring/:entityType/recompute | server/routes/scoring.ts:320 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1260 | POST | /api/scoring/preview | server/routes/scoring.ts:340 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1261 | GET | /api/admin/semrush/cadence | server/routes/semrushCadence.ts:30 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1262 | POST | /api/admin/semrush/cadence/reset-cache | server/routes/semrushCadence.ts:202 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1263 | POST | /api/service-desk/setup/import-departments | server/routes/serviceDesk/clickupImports.ts:30 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1264 | POST | /api/service-desk/setup/import-request-types | server/routes/serviceDesk/clickupImports.ts:198 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1265 | POST | /api/service-desk/setup/refresh-option-names | server/routes/serviceDesk/clickupImports.ts:356 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1266 | GET | /api/service-desk/config | server/routes/serviceDesk/configSetup.ts:22 | authenticated | isAuthenticated | authenticated |
-| 1267 | PUT | /api/service-desk/config | server/routes/serviceDesk/configSetup.ts:31 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1268 | POST | /api/service-desk/setup/create-structure | server/routes/serviceDesk/configSetup.ts:121 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1269 | POST | /api/service-desk/setup/autofill-fields | server/routes/serviceDesk/configSetup.ts:215 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1270 | GET | /api/service-desk/setup/verify | server/routes/serviceDesk/configSetup.ts:309 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1271 | GET | /api/service-desk/client-options | server/routes/serviceDesk/departments.ts:210 | authenticated | isAuthenticated | authenticated |
-| 1272 | GET | /api/service-desk/client-team-options | server/routes/serviceDesk/departments.ts:267 | authenticated | isAuthenticated | authenticated |
-| 1273 | GET | /api/service-desk/departments | server/routes/serviceDesk/departments.ts:326 | authenticated | isAuthenticated | authenticated |
-| 1274 | POST | /api/service-desk/departments | server/routes/serviceDesk/departments.ts:375 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1275 | PUT | /api/service-desk/departments/:id | server/routes/serviceDesk/departments.ts:411 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1276 | PUT | /api/service-desk/departments/:id/role-defaults | server/routes/serviceDesk/departments.ts:460 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1277 | GET | /api/service-desk/departments/:id/delete-impact | server/routes/serviceDesk/departments.ts:537 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1278 | DELETE | /api/service-desk/departments/:id | server/routes/serviceDesk/departments.ts:564 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1279 | GET | /api/service-desk/departments/:id/members | server/routes/serviceDesk/departments.ts:766 | authenticated | isAuthenticated | authenticated |
-| 1280 | POST | /api/service-desk/departments/:id/members | server/routes/serviceDesk/departments.ts:787 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1281 | PUT | /api/service-desk/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:838 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1282 | DELETE | /api/service-desk/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:880 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1283 | GET | /api/service-desk/clients/:clientId/assignments | server/routes/serviceDesk/departments.ts:918 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1284 | PUT | /api/service-desk/clients/:clientId/assignments/:departmentId | server/routes/serviceDesk/departments.ts:973 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1285 | GET | /api/service-desk/coverage | server/routes/serviceDesk/departments.ts:1021 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1286 | POST | /api/service-desk/assignments/bulk | server/routes/serviceDesk/departments.ts:1039 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1287 | GET | /api/admin/role-assignments | server/routes/serviceDesk/departments.ts:1114 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1288 | GET | /api/admin/role-assignments/clients/:clientId | server/routes/serviceDesk/departments.ts:1127 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1289 | PUT | /api/admin/role-assignments/clients/:clientId/departments/:departmentId | server/routes/serviceDesk/departments.ts:1183 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1290 | PUT | /api/admin/role-assignments/departments/:id | server/routes/serviceDesk/departments.ts:1227 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1291 | POST | /api/admin/role-assignments/bulk | server/routes/serviceDesk/departments.ts:1282 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1292 | GET | /api/admin/role-assignments/departments/:id/members | server/routes/serviceDesk/departments.ts:1346 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1293 | POST | /api/admin/role-assignments/departments/:id/members | server/routes/serviceDesk/departments.ts:1367 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1294 | DELETE | /api/admin/role-assignments/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:1414 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1295 | GET | /api/service-desk/role-projections/configuration | server/routes/serviceDesk/departments.ts:1451 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1296 | PUT | /api/service-desk/role-projections/destinations | server/routes/serviceDesk/departments.ts:1472 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1297 | PUT | /api/service-desk/role-projections/targets | server/routes/serviceDesk/departments.ts:1542 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1298 | GET | /api/service-desk/role-projections/status | server/routes/serviceDesk/departments.ts:1571 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1299 | POST | /api/service-desk/role-projections/resync | server/routes/serviceDesk/departments.ts:1624 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1300 | GET | /api/service-desk/reports | server/routes/serviceDesk/reports.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1301 | GET | /api/service-desk/reports/export | server/routes/serviceDesk/reports.ts:392 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1302 | GET | /api/service-desk/tickets/:taskId/allowed-transitions | server/routes/serviceDesk/reports.ts:482 | authenticated | isAuthenticated | authenticated |
-| 1303 | GET | /api/service-desk/request-types | server/routes/serviceDesk/requestTypes.ts:25 | authenticated | isAuthenticated | authenticated |
-| 1304 | POST | /api/service-desk/request-types | server/routes/serviceDesk/requestTypes.ts:50 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1305 | PUT | /api/service-desk/request-types/:id | server/routes/serviceDesk/requestTypes.ts:77 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1306 | DELETE | /api/service-desk/request-types/:id | server/routes/serviceDesk/requestTypes.ts:104 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1307 | POST | /api/service-desk/request-types/auto-match-departments | server/routes/serviceDesk/requestTypes.ts:140 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1308 | GET | /api/service-desk/setup/options | server/routes/serviceDesk/requestTypes.ts:233 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1309 | POST | /api/service-desk/setup/sync-client-options | server/routes/serviceDesk/requestTypes.ts:298 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1310 | POST | /api/service-desk/setup/accept-client-suggestions | server/routes/serviceDesk/requestTypes.ts:528 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1311 | GET | /api/service-desk/request-types/:id/questions | server/routes/serviceDesk/templates.ts:41 | authenticated | isAuthenticated | authenticated |
-| 1312 | POST | /api/service-desk/request-types/:id/questions | server/routes/serviceDesk/templates.ts:58 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1313 | PUT | /api/service-desk/request-types/:id/questions/:qid | server/routes/serviceDesk/templates.ts:98 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1314 | DELETE | /api/service-desk/request-types/:id/questions/:qid | server/routes/serviceDesk/templates.ts:138 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1315 | GET | /api/service-desk/request-types/:id/checklist-steps | server/routes/serviceDesk/templates.ts:153 | authenticated | isAuthenticated | authenticated |
-| 1316 | POST | /api/service-desk/request-types/:id/checklist-steps | server/routes/serviceDesk/templates.ts:170 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1317 | PUT | /api/service-desk/request-types/:id/checklist-steps/:sid | server/routes/serviceDesk/templates.ts:203 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1318 | DELETE | /api/service-desk/request-types/:id/checklist-steps/:sid | server/routes/serviceDesk/templates.ts:242 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1319 | POST | /api/service-desk/tickets/submit | server/routes/serviceDesk/templates.ts:261 | authenticated | isAuthenticated | authenticated |
-| 1320 | POST | /api/service-desk/tickets/:taskId/transition | server/routes/serviceDesk/ticketActions.ts:33 | authenticated | isAuthenticated | authenticated |
-| 1321 | POST | /api/service-desk/tickets/:taskId/reassign | server/routes/serviceDesk/ticketActions.ts:214 | authenticated | isAuthenticated | authenticated |
-| 1322 | POST | /api/service-desk/tickets/:taskId/change-department | server/routes/serviceDesk/ticketActions.ts:341 | authenticated | isAuthenticated | authenticated |
-| 1323 | POST | /api/service-desk/tickets/:taskId/committed-date | server/routes/serviceDesk/ticketActions.ts:456 | authenticated | isAuthenticated | authenticated |
-| 1324 | POST | /api/service-desk/tickets/:taskId/confirm-complete | server/routes/serviceDesk/ticketActions.ts:553 | authenticated | isAuthenticated | authenticated |
-| 1325 | POST | /api/service-desk/tickets/:taskId/reopen | server/routes/serviceDesk/ticketActions.ts:607 | authenticated | isAuthenticated | authenticated |
-| 1326 | POST | /api/service-desk/tickets/:taskId/mark-duplicate | server/routes/serviceDesk/ticketActions.ts:669 | authenticated | isAuthenticated | authenticated |
-| 1327 | GET | /api/service-desk/eligible-assignees | server/routes/serviceDesk/ticketsRead.ts:23 | authenticated | isAuthenticated | authenticated |
-| 1328 | GET | /api/service-desk/eligibility/:departmentId | server/routes/serviceDesk/ticketsRead.ts:67 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1329 | GET | /api/service-desk/tickets/needs-mapping | server/routes/serviceDesk/ticketsRead.ts:93 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1330 | GET | /api/service-desk/views/counts | server/routes/serviceDesk/ticketsRead.ts:127 | authenticated | isAuthenticated | authenticated |
-| 1331 | GET | /api/service-desk/tickets | server/routes/serviceDesk/ticketsRead.ts:154 | authenticated | isAuthenticated | authenticated |
-| 1332 | GET | /api/service-desk/tickets/:taskId | server/routes/serviceDesk/ticketsRead.ts:178 | authenticated | isAuthenticated | authenticated |
-| 1333 | POST | /api/service-desk/tickets/:taskId/mapping | server/routes/serviceDesk/ticketsRead.ts:193 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1334 | POST | /api/service-desk/tickets/:taskId/rerun-mapping | server/routes/serviceDesk/ticketsRead.ts:238 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1335 | POST | /api/service-desk/tickets/:taskId/dismiss-mapping | server/routes/serviceDesk/ticketsRead.ts:277 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1336 | GET | /api/service-desk/tickets/:taskId/events | server/routes/serviceDesk/ticketsRead.ts:319 | authenticated | isAuthenticated | authenticated |
-| 1337 | GET | /api/monthly-review-stats | server/routes/settings.ts:19 | authenticated | isAuthenticated | authenticated |
-| 1338 | POST | /api/monthly-review-notifications | server/routes/settings.ts:55 | authenticated | isAuthenticated | authenticated |
-| 1339 | GET | /api/users | server/routes/settings.ts:115 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1340 | GET | /api/users/paged | server/routes/settings.ts:139 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1341 | POST | /api/users | server/routes/settings.ts:169 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1342 | PATCH | /api/users/:id/role | server/routes/settings.ts:228 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1343 | GET | /api/users/:id/delete-impact | server/routes/settings.ts:313 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1344 | POST | /api/users/:id/reassign | server/routes/settings.ts:336 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1345 | DELETE | /api/users/:id | server/routes/settings.ts:419 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1346 | GET | /api/users/deleted | server/routes/settings.ts:484 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1347 | GET | /api/users/delete-history | server/routes/settings.ts:498 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1348 | GET | /api/users/reassign-history | server/routes/settings.ts:525 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1349 | POST | /api/users/:id/restore | server/routes/settings.ts:561 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1350 | PATCH | /api/users/:id/email | server/routes/settings.ts:652 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1351 | GET | /api/users/restored-email-cleanup/preview | server/routes/settings.ts:740 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1352 | POST | /api/users/restored-email-cleanup/run | server/routes/settings.ts:772 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1353 | GET | /api/users/restored-email-cleanup/status | server/routes/settings.ts:857 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1354 | GET | /api/admin/role-permissions/status | server/routes/settings.ts:899 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1355 | GET | /api/admin/role-backfill-banner | server/routes/settings.ts:916 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1356 | POST | /api/admin/role-backfill-banner/dismiss | server/routes/settings.ts:924 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1357 | GET | /api/trends | server/routes/settings.ts:941 | authenticated | isAuthenticated | authenticated |
-| 1358 | POST | /api/trends/practice-areas | server/routes/settings.ts:978 | authenticated | isAuthenticated | authenticated |
-| 1359 | GET | /api/trends/practice-areas/list | server/routes/settings.ts:1016 | authenticated | isAuthenticated | authenticated |
-| 1360 | GET | /api/admin/practice-area-settings | server/routes/settings.ts:1025 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1361 | POST | /api/admin/practice-area-settings | server/routes/settings.ts:1070 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1362 | DELETE | /api/admin/practice-area-settings/:id | server/routes/settings.ts:1102 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1363 | GET | /api/phase-settings | server/routes/settings.ts:1143 | public | none | public |
-| 1364 | PUT | /api/admin/phase-settings | server/routes/settings.ts:1164 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1365 | GET | /api/sheets/folders | server/routes/sheets.ts:98 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1366 | POST | /api/sheets/folders | server/routes/sheets.ts:114 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1367 | PATCH | /api/sheets/folders/:id | server/routes/sheets.ts:138 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1368 | DELETE | /api/sheets/folders/:id | server/routes/sheets.ts:166 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1369 | GET | /api/sheets/workbooks | server/routes/sheets.ts:215 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1370 | GET | /api/sheets/workbooks/last-activity | server/routes/sheets.ts:257 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1371 | GET | /api/sheets/workbooks/:id | server/routes/sheets.ts:281 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1372 | POST | /api/sheets/workbooks | server/routes/sheets.ts:306 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1373 | PATCH | /api/sheets/workbooks/:id | server/routes/sheets.ts:353 | requireAccountManager | isAuthenticated, requireAccountManager, sheetsAutosaveLimiter | authenticated, ai_rate_limited |
-| 1374 | DELETE | /api/sheets/workbooks/:id | server/routes/sheets.ts:471 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1375 | POST | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:511 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1376 | POST | /api/sheets/workbooks/:id/lock/heartbeat | server/routes/sheets.ts:551 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1377 | DELETE | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:584 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1378 | GET | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:629 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1379 | GET | /api/sheets/workbooks/:id/permissions | server/routes/sheets.ts:667 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1380 | PUT | /api/sheets/workbooks/:id/permissions | server/routes/sheets.ts:690 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1381 | DELETE | /api/sheets/workbooks/:id/permissions/:userId | server/routes/sheets.ts:735 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1382 | POST | /api/sheets/workbooks/import | server/routes/sheets.ts:789 | requireAccountManager | isAuthenticated, requireAccountManager, uploadLimiter | authenticated, ai_rate_limited |
-| 1383 | GET | /api/sheets/workbooks/:id/export/xlsx | server/routes/sheets.ts:897 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1384 | GET | /api/sheets/workbooks/:id/sheets/:sheetId/export/csv | server/routes/sheets.ts:951 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1385 | GET | /api/sheets/connectors | server/routes/sheets.ts:999 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1386 | GET | /api/sheets/workbooks/:id/versions | server/routes/sheets.ts:1028 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1387 | GET | /api/sheets/workbooks/:id/versions/:versionId | server/routes/sheets.ts:1049 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1388 | POST | /api/sheets/workbooks/:id/versions | server/routes/sheets.ts:1074 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1389 | POST | /api/sheets/workbooks/:id/versions/:versionId/restore | server/routes/sheets.ts:1122 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1390 | GET | /api/sheets/workbooks/:id/activity | server/routes/sheets.ts:1164 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1391 | GET | /api/sheets/workbooks/:id/blocks | server/routes/sheets.ts:1189 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1392 | GET | /api/sheets/workbooks/:id/role-grants | server/routes/sheets.ts:1216 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1393 | POST | /api/sheets/workbooks/:id/blocks | server/routes/sheets.ts:1239 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1394 | PUT | /api/sheets/workbooks/:id/role-grants | server/routes/sheets.ts:1279 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1395 | PATCH | /api/sheets/workbooks/:wId/blocks/:bId | server/routes/sheets.ts:1314 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1396 | DELETE | /api/sheets/workbooks/:wId/blocks/:bId | server/routes/sheets.ts:1347 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1397 | DELETE | /api/sheets/workbooks/:id/role-grants/:role | server/routes/sheets.ts:1373 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1398 | POST | /api/sheets/workbooks/:id/duplicate | server/routes/sheets.ts:1403 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1399 | POST | /api/sheets/workbooks/:id/save-as-template | server/routes/sheets.ts:1454 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1400 | GET | /api/sheets/templates | server/routes/sheets.ts:1502 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1401 | GET | /api/sheets/templates/:id | server/routes/sheets.ts:1521 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1402 | PATCH | /api/sheets/templates/:id | server/routes/sheets.ts:1542 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1403 | DELETE | /api/sheets/templates/:id | server/routes/sheets.ts:1587 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1404 | POST | /api/sheets/templates/:id/workbook | server/routes/sheets.ts:1618 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1405 | GET | /api/sheets/workbooks/:id/tabs | server/routes/sheets.ts:1658 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1406 | POST | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1709 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1407 | DELETE | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1746 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1408 | GET | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1773 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1409 | GET | /api/sheets/dashboards | server/routes/sheets.ts:1799 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1410 | GET | /api/sheets/dashboards/:id | server/routes/sheets.ts:1821 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
-| 1411 | POST | /api/sheets/workbooks/:wId/blocks/:bId/refresh | server/routes/sheets.ts:1852 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
-| 1412 | GET | /api/sms-consent/status | server/routes/smsConsent.ts:83 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1413 | POST | /api/sms-consent/status-batch | server/routes/smsConsent.ts:97 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1414 | GET | /api/admin/sms-consent/ledger | server/routes/smsConsent.ts:113 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1415 | GET | /api/admin/sms-consent/events | server/routes/smsConsent.ts:136 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1416 | GET | /api/admin/sms-consent/gate-audit | server/routes/smsConsent.ts:156 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1417 | GET | /api/admin/sms-consent/settings | server/routes/smsConsent.ts:178 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1418 | PUT | /api/admin/sms-consent/settings | server/routes/smsConsent.ts:195 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1419 | POST | /api/admin/sms-consent/manual | server/routes/smsConsent.ts:240 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1420 | GET | /api/tags | server/routes/tagsSegments.ts:116 | authenticated | isAuthenticated | authenticated |
-| 1421 | POST | /api/tags | server/routes/tagsSegments.ts:150 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1422 | PATCH | /api/tags/:id | server/routes/tagsSegments.ts:193 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1423 | DELETE | /api/tags/:id | server/routes/tagsSegments.ts:230 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1424 | GET | /api/segments | server/routes/tagsSegments.ts:338 | authenticated | isAuthenticated | authenticated |
-| 1425 | POST | /api/segments | server/routes/tagsSegments.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1426 | PATCH | /api/segments/:id | server/routes/tagsSegments.ts:391 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1427 | DELETE | /api/segments/:id | server/routes/tagsSegments.ts:430 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1428 | GET | /api/segments/:id/members | server/routes/tagsSegments.ts:446 | authenticated | isAuthenticated | authenticated |
-| 1429 | POST | /api/segments/:id/recompute | server/routes/tagsSegments.ts:467 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1430 | GET | /api/tags-segments/status | server/routes/tagsSegments.ts:486 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1431 | PATCH | /api/tags-segments/settings | server/routes/tagsSegments.ts:548 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1432 | POST | /api/tags-segments/sweep | server/routes/tagsSegments.ts:590 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1433 | GET | /api/clients/:clientId/timeline | server/routes/timeline.ts:163 | requireCommandCenterAccess | isAuthenticated, requireCommandCenterAccess | authenticated |
-| 1434 | GET | /api/deals/:dealId/timeline | server/routes/timeline.ts:185 | authenticated | isAuthenticated | authenticated |
-| 1435 | POST | /api/twilio/webhooks/sms | server/routes/twilio.ts:692 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1436 | POST | /api/twilio/webhooks/sms-status | server/routes/twilio.ts:726 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1437 | POST | /api/twilio/webhooks/call-status | server/routes/twilio.ts:758 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1438 | POST | /api/twilio/webhooks/voice-twiml | server/routes/twilio.ts:786 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1439 | POST | /api/twilio/webhooks/voice-routing-callback | server/routes/twilio.ts:856 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1440 | POST | /api/twilio/webhooks/voice-ivr | server/routes/twilio.ts:930 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1441 | POST | /api/twilio/webhooks/voice-twiml-outbound | server/routes/twilio.ts:972 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1442 | POST | /api/twilio/webhooks/voice-twiml-forward-bridge | server/routes/twilio.ts:1004 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1443 | POST | /api/twilio/webhooks/voice-twiml-browser | server/routes/twilio.ts:1039 | public | none | public, webhook |
-| 1444 | POST | /api/twilio/webhooks/voice-whisper | server/routes/twilio.ts:1133 | public | none | public, webhook |
-| 1445 | POST | /api/twilio/webhooks/recording-status | server/routes/twilio.ts:1175 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1446 | POST | /api/twilio/webhooks/voicemail-recording-status | server/routes/twilio.ts:1262 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1447 | POST | /api/twilio/webhooks/voicemail-transcription | server/routes/twilio.ts:1296 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1448 | POST | /api/twilio/webhooks/voicemail-action | server/routes/twilio.ts:1354 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1449 | POST | /api/twilio/webhooks/voice-twiml-browser-dial-status | server/routes/twilio.ts:1363 | validateTwilioWebhook | validateTwilioWebhook | webhook |
-| 1450 | GET | /api/twilio/events | server/routes/twilio.ts:1408 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1451 | GET | /api/twilio/conversations | server/routes/twilio.ts:1456 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1452 | GET | /api/twilio/conversations/:id | server/routes/twilio.ts:1479 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1453 | GET | /api/twilio/conversations/:id/messages | server/routes/twilio.ts:1489 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1454 | POST | /api/twilio/conversations/:id/messages | server/routes/twilio.ts:1522 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1455 | GET | /api/twilio/client-suggestions | server/routes/twilio.ts:1662 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1456 | GET | /api/twilio/client-contacts/search | server/routes/twilio.ts:1675 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1457 | POST | /api/twilio/conversations/:id/read | server/routes/twilio.ts:1688 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1458 | GET | /api/twilio/threads/notes | server/routes/twilio.ts:1703 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1459 | GET | /api/twilio/threads/assignments | server/routes/twilio.ts:1731 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1460 | GET | /api/twilio/threads/:key/notes | server/routes/twilio.ts:1741 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1461 | POST | /api/twilio/threads/:key/notes | server/routes/twilio.ts:1755 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1462 | DELETE | /api/twilio/threads/notes/:id | server/routes/twilio.ts:1862 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1463 | GET | /api/twilio/threads/:key/assignment | server/routes/twilio.ts:1873 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1464 | GET | /api/twilio/threads/assignment-notifications | server/routes/twilio.ts:1917 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1465 | POST | /api/twilio/threads/assignment-notifications/mark-read | server/routes/twilio.ts:1936 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1466 | GET | /api/twilio/threads/read-states | server/routes/twilio.ts:1985 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1467 | PATCH | /api/twilio/threads/:key/read-state | server/routes/twilio.ts:2000 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1468 | GET | /api/twilio/threads/assignees | server/routes/twilio.ts:2090 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1469 | PATCH | /api/twilio/threads/:key/assignment | server/routes/twilio.ts:2118 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1470 | POST | /api/twilio/conversations | server/routes/twilio.ts:2193 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1471 | PATCH | /api/twilio/conversations/:id/client | server/routes/twilio.ts:2436 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1472 | PATCH | /api/twilio/conversations/:id/display-name | server/routes/twilio.ts:2546 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1473 | PATCH | /api/twilio/conversations/:id/participants | server/routes/twilio.ts:2564 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1474 | POST | /api/twilio/send-sms | server/routes/twilio.ts:2619 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1475 | POST | /api/twilio/initiate-call | server/routes/twilio.ts:2675 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1476 | POST | /api/twilio/voice-token | server/routes/twilio.ts:2753 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1477 | GET | /api/twilio/calls/:id/status | server/routes/twilio.ts:2824 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1478 | POST | /api/twilio/calls/:id/hangup | server/routes/twilio.ts:2865 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1479 | GET | /api/twilio/calls/:id/recording | server/routes/twilio.ts:2901 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1480 | GET | /api/twilio/calls/:id/voicemail-recording | server/routes/twilio.ts:2994 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1481 | POST | /api/twilio/calls/:id/voicemail/listened | server/routes/twilio.ts:3047 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1482 | GET | /api/twilio/calls | server/routes/twilio.ts:3067 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1483 | GET | /api/twilio/config | server/routes/twilio.ts:3086 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1484 | POST | /api/twilio/messaging-service/test | server/routes/twilio.ts:3175 | authenticated | isAuthenticated | authenticated |
-| 1485 | PUT | /api/twilio/config | server/routes/twilio.ts:3211 | authenticated | isAuthenticated | authenticated |
-| 1486 | PUT | /api/users/me/twilio-settings | server/routes/twilio.ts:3367 | authenticated | isAuthenticated | authenticated |
-| 1487 | POST | /api/twilio/voice-presence | server/routes/twilio.ts:3409 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
-| 1488 | GET | /api/users/me/twilio-settings | server/routes/twilio.ts:3428 | authenticated | isAuthenticated | authenticated |
-| 1489 | PUT | /api/users/me/profile | server/routes/twilio.ts:3445 | authenticated | isAuthenticated | authenticated |
-| 1490 | POST | /api/users/me/profile-photo | server/routes/twilio.ts:3463 | authenticated | isAuthenticated | authenticated |
-| 1491 | POST | /api/twilio/admin/backfill-statuses | server/routes/twilio.ts:3518 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1492 | POST | /api/admin/twilio/cleanup-duplicate-conversations | server/routes/twilio.ts:3667 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1493 | GET | /api/admin/twilio/call-archive | server/routes/twilio.ts:3703 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1494 | GET | /api/admin/twilio/call-archive/health | server/routes/twilio.ts:3790 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1495 | PUT | /api/admin/twilio/call-archive/alert-config | server/routes/twilio.ts:3933 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1496 | GET | /api/admin/twilio/call-archive/health/trend | server/routes/twilio.ts:4005 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1497 | POST | /api/admin/twilio/call-archive/:id/enqueue | server/routes/twilio.ts:4038 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1498 | POST | /api/admin/twilio/call-archive/enqueue-stuck | server/routes/twilio.ts:4062 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1499 | GET | /api/admin/twilio/call-archive/stuck-processing | server/routes/twilio.ts:4127 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, admin_only |
-| 1500 | POST | /api/admin/twilio/call-archive/:id/force-release | server/routes/twilio.ts:4235 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1501 | GET | /api/admin/twilio/call-archive/requeue-audit | server/routes/twilio.ts:4295 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1502 | POST | /api/admin/twilio/call-archive/:id/requeue | server/routes/twilio.ts:4325 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1503 | POST | /api/admin/twilio/call-archive/requeue-bulk | server/routes/twilio.ts:4386 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
-| 1504 | PUT | /api/users/me/timezone | server/routes/twilio.ts:4444 | authenticated | isAuthenticated | authenticated |
-| 1505 | PUT | /api/users/me/theme | server/routes/twilio.ts:4470 | authenticated | isAuthenticated | authenticated |
-| 1506 | GET | /api/notifications | server/routes/userNotifications.ts:120 | authenticated | isAuthenticated | authenticated |
-| 1507 | GET | /api/notifications/system-bundled | server/routes/userNotifications.ts:158 | authenticated | isAuthenticated | authenticated |
-| 1508 | PATCH | /api/notifications/mark-bundle-read | server/routes/userNotifications.ts:179 | authenticated | isAuthenticated | authenticated |
-| 1509 | GET | /api/notifications/unread-count | server/routes/userNotifications.ts:197 | authenticated | isAuthenticated | authenticated |
-| 1510 | GET | /api/notifications/events | server/routes/userNotifications.ts:215 | authenticated | isAuthenticated | authenticated |
-| 1511 | PATCH | /api/notifications/:id/read | server/routes/userNotifications.ts:278 | authenticated | isAuthenticated | authenticated |
-| 1512 | POST | /api/notifications/:id/read | server/routes/userNotifications.ts:283 | authenticated | isAuthenticated | authenticated |
-| 1513 | PATCH | /api/notifications/:id/unread | server/routes/userNotifications.ts:306 | authenticated | isAuthenticated | authenticated |
-| 1514 | PATCH | /api/notifications/mark-all-read | server/routes/userNotifications.ts:328 | authenticated | isAuthenticated | authenticated |
-| 1515 | POST | /api/notifications/read-all | server/routes/userNotifications.ts:333 | authenticated | isAuthenticated | authenticated |
-| 1516 | PATCH | /api/notifications/:id/archive | server/routes/userNotifications.ts:353 | authenticated | isAuthenticated | authenticated |
-| 1517 | POST | /api/notifications/:id/archive | server/routes/userNotifications.ts:358 | authenticated | isAuthenticated | authenticated |
-| 1518 | POST | /api/notifications/test | server/routes/userNotifications.ts:368 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
-| 1519 | GET | /api/notifications/preferences | server/routes/userSlackPreferences.ts:83 | authenticated | isAuthenticated | authenticated |
-| 1520 | PUT | /api/notifications/preferences | server/routes/userSlackPreferences.ts:107 | authenticated | isAuthenticated | authenticated |
-| 1521 | GET | /api/notifications/slack-identity | server/routes/userSlackPreferences.ts:137 | authenticated | isAuthenticated | authenticated |
-| 1522 | POST | /api/notifications/slack-identity/link | server/routes/userSlackPreferences.ts:158 | authenticated | isAuthenticated | authenticated |
-| 1523 | DELETE | /api/notifications/slack-identity | server/routes/userSlackPreferences.ts:190 | authenticated | isAuthenticated | authenticated |
-| 1524 | POST | /api/notifications/slack-identity/test | server/routes/userSlackPreferences.ts:208 | authenticated | isAuthenticated | authenticated |
-| 1525 | GET | /api/admin/notifications/user-slack-identities | server/routes/userSlackPreferences.ts:233 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1526 | DELETE | /api/admin/notifications/user-slack-identities/:userId | server/routes/userSlackPreferences.ts:250 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1527 | GET | /api/admin/notifications/user-slack-dm-enabled | server/routes/userSlackPreferences.ts:269 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1528 | PUT | /api/admin/notifications/user-slack-dm-enabled | server/routes/userSlackPreferences.ts:283 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
-| 1529 | POST | /api/video-analysis/submit | server/routes/videoAnalysis.ts:29 | authenticated | isAuthenticated | authenticated |
-| 1530 | GET | /api/video-analysis/status/:taskId | server/routes/videoAnalysis.ts:88 | authenticated | isAuthenticated | authenticated |
-| 1531 | GET | /api/video-analysis/jobs | server/routes/videoAnalysis.ts:113 | authenticated | isAuthenticated | authenticated |
-| 1532 | GET | /api/video-analysis/transcript/:taskId | server/routes/videoAnalysis.ts:125 | authenticated | isAuthenticated | authenticated |
-| 1533 | POST | /api/video-analysis/analyze/:taskId | server/routes/videoAnalysis.ts:161 | authenticated | isAuthenticated | authenticated |
-| 1534 | POST | /api/video-analysis/search/:taskId | server/routes/videoAnalysis.ts:198 | authenticated | isAuthenticated | authenticated |
-| 1535 | GET | /api/video-analysis/full/:taskId | server/routes/videoAnalysis.ts:239 | authenticated | isAuthenticated | authenticated |
-| 1536 | POST | /api/integrations/twelvelabs/webhook | server/routes/videoAnalysis.ts:285 | public | none | public, webhook |
-| 1537 | GET | /api/video-analysis/frames/:taskId/:filename | server/routes/videoAnalysis.ts:361 | authenticated | isAuthenticated | authenticated |
-| 1538 | GET | /api/website/inquiry/config | server/routes/website.ts:179 | public | none | public |
-| 1539 | POST | /api/website/inquiry | server/routes/website.ts:188 | public | none | public |
+| 1009 | GET | /api/integrations/unmatched-feed | server/routes/integrations/unmatched.ts:32 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1010 | POST | /api/integrations/unmatched/:source/:id/assign | server/routes/integrations/unmatched.ts:672 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1011 | POST | /api/integrations/unmatched/undo-claim | server/routes/integrations/unmatched.ts:807 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1012 | POST | /api/integrations/unmatched/:source/:id/dismiss | server/routes/integrations/unmatched.ts:921 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1013 | POST | /api/integrations/unmatched/:source/:id/block | server/routes/integrations/unmatched.ts:968 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1014 | POST | /api/integrations/unmatched/:source/:id/promote | server/routes/integrations/unmatched.ts:1004 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1015 | GET | /api/integrations/unmatched-by-sender | server/routes/integrations/unmatched.ts:1076 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1016 | GET | /api/integrations/count-by-sender | server/routes/integrations/unmatched.ts:1101 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1017 | GET | /api/integrations/count-by-domain | server/routes/integrations/unmatched.ts:1118 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1018 | GET | /api/integrations/count-by-channel | server/routes/integrations/unmatched.ts:1135 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1019 | POST | /api/integrations/bulk-dismiss-by-sender | server/routes/integrations/unmatched.ts:1153 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1020 | POST | /api/integrations/bulk-dismiss-by-domain | server/routes/integrations/unmatched.ts:1173 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1021 | POST | /api/integrations/bulk-dismiss-by-channel | server/routes/integrations/unmatched.ts:1193 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1022 | GET | /api/integrations/work-queue/dead-letter/queue-names | server/routes/integrations/workQueue.ts:20 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1023 | GET | /api/integrations/work-queue/dead-letter | server/routes/integrations/workQueue.ts:30 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1024 | POST | /api/integrations/work-queue/dead-letter/:id/replay | server/routes/integrations/workQueue.ts:43 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1025 | POST | /api/integrations/work-queue/dead-letter/replay-all | server/routes/integrations/workQueue.ts:63 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1026 | GET | /api/integrations/work-queue/stale-lease-thresholds | server/routes/integrations/workQueue.ts:96 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1027 | GET | /api/integrations/work-queue/stale-lease-thresholds/history | server/routes/integrations/workQueue.ts:113 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1028 | PUT | /api/integrations/work-queue/stale-lease-thresholds | server/routes/integrations/workQueue.ts:148 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1029 | GET | /api/integrations/work-queue/timings | server/routes/integrations/workQueue.ts:167 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1030 | GET | /api/integrations/work-queue/timings/history | server/routes/integrations/workQueue.ts:177 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1031 | PUT | /api/integrations/work-queue/timings | server/routes/integrations/workQueue.ts:237 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1032 | GET | /api/integrations/work-queue/audit-prune-events | server/routes/integrations/workQueue.ts:257 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1033 | PUT | /api/integrations/work-queue/audit-prune-events/stale-lease-threshold-audit/retention | server/routes/integrations/workQueue.ts:339 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1034 | PUT | /api/integrations/work-queue/audit-prune-events/queue-timing-audit/retention | server/routes/integrations/workQueue.ts:357 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1035 | GET | /api/integrations/work-queue/audit-prune-events/stale-lease-threshold-audit/retention/history | server/routes/integrations/workQueue.ts:379 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1036 | GET | /api/integrations/work-queue/audit-prune-events/queue-timing-audit/retention/history | server/routes/integrations/workQueue.ts:406 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1037 | GET | /api/integrations/work-queue/audit-prune-events/preview | server/routes/integrations/workQueue.ts:439 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1038 | GET | /api/integrations/work-queue/status | server/routes/integrations/workQueue.ts:476 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1039 | GET | /api/integrations/work-queue/stuck-processing | server/routes/integrations/workQueue.ts:563 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1040 | POST | /api/integrations/work-queue/:id/reclaim | server/routes/integrations/workQueue.ts:685 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1041 | POST | /api/integrations/zoom/transcript-backfill | server/routes/integrations/zoom.ts:15 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1042 | POST | /api/integrations/zoom/webhook | server/routes/integrations/zoom.ts:34 | public | none | public, webhook |
+| 1043 | GET | /api/internal-usage | server/routes/internalUsage.ts:24 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1044 | GET | /api/internal-usage/wins-weekly | server/routes/internalUsage.ts:46 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1045 | POST | /api/health/block-ip | server/routes/ipBlocking.ts:20 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1046 | PATCH | /api/health/blocked-ips/:ip/expiry | server/routes/ipBlocking.ts:78 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1047 | POST | /api/health/unblock-ip | server/routes/ipBlocking.ts:137 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1048 | GET | /api/health/blocked-ips/activity | server/routes/ipBlocking.ts:176 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1049 | GET | /api/health/blocked-ips/trim-notifications | server/routes/ipBlocking.ts:191 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1050 | GET | /api/leads | server/routes/leads.ts:68 | authenticated | isAuthenticated | authenticated |
+| 1051 | GET | /api/leads/merge-candidates | server/routes/leads.ts:98 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1052 | GET | /api/leads/:id | server/routes/leads.ts:126 | authenticated | isAuthenticated | authenticated |
+| 1053 | POST | /api/leads/:id/lifecycle | server/routes/leads.ts:157 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1054 | POST | /api/leads/:id/merge | server/routes/leads.ts:200 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1055 | GET | /api/live-data/clients/:clientId | server/routes/liveData.ts:41 | authenticated | isAuthenticated | authenticated |
+| 1056 | POST | /api/live-data/clients/:clientId/refresh | server/routes/liveData.ts:101 | authenticated | isAuthenticated | authenticated |
+| 1057 | GET | /api/admin/match-settings | server/routes/matchSettings.ts:307 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1058 | PUT | /api/admin/match-settings | server/routes/matchSettings.ts:344 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1059 | GET | /api/admin/match-settings/common-first-names | server/routes/matchSettings.ts:502 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1060 | PUT | /api/admin/match-settings/common-first-names | server/routes/matchSettings.ts:521 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1061 | GET | /api/admin/match-settings/common-first-names/history | server/routes/matchSettings.ts:681 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1062 | GET | /api/admin/match-settings/impact | server/routes/matchSettings.ts:728 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1063 | POST | /api/admin/match-settings/history/:id/retry-alerts | server/routes/matchSettings.ts:1072 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1064 | POST | /api/admin/match-settings/common-first-names/history/:id/retry-alerts | server/routes/matchSettings.ts:1275 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1065 | POST | /api/admin/match-settings/common-first-names/history/retry-failed | server/routes/matchSettings.ts:1302 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1066 | POST | /api/admin/match-settings/history/retry-failed | server/routes/matchSettings.ts:1399 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1067 | GET | /api/admin/match-settings/history | server/routes/matchSettings.ts:1480 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1068 | GET | /api/mcu/practice-areas | server/routes/mcu.ts:12 | public | none | public |
+| 1069 | POST | /api/mcu/evaluate | server/routes/mcu.ts:16 | public | none | public |
+| 1070 | POST | /api/mcu/internal/evaluate | server/routes/mcu.ts:64 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1071 | GET | /api/mcu/internal/summary | server/routes/mcu.ts:98 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1072 | POST | /api/mcu/internal/summary/refresh | server/routes/mcu.ts:143 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1073 | GET | /api/mcu/internal/hex-grid | server/routes/mcu.ts:172 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1074 | GET | /api/config/maptiler-key | server/routes/mcu.ts:189 | authenticated | isAuthenticated | authenticated |
+| 1075 | GET | /api/public/config/maptiler-key | server/routes/mcu.ts:197 | public | none | public |
+| 1076 | GET | /api/mcu/internal/hex-grid-geojson | server/routes/mcu.ts:205 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1077 | GET | /api/mcu/internal/evaluations | server/routes/mcu.ts:283 | requireInternal | isAuthenticated, requireInternal | authenticated |
+| 1078 | GET | /api/admin/notifications | server/routes/notifications.ts:91 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1079 | GET | /api/admin/notifications/kill-switch | server/routes/notifications.ts:190 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1080 | PUT | /api/admin/notifications/kill-switch | server/routes/notifications.ts:206 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1081 | GET | /api/admin/notifications/categories | server/routes/notifications.ts:230 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1082 | POST | /api/admin/notifications/retention/run | server/routes/notifications.ts:240 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1083 | GET | /api/admin/notifications/call-archive-thresholds | server/routes/notifications.ts:296 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1084 | PUT | /api/admin/notifications/call-archive-thresholds | server/routes/notifications.ts:309 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1085 | GET | /api/admin/notifications/call-archive-thresholds/live-counts | server/routes/notifications.ts:370 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1086 | GET | /api/admin/notifications/call-analysis-failure-spike-thresholds | server/routes/notifications.ts:399 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1087 | PUT | /api/admin/notifications/call-analysis-failure-spike-thresholds | server/routes/notifications.ts:413 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1088 | POST | /api/admin/notifications/call-analysis-failure-spike-thresholds/preview | server/routes/notifications.ts:519 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1089 | PUT | /api/admin/notifications/:id | server/routes/notifications.ts:541 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1090 | POST | /api/admin/notifications/:id/test | server/routes/notifications.ts:615 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1091 | GET | /api/admin/notifications/:id/deliveries | server/routes/notifications.ts:680 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1092 | GET | /api/onboarding/intake/slots | server/routes/onboardingIntake.ts:38 | authenticated | isAuthenticated | authenticated |
+| 1093 | POST | /api/onboarding/intake | server/routes/onboardingIntake.ts:97 | authenticated | isAuthenticated, writeLimiter | authenticated, ai_rate_limited |
+| 1094 | GET | /api/admin/onboarding/roster | server/routes/onboardingRosterAdmin.ts:23 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1095 | POST | /api/admin/onboarding/roster | server/routes/onboardingRosterAdmin.ts:34 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1096 | PUT | /api/admin/onboarding/roster/:id | server/routes/onboardingRosterAdmin.ts:48 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1097 | DELETE | /api/admin/onboarding/roster/:id | server/routes/onboardingRosterAdmin.ts:66 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1098 | PUT | /api/admin/onboarding/default | server/routes/onboardingRosterAdmin.ts:80 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1099 | GET | /api/admin/orphaned-user-heal/status | server/routes/orphanedUserHeal.ts:24 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1100 | POST | /api/outbound-email/compose | server/routes/outboundEmail.ts:168 | authenticated | isAuthenticated, writeLimiter | authenticated, ai_rate_limited |
+| 1101 | GET | /api/outbound-email/log | server/routes/outboundEmail.ts:210 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1102 | GET | /api/outbound-email/batches/:batchId | server/routes/outboundEmail.ts:218 | authenticated | isAuthenticated | authenticated |
+| 1103 | GET | /api/outbound-email/counters | server/routes/outboundEmail.ts:233 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1104 | GET | /api/outbound-email/suppressions | server/routes/outboundEmail.ts:250 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1105 | POST | /api/outbound-email/suppressions | server/routes/outboundEmail.ts:259 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
+| 1106 | DELETE | /api/outbound-email/suppressions/:id | server/routes/outboundEmail.ts:283 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
+| 1107 | GET | /api/outbound-email/identities | server/routes/outboundEmail.ts:296 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1108 | GET | /api/outbound-email/front-channels | server/routes/outboundEmail.ts:301 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1109 | PUT | /api/outbound-email/identities/:userId | server/routes/outboundEmail.ts:321 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
+| 1110 | GET | /api/outbound-email/settings | server/routes/outboundEmail.ts:347 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1111 | PUT | /api/outbound-email/settings | server/routes/outboundEmail.ts:370 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
+| 1112 | POST | /api/outbound-email/pause | server/routes/outboundEmail.ts:403 | requireTeamLead | isAuthenticated, requireTeamLead, writeLimiter | authenticated, ai_rate_limited |
+| 1113 | POST | /api/outbound-email/verify-domain | server/routes/outboundEmail.ts:417 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
+| 1114 | POST | /api/outbound-email/fallback-enabled | server/routes/outboundEmail.ts:432 | requireCeo | isAuthenticated, requireCeo, writeLimiter | authenticated, admin_only, ai_rate_limited |
+| 1115 | GET | /api/email/unsubscribe | server/routes/outboundEmail.ts:455 | public | none | public |
+| 1116 | POST | /api/email/unsubscribe | server/routes/outboundEmail.ts:475 | public | none | public |
+| 1117 | POST | /api/webhooks/sendgrid-events | server/routes/outboundEmail.ts:506 | public | none | public, webhook |
+| 1118 | GET | /api/admin/db-attribution/trends | server/routes/poolAuditTrends.ts:48 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1119 | GET | /api/admin/prod-actions | server/routes/prodActions.ts:53 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1120 | GET | /api/admin/prod-actions/runs | server/routes/prodActions.ts:70 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1121 | POST | /api/admin/prod-actions/failure-alert-threshold | server/routes/prodActions.ts:108 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1122 | POST | /api/admin/prod-actions/apply | server/routes/prodActions.ts:140 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1123 | POST | /api/admin/prod-actions/:actionId/apply | server/routes/prodActions.ts:168 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1124 | GET | /api/admin/queue-control | server/routes/queueControl.ts:32 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1125 | POST | /api/admin/queue-control/:queueName/pause | server/routes/queueControl.ts:48 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1126 | POST | /api/admin/queue-control/:queueName/resume | server/routes/queueControl.ts:74 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1127 | POST | /api/admin/queue-control/:queueName/rate-limit | server/routes/queueControl.ts:92 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1128 | GET | /api/admin/queue-control/backlog-alerts | server/routes/queueControl.ts:128 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1129 | POST | /api/admin/queue-control/backlog-alerts/config | server/routes/queueControl.ts:187 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1130 | POST | /api/admin/queue-control/backlog-alerts/test | server/routes/queueControl.ts:272 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1131 | GET | /api/admin/queue-control/starvation-alerts | server/routes/queueControl.ts:367 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1132 | POST | /api/admin/queue-control/starvation-alerts/config | server/routes/queueControl.ts:433 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1133 | GET | /api/admin/queue-control/retroactive-reprocess/pending-by-client | server/routes/queueControl.ts:540 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1134 | GET | /api/admin/queue-control/history | server/routes/queueControl.ts:577 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1135 | POST | /api/admin/queue-control/:queueName/cancel-pending | server/routes/queueControl.ts:622 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1136 | GET | /api/health/rate-limits | server/routes/rateLimitAdmin.ts:69 | authenticated | isAuthenticated | authenticated |
+| 1137 | POST | /api/health/rate-limits/reset | server/routes/rateLimitAdmin.ts:105 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1138 | GET | /api/health/rate-limits/suggestions | server/routes/rateLimitAdmin.ts:110 | authenticated | isAuthenticated | authenticated |
+| 1139 | POST | /api/health/rate-limits/apply-suggestion | server/routes/rateLimitAdmin.ts:120 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1140 | GET | /api/health/rate-limits/auto-tune | server/routes/rateLimitAdmin.ts:134 | authenticated | isAuthenticated | authenticated |
+| 1141 | PUT | /api/health/rate-limits/auto-tune | server/routes/rateLimitAdmin.ts:138 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1142 | POST | /api/health/rate-limits/auto-tune/run | server/routes/rateLimitAdmin.ts:147 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1143 | GET | /api/health/rate-limits/adjustments | server/routes/rateLimitAdmin.ts:157 | authenticated | isAuthenticated | authenticated |
+| 1144 | GET | /api/health/rate-limits/by-user | server/routes/rateLimitAdmin.ts:161 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1145 | GET | /api/health/rate-limits/events | server/routes/rateLimitAdmin.ts:172 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1146 | GET | /api/health/rate-limits/events.csv | server/routes/rateLimitAdmin.ts:236 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1147 | GET | /api/health/rate-limits/by-user/:userId/timeseries | server/routes/rateLimitAdmin.ts:243 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1148 | GET | /api/health/rate-limits/by-user/:userId/events.csv | server/routes/rateLimitAdmin.ts:270 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1149 | GET | /api/health/rate-limits/by-ip/:ip/timeseries | server/routes/rateLimitAdmin.ts:277 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1150 | GET | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:304 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1151 | PUT | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:318 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1152 | DELETE | /api/health/rate-limits/thresholds | server/routes/rateLimitAdmin.ts:369 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1153 | DELETE | /api/health/rate-limits/thresholds/:category | server/routes/rateLimitAdmin.ts:424 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1154 | GET | /api/health/rate-limits/thresholds/history | server/routes/rateLimitAdmin.ts:458 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1155 | GET | /api/health/rate-limits/warning-percents | server/routes/rateLimitAdmin.ts:477 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1156 | PUT | /api/health/rate-limits/warning-percents | server/routes/rateLimitAdmin.ts:491 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1157 | GET | /api/health/rate-limits/warning-percents/history | server/routes/rateLimitAdmin.ts:541 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1158 | GET | /api/admin/rate-limit-multipliers | server/routes/rateLimitMultipliers.ts:35 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1159 | PUT | /api/admin/rate-limit-multipliers | server/routes/rateLimitMultipliers.ts:63 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1160 | POST | /api/admin/rate-limit-multipliers/reset | server/routes/rateLimitMultipliers.ts:130 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1161 | GET | /api/admin/rate-limit-multipliers/history | server/routes/rateLimitMultipliers.ts:183 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1162 | GET | /api/admin/route-limiters | server/routes/rateLimitMultipliers.ts:240 | authenticated | isAuthenticated | authenticated, admin_only |
+| 1163 | GET | /api/health/blocked-ips | server/routes/rateLimitMultipliers.ts:317 | authenticated | isAuthenticated | authenticated |
+| 1164 | GET | /api/health/rate-limits/default-block-duration | server/routes/rateLimitMultipliers.ts:365 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1165 | PUT | /api/health/rate-limits/default-block-duration | server/routes/rateLimitMultipliers.ts:377 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1166 | GET | /api/health/rate-limits/alerts | server/routes/rateLimitNotifications.ts:21 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1167 | POST | /api/health/rate-limits/alerts/clear | server/routes/rateLimitNotifications.ts:25 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1168 | GET | /api/health/rate-limits/notifications.csv | server/routes/rateLimitNotifications.ts:34 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1169 | GET | /api/health/rate-limits/notifications | server/routes/rateLimitNotifications.ts:170 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1170 | GET | /api/health/rate-limits/notify-config | server/routes/rateLimitNotifications.ts:287 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1171 | PUT | /api/health/rate-limits/notify-config | server/routes/rateLimitNotifications.ts:318 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1172 | GET | /api/health/rate-limits/notify-config/history | server/routes/rateLimitNotifications.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1173 | POST | /api/health/rate-limits/notify-config/history/:id/resend | server/routes/rateLimitNotifications.ts:393 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1174 | GET | /api/health/rate-limits/digest-status | server/routes/rateLimitNotifications.ts:435 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1175 | POST | /api/health/rate-limits/digest-flush | server/routes/rateLimitNotifications.ts:445 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1176 | GET | /api/health/rate-limits/notifications/:id/chain | server/routes/rateLimitNotifications.ts:460 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1177 | POST | /api/health/rate-limits/notifications/:id/retry | server/routes/rateLimitNotifications.ts:500 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1178 | POST | /api/health/rate-limits/notifications/bulk-retry | server/routes/rateLimitNotifications.ts:528 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1179 | GET | /api/health/rate-limits/auto-retry-config | server/routes/rateLimitNotifications.ts:571 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1180 | PUT | /api/health/rate-limits/auto-retry-config | server/routes/rateLimitNotifications.ts:585 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1181 | POST | /api/health/rate-limits/auto-retry-run | server/routes/rateLimitNotifications.ts:610 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1182 | GET | /api/health/rate-limits/digest-growth | server/routes/rateLimitNotifications.ts:628 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1183 | GET | /api/health/rate-limits/digest-growth/history | server/routes/rateLimitNotifications.ts:644 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1184 | PUT | /api/health/rate-limits/digest-growth | server/routes/rateLimitNotifications.ts:658 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1185 | GET | /api/health/rate-limits/max-attempts-warning | server/routes/rateLimitNotifications.ts:685 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1186 | PUT | /api/health/rate-limits/max-attempts-warning | server/routes/rateLimitNotifications.ts:704 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1187 | GET | /api/health/rate-limits/last-test-alert | server/routes/rateLimitNotifications.ts:734 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1188 | POST | /api/health/rate-limits/test-alert | server/routes/rateLimitNotifications.ts:748 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1189 | GET | /api/health/rate-limits/notification-retention | server/routes/rateLimitRetention.ts:21 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1190 | PUT | /api/health/rate-limits/notification-retention | server/routes/rateLimitRetention.ts:103 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1191 | POST | /api/health/rate-limits/notification-retention/prune | server/routes/rateLimitRetention.ts:175 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1192 | GET | /api/health/rate-limits/notification-retention/history | server/routes/rateLimitRetention.ts:237 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1193 | GET | /api/health/rate-limits/pending-digest-retention | server/routes/rateLimitRetention.ts:300 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1194 | PUT | /api/health/rate-limits/pending-digest-retention | server/routes/rateLimitRetention.ts:381 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1195 | GET | /api/health/rate-limits/pending-digest-retention/history | server/routes/rateLimitRetention.ts:452 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1196 | POST | /api/health/rate-limits/pending-digest-retention/prune | server/routes/rateLimitRetention.ts:496 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1197 | GET | /api/all-report-sections | server/routes/reports.ts:284 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1198 | GET | /api/ceo-pulses | server/routes/reports.ts:322 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1199 | GET | /api/ceo-pulses/:id | server/routes/reports.ts:332 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1200 | GET | /api/ceo-pulses/month/:monthKey | server/routes/reports.ts:345 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1201 | POST | /api/ceo-pulses | server/routes/reports.ts:356 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1202 | PATCH | /api/ceo-pulses/:id | server/routes/reports.ts:378 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1203 | POST | /api/ceo-pulses/:id/analyze | server/routes/reports.ts:574 | requireCeo | isAuthenticated, requireCeo, aiLimiter | authenticated, admin_only, ai_rate_limited |
+| 1204 | POST | /api/ceo-pulses/:id/refine | server/routes/reports.ts:897 | requireCeo | isAuthenticated, requireCeo, aiLimiter | authenticated, admin_only, ai_rate_limited |
+| 1205 | POST | /api/ceo-pulses/:id/images | server/routes/reports.ts:1293 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1206 | PATCH | /api/ceo-pulses/:id/images | server/routes/reports.ts:1364 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1207 | DELETE | /api/ceo-pulses/:id/images/:slot | server/routes/reports.ts:1412 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1208 | POST | /api/ceo-pulses/:id/share | server/routes/reports.ts:1445 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1209 | POST | /api/ceo-pulses/:id/regenerate-charts | server/routes/reports.ts:1463 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1210 | GET | /api/ceo-pulse/share/:token | server/routes/reports.ts:1484 | public | none | public |
+| 1211 | GET | /api/ceo-pulse-charts/:monthKey/chart-:index.png | server/routes/reports.ts:1531 | public | none | public |
+| 1212 | GET | /api/ceo-pulse-charts/:monthKey/image-:slot | server/routes/reports.ts:1567 | public | none | public |
+| 1213 | GET | /api/reports | server/routes/reports.ts:1623 | authenticated | isAuthenticated | authenticated |
+| 1214 | GET | /api/reports/matrix | server/routes/reports.ts:1645 | authenticated | isAuthenticated | authenticated |
+| 1215 | GET | /api/reports/:id | server/routes/reports.ts:1758 | authenticated | isAuthenticated | authenticated |
+| 1216 | POST | /api/ai/format-issues | server/routes/reports.ts:1847 | authenticated | isAuthenticated, aiLimiter | authenticated, ai_rate_limited |
+| 1217 | POST | /api/reports/import-pdf | server/routes/reports.ts:1911 | requireAccountManager | isAuthenticated, requireAccountManager, upload.single | authenticated, upload |
+| 1218 | POST | /api/webhooks/report-import | server/routes/reports.ts:1983 | public | upload.single | public, webhook, upload |
+| 1219 | GET | /api/webhook-import-logs | server/routes/reports.ts:3012 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only, webhook |
+| 1220 | GET | /api/webhook-import-logs/:id/extracted-text | server/routes/reports.ts:3044 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only, webhook |
+| 1221 | POST | /api/reports/:id/reimport | server/routes/reports.ts:3059 | requireAccountManager | isAuthenticated, requireAccountManager, upload.single | authenticated, upload |
+| 1222 | POST | /api/reports | server/routes/reports.ts:3611 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1223 | PATCH | /api/reports/:id | server/routes/reports.ts:3678 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1224 | DELETE | /api/reports/:id | server/routes/reports.ts:3961 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1225 | POST | /api/reports/:id/duplicate | server/routes/reports.ts:3977 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1226 | GET | /api/reports/:id/sections | server/routes/reports.ts:4074 | authenticated | isAuthenticated | authenticated |
+| 1227 | PUT | /api/reports/:id/sections/:sectionKey | server/routes/reports.ts:4093 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1228 | GET | /api/reports/:id/sections/:sectionKey/history | server/routes/reports.ts:4500 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1229 | POST | /api/reports/:id/verdicts/draft | server/routes/reports.ts:4531 | requireAccountManager | isAuthenticated, requireAccountManager, aiLimiter | authenticated, ai_rate_limited |
+| 1230 | GET | /api/share/:token | server/routes/reports.ts:5270 | public | none | public |
+| 1231 | GET | /api/preview/:reportId | server/routes/reports.ts:5297 | authenticated | isAuthenticated | authenticated |
+| 1232 | GET | /api/admin/demo-report-setting | server/routes/reports.ts:5325 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1233 | POST | /api/admin/demo-report-setting | server/routes/reports.ts:5338 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1234 | GET | /api/demo-report | server/routes/reports.ts:5418 | public | none | public |
+| 1235 | POST | /api/webhooks/rev-ai | server/routes/revAiWebhook.ts:42 | public | none | public, webhook |
+| 1236 | GET | /api/ris/checks | server/routes/ris.ts:59 | authenticated | isAuthenticated | authenticated |
+| 1237 | POST | /api/ris/checks | server/routes/ris.ts:76 | authenticated | isAuthenticated | authenticated |
+| 1238 | PATCH | /api/ris/checks/:id | server/routes/ris.ts:99 | authenticated | isAuthenticated | authenticated |
+| 1239 | POST | /api/ris/checks/reorder | server/routes/ris.ts:119 | authenticated | isAuthenticated | authenticated |
+| 1240 | GET | /api/ris/portfolio | server/routes/ris.ts:139 | authenticated | isAuthenticated | authenticated |
+| 1241 | GET | /api/ris/clients/:clientId | server/routes/ris.ts:157 | authenticated | isAuthenticated | authenticated |
+| 1242 | GET | /api/ris/performance/portfolio | server/routes/ris.ts:184 | authenticated | isAuthenticated | authenticated |
+| 1243 | GET | /api/ris/performance/clients/:clientId | server/routes/ris.ts:205 | authenticated | isAuthenticated | authenticated |
+| 1244 | POST | /api/ris/clients/:clientId/results | server/routes/ris.ts:227 | authenticated | isAuthenticated | authenticated |
+| 1245 | POST | /api/ris/refresh | server/routes/ris.ts:304 | authenticated | isAuthenticated | authenticated |
+| 1246 | POST | /api/ris/results/:id/confirm | server/routes/ris.ts:331 | authenticated | isAuthenticated | authenticated |
+| 1247 | GET | /api/ris/auto-mappings | server/routes/ris.ts:355 | authenticated | isAuthenticated | authenticated |
+| 1248 | PUT | /api/ris/auto-mappings/:autoSource | server/routes/ris.ts:383 | authenticated | isAuthenticated | authenticated |
+| 1249 | GET | /api/ris/client-bindings/:clientId | server/routes/ris.ts:420 | authenticated | isAuthenticated | authenticated |
+| 1250 | PUT | /api/ris/client-bindings/:clientId/bigquery-key | server/routes/ris.ts:453 | authenticated | isAuthenticated | authenticated |
+| 1251 | PUT | /api/ris/client-bindings/:clientId/overrides/:autoSource | server/routes/ris.ts:490 | authenticated | isAuthenticated | authenticated |
+| 1252 | DELETE | /api/ris/client-bindings/:clientId/overrides/:autoSource | server/routes/ris.ts:525 | authenticated | isAuthenticated | authenticated |
+| 1253 | GET | /api/public/roadmap | server/routes/roadmap.ts:197 | public | none | public |
+| 1254 | GET | /api/roadmap/admin | server/routes/roadmap.ts:259 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1255 | POST | /api/roadmap/initiatives | server/routes/roadmap.ts:324 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1256 | PATCH | /api/roadmap/initiatives/:id | server/routes/roadmap.ts:379 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1257 | DELETE | /api/roadmap/initiatives/:id | server/routes/roadmap.ts:443 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1258 | POST | /api/roadmap/initiatives/reorder | server/routes/roadmap.ts:467 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1259 | POST | /api/roadmap/${kind} | server/routes/roadmap.ts:504 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1260 | PATCH | /api/roadmap/${kind}/:id | server/routes/roadmap.ts:534 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1261 | DELETE | /api/roadmap/${kind}/:id | server/routes/roadmap.ts:560 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1262 | GET | /api/clients/:clientId/save-plays | server/routes/savePlays.ts:94 | authenticated | isAuthenticated | authenticated |
+| 1263 | GET | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:108 | authenticated | isAuthenticated | authenticated |
+| 1264 | POST | /api/clients/:clientId/save-plays | server/routes/savePlays.ts:123 | authenticated | isAuthenticated | authenticated |
+| 1265 | PATCH | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:161 | authenticated | isAuthenticated | authenticated |
+| 1266 | DELETE | /api/clients/:clientId/save-plays/:playId | server/routes/savePlays.ts:205 | authenticated | isAuthenticated | authenticated |
+| 1267 | GET | /api/churn/save-plays | server/routes/savePlays.ts:222 | authenticated | isAuthenticated | authenticated |
+| 1268 | GET | /api/scoring/:entityType/config | server/routes/scoring.ts:79 | authenticated | isAuthenticated | authenticated |
+| 1269 | PUT | /api/scoring/:entityType/config | server/routes/scoring.ts:118 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1270 | POST | /api/scoring/:entityType/rules | server/routes/scoring.ts:158 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1271 | PATCH | /api/scoring/rules/:id | server/routes/scoring.ts:212 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1272 | DELETE | /api/scoring/rules/:id | server/routes/scoring.ts:279 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1273 | POST | /api/scoring/:entityType/recompute | server/routes/scoring.ts:320 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1274 | POST | /api/scoring/preview | server/routes/scoring.ts:340 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1275 | GET | /api/admin/semrush/cadence | server/routes/semrushCadence.ts:30 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1276 | POST | /api/admin/semrush/cadence/reset-cache | server/routes/semrushCadence.ts:202 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1277 | POST | /api/service-desk/setup/import-departments | server/routes/serviceDesk/clickupImports.ts:30 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1278 | POST | /api/service-desk/setup/import-request-types | server/routes/serviceDesk/clickupImports.ts:198 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1279 | POST | /api/service-desk/setup/refresh-option-names | server/routes/serviceDesk/clickupImports.ts:382 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1280 | GET | /api/service-desk/config | server/routes/serviceDesk/configSetup.ts:22 | authenticated | isAuthenticated | authenticated |
+| 1281 | PUT | /api/service-desk/config | server/routes/serviceDesk/configSetup.ts:31 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1282 | POST | /api/service-desk/setup/create-structure | server/routes/serviceDesk/configSetup.ts:121 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1283 | POST | /api/service-desk/setup/autofill-fields | server/routes/serviceDesk/configSetup.ts:215 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1284 | GET | /api/service-desk/setup/verify | server/routes/serviceDesk/configSetup.ts:309 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1285 | GET | /api/service-desk/client-options | server/routes/serviceDesk/departments.ts:217 | authenticated | isAuthenticated | authenticated |
+| 1286 | GET | /api/service-desk/client-team-options | server/routes/serviceDesk/departments.ts:274 | authenticated | isAuthenticated | authenticated |
+| 1287 | GET | /api/service-desk/departments | server/routes/serviceDesk/departments.ts:333 | authenticated | isAuthenticated | authenticated |
+| 1288 | POST | /api/service-desk/departments | server/routes/serviceDesk/departments.ts:382 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1289 | PUT | /api/service-desk/departments/:id | server/routes/serviceDesk/departments.ts:418 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1290 | PUT | /api/service-desk/departments/:id/role-defaults | server/routes/serviceDesk/departments.ts:467 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1291 | GET | /api/service-desk/departments/:id/delete-impact | server/routes/serviceDesk/departments.ts:544 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1292 | DELETE | /api/service-desk/departments/:id | server/routes/serviceDesk/departments.ts:571 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1293 | GET | /api/service-desk/departments/:id/members | server/routes/serviceDesk/departments.ts:773 | authenticated | isAuthenticated | authenticated |
+| 1294 | POST | /api/service-desk/departments/:id/members | server/routes/serviceDesk/departments.ts:794 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1295 | PUT | /api/service-desk/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:845 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1296 | DELETE | /api/service-desk/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:887 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1297 | GET | /api/service-desk/clients/:clientId/assignments | server/routes/serviceDesk/departments.ts:925 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1298 | PUT | /api/service-desk/clients/:clientId/assignments/:departmentId | server/routes/serviceDesk/departments.ts:980 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1299 | GET | /api/service-desk/coverage | server/routes/serviceDesk/departments.ts:1028 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1300 | POST | /api/service-desk/assignments/bulk | server/routes/serviceDesk/departments.ts:1046 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1301 | GET | /api/admin/role-assignments | server/routes/serviceDesk/departments.ts:1121 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1302 | GET | /api/admin/role-assignments/clients/:clientId | server/routes/serviceDesk/departments.ts:1134 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1303 | PUT | /api/admin/role-assignments/clients/:clientId/departments/:departmentId | server/routes/serviceDesk/departments.ts:1190 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1304 | PUT | /api/admin/role-assignments/departments/:id | server/routes/serviceDesk/departments.ts:1234 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1305 | POST | /api/admin/role-assignments/bulk | server/routes/serviceDesk/departments.ts:1289 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1306 | GET | /api/admin/role-assignments/departments/:id/members | server/routes/serviceDesk/departments.ts:1353 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1307 | POST | /api/admin/role-assignments/departments/:id/members | server/routes/serviceDesk/departments.ts:1374 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1308 | DELETE | /api/admin/role-assignments/departments/:id/members/:memberId | server/routes/serviceDesk/departments.ts:1421 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1309 | GET | /api/service-desk/role-projections/configuration | server/routes/serviceDesk/departments.ts:1463 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1310 | PUT | /api/service-desk/role-projections/destinations | server/routes/serviceDesk/departments.ts:1484 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1311 | GET | /api/service-desk/role-projections/client-list/configuration | server/routes/serviceDesk/departments.ts:1656 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1312 | GET | /api/service-desk/role-projections/client-list/preflight | server/routes/serviceDesk/departments.ts:1677 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1313 | PUT | /api/service-desk/role-projections/client-list/mappings | server/routes/serviceDesk/departments.ts:1705 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1314 | PUT | /api/service-desk/role-projections/targets | server/routes/serviceDesk/departments.ts:1749 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1315 | GET | /api/service-desk/role-projections/status | server/routes/serviceDesk/departments.ts:1778 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1316 | POST | /api/service-desk/role-projections/resync | server/routes/serviceDesk/departments.ts:1831 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1317 | GET | /api/service-desk/client-mirror/status | server/routes/serviceDesk/departments.ts:1868 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1318 | POST | /api/service-desk/client-mirror/:commandId/retry | server/routes/serviceDesk/departments.ts:1908 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1319 | GET | /api/service-desk/reports | server/routes/serviceDesk/reports.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1320 | GET | /api/service-desk/reports/export | server/routes/serviceDesk/reports.ts:392 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1321 | GET | /api/service-desk/tickets/:taskId/allowed-transitions | server/routes/serviceDesk/reports.ts:482 | authenticated | isAuthenticated | authenticated |
+| 1322 | GET | /api/service-desk/request-types | server/routes/serviceDesk/requestTypes.ts:25 | authenticated | isAuthenticated | authenticated |
+| 1323 | POST | /api/service-desk/request-types | server/routes/serviceDesk/requestTypes.ts:50 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1324 | PUT | /api/service-desk/request-types/:id | server/routes/serviceDesk/requestTypes.ts:77 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1325 | DELETE | /api/service-desk/request-types/:id | server/routes/serviceDesk/requestTypes.ts:104 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1326 | POST | /api/service-desk/request-types/auto-match-departments | server/routes/serviceDesk/requestTypes.ts:140 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1327 | GET | /api/service-desk/setup/options | server/routes/serviceDesk/requestTypes.ts:233 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1328 | POST | /api/service-desk/setup/sync-client-options | server/routes/serviceDesk/requestTypes.ts:298 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1329 | POST | /api/service-desk/setup/accept-client-suggestions | server/routes/serviceDesk/requestTypes.ts:528 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1330 | GET | /api/service-desk/request-types/:id/questions | server/routes/serviceDesk/templates.ts:41 | authenticated | isAuthenticated | authenticated |
+| 1331 | POST | /api/service-desk/request-types/:id/questions | server/routes/serviceDesk/templates.ts:58 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1332 | PUT | /api/service-desk/request-types/:id/questions/:qid | server/routes/serviceDesk/templates.ts:98 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1333 | DELETE | /api/service-desk/request-types/:id/questions/:qid | server/routes/serviceDesk/templates.ts:138 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1334 | GET | /api/service-desk/request-types/:id/checklist-steps | server/routes/serviceDesk/templates.ts:153 | authenticated | isAuthenticated | authenticated |
+| 1335 | POST | /api/service-desk/request-types/:id/checklist-steps | server/routes/serviceDesk/templates.ts:170 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1336 | PUT | /api/service-desk/request-types/:id/checklist-steps/:sid | server/routes/serviceDesk/templates.ts:203 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1337 | DELETE | /api/service-desk/request-types/:id/checklist-steps/:sid | server/routes/serviceDesk/templates.ts:242 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1338 | POST | /api/service-desk/tickets/submit | server/routes/serviceDesk/templates.ts:261 | authenticated | isAuthenticated | authenticated |
+| 1339 | POST | /api/service-desk/tickets/:taskId/transition | server/routes/serviceDesk/ticketActions.ts:33 | authenticated | isAuthenticated | authenticated |
+| 1340 | POST | /api/service-desk/tickets/:taskId/reassign | server/routes/serviceDesk/ticketActions.ts:214 | authenticated | isAuthenticated | authenticated |
+| 1341 | POST | /api/service-desk/tickets/:taskId/change-department | server/routes/serviceDesk/ticketActions.ts:341 | authenticated | isAuthenticated | authenticated |
+| 1342 | POST | /api/service-desk/tickets/:taskId/committed-date | server/routes/serviceDesk/ticketActions.ts:456 | authenticated | isAuthenticated | authenticated |
+| 1343 | POST | /api/service-desk/tickets/:taskId/confirm-complete | server/routes/serviceDesk/ticketActions.ts:553 | authenticated | isAuthenticated | authenticated |
+| 1344 | POST | /api/service-desk/tickets/:taskId/reopen | server/routes/serviceDesk/ticketActions.ts:607 | authenticated | isAuthenticated | authenticated |
+| 1345 | POST | /api/service-desk/tickets/:taskId/mark-duplicate | server/routes/serviceDesk/ticketActions.ts:669 | authenticated | isAuthenticated | authenticated |
+| 1346 | GET | /api/service-desk/eligible-assignees | server/routes/serviceDesk/ticketsRead.ts:23 | authenticated | isAuthenticated | authenticated |
+| 1347 | GET | /api/service-desk/eligibility/:departmentId | server/routes/serviceDesk/ticketsRead.ts:67 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1348 | GET | /api/service-desk/tickets/needs-mapping | server/routes/serviceDesk/ticketsRead.ts:93 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1349 | GET | /api/service-desk/views/counts | server/routes/serviceDesk/ticketsRead.ts:127 | authenticated | isAuthenticated | authenticated |
+| 1350 | GET | /api/service-desk/tickets | server/routes/serviceDesk/ticketsRead.ts:154 | authenticated | isAuthenticated | authenticated |
+| 1351 | GET | /api/service-desk/tickets/:taskId | server/routes/serviceDesk/ticketsRead.ts:178 | authenticated | isAuthenticated | authenticated |
+| 1352 | POST | /api/service-desk/tickets/:taskId/mapping | server/routes/serviceDesk/ticketsRead.ts:193 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1353 | POST | /api/service-desk/tickets/:taskId/rerun-mapping | server/routes/serviceDesk/ticketsRead.ts:238 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1354 | POST | /api/service-desk/tickets/:taskId/dismiss-mapping | server/routes/serviceDesk/ticketsRead.ts:277 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1355 | GET | /api/service-desk/tickets/:taskId/events | server/routes/serviceDesk/ticketsRead.ts:319 | authenticated | isAuthenticated | authenticated |
+| 1356 | GET | /api/monthly-review-stats | server/routes/settings.ts:19 | authenticated | isAuthenticated | authenticated |
+| 1357 | POST | /api/monthly-review-notifications | server/routes/settings.ts:55 | authenticated | isAuthenticated | authenticated |
+| 1358 | GET | /api/users | server/routes/settings.ts:115 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1359 | GET | /api/users/paged | server/routes/settings.ts:139 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1360 | POST | /api/users | server/routes/settings.ts:169 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1361 | PATCH | /api/users/:id/role | server/routes/settings.ts:228 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1362 | GET | /api/users/:id/delete-impact | server/routes/settings.ts:313 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1363 | POST | /api/users/:id/reassign | server/routes/settings.ts:336 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1364 | DELETE | /api/users/:id | server/routes/settings.ts:419 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1365 | GET | /api/users/deleted | server/routes/settings.ts:484 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1366 | GET | /api/users/delete-history | server/routes/settings.ts:498 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1367 | GET | /api/users/reassign-history | server/routes/settings.ts:525 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1368 | POST | /api/users/:id/restore | server/routes/settings.ts:561 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1369 | PATCH | /api/users/:id/email | server/routes/settings.ts:652 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1370 | GET | /api/users/restored-email-cleanup/preview | server/routes/settings.ts:740 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1371 | POST | /api/users/restored-email-cleanup/run | server/routes/settings.ts:772 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1372 | GET | /api/users/restored-email-cleanup/status | server/routes/settings.ts:857 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1373 | GET | /api/admin/role-permissions/status | server/routes/settings.ts:899 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1374 | GET | /api/admin/role-backfill-banner | server/routes/settings.ts:916 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1375 | POST | /api/admin/role-backfill-banner/dismiss | server/routes/settings.ts:924 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1376 | GET | /api/trends | server/routes/settings.ts:941 | authenticated | isAuthenticated | authenticated |
+| 1377 | POST | /api/trends/practice-areas | server/routes/settings.ts:978 | authenticated | isAuthenticated | authenticated |
+| 1378 | GET | /api/trends/practice-areas/list | server/routes/settings.ts:1016 | authenticated | isAuthenticated | authenticated |
+| 1379 | GET | /api/admin/practice-area-settings | server/routes/settings.ts:1025 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1380 | POST | /api/admin/practice-area-settings | server/routes/settings.ts:1070 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1381 | DELETE | /api/admin/practice-area-settings/:id | server/routes/settings.ts:1102 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1382 | GET | /api/phase-settings | server/routes/settings.ts:1143 | public | none | public |
+| 1383 | PUT | /api/admin/phase-settings | server/routes/settings.ts:1164 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1384 | GET | /api/sheets/folders | server/routes/sheets.ts:98 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1385 | POST | /api/sheets/folders | server/routes/sheets.ts:114 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1386 | PATCH | /api/sheets/folders/:id | server/routes/sheets.ts:138 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1387 | DELETE | /api/sheets/folders/:id | server/routes/sheets.ts:166 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1388 | GET | /api/sheets/workbooks | server/routes/sheets.ts:215 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1389 | GET | /api/sheets/workbooks/last-activity | server/routes/sheets.ts:257 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1390 | GET | /api/sheets/workbooks/:id | server/routes/sheets.ts:281 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1391 | POST | /api/sheets/workbooks | server/routes/sheets.ts:306 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1392 | PATCH | /api/sheets/workbooks/:id | server/routes/sheets.ts:353 | requireAccountManager | isAuthenticated, requireAccountManager, sheetsAutosaveLimiter | authenticated, ai_rate_limited |
+| 1393 | DELETE | /api/sheets/workbooks/:id | server/routes/sheets.ts:471 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1394 | POST | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:511 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1395 | POST | /api/sheets/workbooks/:id/lock/heartbeat | server/routes/sheets.ts:551 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1396 | DELETE | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:584 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1397 | GET | /api/sheets/workbooks/:id/lock | server/routes/sheets.ts:629 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1398 | GET | /api/sheets/workbooks/:id/permissions | server/routes/sheets.ts:667 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1399 | PUT | /api/sheets/workbooks/:id/permissions | server/routes/sheets.ts:690 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1400 | DELETE | /api/sheets/workbooks/:id/permissions/:userId | server/routes/sheets.ts:735 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1401 | POST | /api/sheets/workbooks/import | server/routes/sheets.ts:789 | requireAccountManager | isAuthenticated, requireAccountManager, uploadLimiter | authenticated, ai_rate_limited |
+| 1402 | GET | /api/sheets/workbooks/:id/export/xlsx | server/routes/sheets.ts:897 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1403 | GET | /api/sheets/workbooks/:id/sheets/:sheetId/export/csv | server/routes/sheets.ts:951 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1404 | GET | /api/sheets/connectors | server/routes/sheets.ts:999 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1405 | GET | /api/sheets/workbooks/:id/versions | server/routes/sheets.ts:1028 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1406 | GET | /api/sheets/workbooks/:id/versions/:versionId | server/routes/sheets.ts:1049 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1407 | POST | /api/sheets/workbooks/:id/versions | server/routes/sheets.ts:1074 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1408 | POST | /api/sheets/workbooks/:id/versions/:versionId/restore | server/routes/sheets.ts:1122 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1409 | GET | /api/sheets/workbooks/:id/activity | server/routes/sheets.ts:1164 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1410 | GET | /api/sheets/workbooks/:id/blocks | server/routes/sheets.ts:1189 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1411 | GET | /api/sheets/workbooks/:id/role-grants | server/routes/sheets.ts:1216 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1412 | POST | /api/sheets/workbooks/:id/blocks | server/routes/sheets.ts:1239 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1413 | PUT | /api/sheets/workbooks/:id/role-grants | server/routes/sheets.ts:1279 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1414 | PATCH | /api/sheets/workbooks/:wId/blocks/:bId | server/routes/sheets.ts:1314 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1415 | DELETE | /api/sheets/workbooks/:wId/blocks/:bId | server/routes/sheets.ts:1347 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1416 | DELETE | /api/sheets/workbooks/:id/role-grants/:role | server/routes/sheets.ts:1373 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1417 | POST | /api/sheets/workbooks/:id/duplicate | server/routes/sheets.ts:1403 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1418 | POST | /api/sheets/workbooks/:id/save-as-template | server/routes/sheets.ts:1454 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1419 | GET | /api/sheets/templates | server/routes/sheets.ts:1502 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1420 | GET | /api/sheets/templates/:id | server/routes/sheets.ts:1521 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1421 | PATCH | /api/sheets/templates/:id | server/routes/sheets.ts:1542 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1422 | DELETE | /api/sheets/templates/:id | server/routes/sheets.ts:1587 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1423 | POST | /api/sheets/templates/:id/workbook | server/routes/sheets.ts:1618 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1424 | GET | /api/sheets/workbooks/:id/tabs | server/routes/sheets.ts:1658 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1425 | POST | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1709 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1426 | DELETE | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1746 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1427 | GET | /api/sheets/workbooks/:id/dashboard | server/routes/sheets.ts:1773 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1428 | GET | /api/sheets/dashboards | server/routes/sheets.ts:1799 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1429 | GET | /api/sheets/dashboards/:id | server/routes/sheets.ts:1821 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated |
+| 1430 | POST | /api/sheets/workbooks/:wId/blocks/:bId/refresh | server/routes/sheets.ts:1852 | requireAccountManager | isAuthenticated, requireAccountManager, writeLimiter | authenticated, ai_rate_limited |
+| 1431 | GET | /api/sms-consent/status | server/routes/smsConsent.ts:83 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1432 | POST | /api/sms-consent/status-batch | server/routes/smsConsent.ts:97 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1433 | GET | /api/admin/sms-consent/ledger | server/routes/smsConsent.ts:113 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1434 | GET | /api/admin/sms-consent/events | server/routes/smsConsent.ts:136 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1435 | GET | /api/admin/sms-consent/gate-audit | server/routes/smsConsent.ts:156 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1436 | GET | /api/admin/sms-consent/settings | server/routes/smsConsent.ts:178 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1437 | PUT | /api/admin/sms-consent/settings | server/routes/smsConsent.ts:195 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1438 | POST | /api/admin/sms-consent/manual | server/routes/smsConsent.ts:240 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1439 | GET | /api/tags | server/routes/tagsSegments.ts:116 | authenticated | isAuthenticated | authenticated |
+| 1440 | POST | /api/tags | server/routes/tagsSegments.ts:150 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1441 | PATCH | /api/tags/:id | server/routes/tagsSegments.ts:193 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1442 | DELETE | /api/tags/:id | server/routes/tagsSegments.ts:230 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1443 | GET | /api/segments | server/routes/tagsSegments.ts:338 | authenticated | isAuthenticated | authenticated |
+| 1444 | POST | /api/segments | server/routes/tagsSegments.ts:351 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1445 | PATCH | /api/segments/:id | server/routes/tagsSegments.ts:391 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1446 | DELETE | /api/segments/:id | server/routes/tagsSegments.ts:430 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1447 | GET | /api/segments/:id/members | server/routes/tagsSegments.ts:446 | authenticated | isAuthenticated | authenticated |
+| 1448 | POST | /api/segments/:id/recompute | server/routes/tagsSegments.ts:467 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1449 | GET | /api/tags-segments/status | server/routes/tagsSegments.ts:486 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1450 | PATCH | /api/tags-segments/settings | server/routes/tagsSegments.ts:548 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1451 | POST | /api/tags-segments/sweep | server/routes/tagsSegments.ts:590 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1452 | GET | /api/clients/:clientId/timeline | server/routes/timeline.ts:163 | requireCommandCenterAccess | isAuthenticated, requireCommandCenterAccess | authenticated |
+| 1453 | GET | /api/deals/:dealId/timeline | server/routes/timeline.ts:185 | authenticated | isAuthenticated | authenticated |
+| 1454 | POST | /api/twilio/webhooks/sms | server/routes/twilio.ts:692 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1455 | POST | /api/twilio/webhooks/sms-status | server/routes/twilio.ts:726 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1456 | POST | /api/twilio/webhooks/call-status | server/routes/twilio.ts:758 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1457 | POST | /api/twilio/webhooks/voice-twiml | server/routes/twilio.ts:786 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1458 | POST | /api/twilio/webhooks/voice-routing-callback | server/routes/twilio.ts:856 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1459 | POST | /api/twilio/webhooks/voice-ivr | server/routes/twilio.ts:930 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1460 | POST | /api/twilio/webhooks/voice-twiml-outbound | server/routes/twilio.ts:972 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1461 | POST | /api/twilio/webhooks/voice-twiml-forward-bridge | server/routes/twilio.ts:1004 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1462 | POST | /api/twilio/webhooks/voice-twiml-browser | server/routes/twilio.ts:1039 | public | none | public, webhook |
+| 1463 | POST | /api/twilio/webhooks/voice-whisper | server/routes/twilio.ts:1133 | public | none | public, webhook |
+| 1464 | POST | /api/twilio/webhooks/recording-status | server/routes/twilio.ts:1175 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1465 | POST | /api/twilio/webhooks/voicemail-recording-status | server/routes/twilio.ts:1262 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1466 | POST | /api/twilio/webhooks/voicemail-transcription | server/routes/twilio.ts:1296 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1467 | POST | /api/twilio/webhooks/voicemail-action | server/routes/twilio.ts:1354 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1468 | POST | /api/twilio/webhooks/voice-twiml-browser-dial-status | server/routes/twilio.ts:1363 | validateTwilioWebhook | validateTwilioWebhook | webhook |
+| 1469 | GET | /api/twilio/events | server/routes/twilio.ts:1408 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1470 | GET | /api/twilio/conversations | server/routes/twilio.ts:1456 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1471 | GET | /api/twilio/conversations/:id | server/routes/twilio.ts:1479 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1472 | GET | /api/twilio/conversations/:id/messages | server/routes/twilio.ts:1489 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1473 | POST | /api/twilio/conversations/:id/messages | server/routes/twilio.ts:1522 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1474 | GET | /api/twilio/client-suggestions | server/routes/twilio.ts:1662 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1475 | GET | /api/twilio/client-contacts/search | server/routes/twilio.ts:1675 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1476 | POST | /api/twilio/conversations/:id/read | server/routes/twilio.ts:1688 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1477 | GET | /api/twilio/threads/notes | server/routes/twilio.ts:1703 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1478 | GET | /api/twilio/threads/assignments | server/routes/twilio.ts:1731 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1479 | GET | /api/twilio/threads/:key/notes | server/routes/twilio.ts:1741 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1480 | POST | /api/twilio/threads/:key/notes | server/routes/twilio.ts:1755 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1481 | DELETE | /api/twilio/threads/notes/:id | server/routes/twilio.ts:1862 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1482 | GET | /api/twilio/threads/:key/assignment | server/routes/twilio.ts:1873 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1483 | GET | /api/twilio/threads/assignment-notifications | server/routes/twilio.ts:1917 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1484 | POST | /api/twilio/threads/assignment-notifications/mark-read | server/routes/twilio.ts:1936 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1485 | GET | /api/twilio/threads/read-states | server/routes/twilio.ts:1985 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1486 | PATCH | /api/twilio/threads/:key/read-state | server/routes/twilio.ts:2000 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1487 | GET | /api/twilio/threads/assignees | server/routes/twilio.ts:2090 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1488 | PATCH | /api/twilio/threads/:key/assignment | server/routes/twilio.ts:2118 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1489 | POST | /api/twilio/conversations | server/routes/twilio.ts:2193 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1490 | PATCH | /api/twilio/conversations/:id/client | server/routes/twilio.ts:2436 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1491 | PATCH | /api/twilio/conversations/:id/display-name | server/routes/twilio.ts:2546 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1492 | PATCH | /api/twilio/conversations/:id/participants | server/routes/twilio.ts:2564 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1493 | POST | /api/twilio/send-sms | server/routes/twilio.ts:2619 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1494 | POST | /api/twilio/initiate-call | server/routes/twilio.ts:2675 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1495 | POST | /api/twilio/voice-token | server/routes/twilio.ts:2753 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1496 | GET | /api/twilio/calls/:id/status | server/routes/twilio.ts:2824 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1497 | POST | /api/twilio/calls/:id/hangup | server/routes/twilio.ts:2865 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1498 | GET | /api/twilio/calls/:id/recording | server/routes/twilio.ts:2901 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1499 | GET | /api/twilio/calls/:id/voicemail-recording | server/routes/twilio.ts:2994 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1500 | POST | /api/twilio/calls/:id/voicemail/listened | server/routes/twilio.ts:3047 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1501 | GET | /api/twilio/calls | server/routes/twilio.ts:3067 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1502 | GET | /api/twilio/config | server/routes/twilio.ts:3086 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1503 | POST | /api/twilio/messaging-service/test | server/routes/twilio.ts:3175 | authenticated | isAuthenticated | authenticated |
+| 1504 | PUT | /api/twilio/config | server/routes/twilio.ts:3211 | authenticated | isAuthenticated | authenticated |
+| 1505 | PUT | /api/users/me/twilio-settings | server/routes/twilio.ts:3367 | authenticated | isAuthenticated | authenticated |
+| 1506 | POST | /api/twilio/voice-presence | server/routes/twilio.ts:3409 | requireTwilioAccess | isAuthenticated, requireTwilioAccess | authenticated |
+| 1507 | GET | /api/users/me/twilio-settings | server/routes/twilio.ts:3428 | authenticated | isAuthenticated | authenticated |
+| 1508 | PUT | /api/users/me/profile | server/routes/twilio.ts:3445 | authenticated | isAuthenticated | authenticated |
+| 1509 | POST | /api/users/me/profile-photo | server/routes/twilio.ts:3463 | authenticated | isAuthenticated | authenticated |
+| 1510 | POST | /api/twilio/admin/backfill-statuses | server/routes/twilio.ts:3518 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1511 | POST | /api/admin/twilio/cleanup-duplicate-conversations | server/routes/twilio.ts:3667 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1512 | GET | /api/admin/twilio/call-archive | server/routes/twilio.ts:3703 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1513 | GET | /api/admin/twilio/call-archive/health | server/routes/twilio.ts:3790 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1514 | PUT | /api/admin/twilio/call-archive/alert-config | server/routes/twilio.ts:3933 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1515 | GET | /api/admin/twilio/call-archive/health/trend | server/routes/twilio.ts:4005 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1516 | POST | /api/admin/twilio/call-archive/:id/enqueue | server/routes/twilio.ts:4038 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1517 | POST | /api/admin/twilio/call-archive/enqueue-stuck | server/routes/twilio.ts:4062 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1518 | GET | /api/admin/twilio/call-archive/stuck-processing | server/routes/twilio.ts:4127 | requireAccountManager | isAuthenticated, requireAccountManager | authenticated, admin_only |
+| 1519 | POST | /api/admin/twilio/call-archive/:id/force-release | server/routes/twilio.ts:4235 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1520 | GET | /api/admin/twilio/call-archive/requeue-audit | server/routes/twilio.ts:4295 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1521 | POST | /api/admin/twilio/call-archive/:id/requeue | server/routes/twilio.ts:4325 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1522 | POST | /api/admin/twilio/call-archive/requeue-bulk | server/routes/twilio.ts:4386 | requireCeo | isAuthenticated, requireCeo | authenticated, admin_only |
+| 1523 | PUT | /api/users/me/timezone | server/routes/twilio.ts:4444 | authenticated | isAuthenticated | authenticated |
+| 1524 | PUT | /api/users/me/theme | server/routes/twilio.ts:4470 | authenticated | isAuthenticated | authenticated |
+| 1525 | GET | /api/notifications | server/routes/userNotifications.ts:120 | authenticated | isAuthenticated | authenticated |
+| 1526 | GET | /api/notifications/system-bundled | server/routes/userNotifications.ts:158 | authenticated | isAuthenticated | authenticated |
+| 1527 | PATCH | /api/notifications/mark-bundle-read | server/routes/userNotifications.ts:179 | authenticated | isAuthenticated | authenticated |
+| 1528 | GET | /api/notifications/unread-count | server/routes/userNotifications.ts:197 | authenticated | isAuthenticated | authenticated |
+| 1529 | GET | /api/notifications/events | server/routes/userNotifications.ts:215 | authenticated | isAuthenticated | authenticated |
+| 1530 | PATCH | /api/notifications/:id/read | server/routes/userNotifications.ts:278 | authenticated | isAuthenticated | authenticated |
+| 1531 | POST | /api/notifications/:id/read | server/routes/userNotifications.ts:283 | authenticated | isAuthenticated | authenticated |
+| 1532 | PATCH | /api/notifications/:id/unread | server/routes/userNotifications.ts:306 | authenticated | isAuthenticated | authenticated |
+| 1533 | PATCH | /api/notifications/mark-all-read | server/routes/userNotifications.ts:328 | authenticated | isAuthenticated | authenticated |
+| 1534 | POST | /api/notifications/read-all | server/routes/userNotifications.ts:333 | authenticated | isAuthenticated | authenticated |
+| 1535 | PATCH | /api/notifications/:id/archive | server/routes/userNotifications.ts:353 | authenticated | isAuthenticated | authenticated |
+| 1536 | POST | /api/notifications/:id/archive | server/routes/userNotifications.ts:358 | authenticated | isAuthenticated | authenticated |
+| 1537 | POST | /api/notifications/test | server/routes/userNotifications.ts:368 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated |
+| 1538 | GET | /api/notifications/preferences | server/routes/userSlackPreferences.ts:83 | authenticated | isAuthenticated | authenticated |
+| 1539 | PUT | /api/notifications/preferences | server/routes/userSlackPreferences.ts:107 | authenticated | isAuthenticated | authenticated |
+| 1540 | GET | /api/notifications/slack-identity | server/routes/userSlackPreferences.ts:137 | authenticated | isAuthenticated | authenticated |
+| 1541 | POST | /api/notifications/slack-identity/link | server/routes/userSlackPreferences.ts:158 | authenticated | isAuthenticated | authenticated |
+| 1542 | DELETE | /api/notifications/slack-identity | server/routes/userSlackPreferences.ts:190 | authenticated | isAuthenticated | authenticated |
+| 1543 | POST | /api/notifications/slack-identity/test | server/routes/userSlackPreferences.ts:208 | authenticated | isAuthenticated | authenticated |
+| 1544 | GET | /api/admin/notifications/user-slack-identities | server/routes/userSlackPreferences.ts:233 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1545 | DELETE | /api/admin/notifications/user-slack-identities/:userId | server/routes/userSlackPreferences.ts:250 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1546 | GET | /api/admin/notifications/user-slack-dm-enabled | server/routes/userSlackPreferences.ts:269 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1547 | PUT | /api/admin/notifications/user-slack-dm-enabled | server/routes/userSlackPreferences.ts:283 | requireTeamLead | isAuthenticated, requireTeamLead | authenticated, admin_only |
+| 1548 | POST | /api/video-analysis/submit | server/routes/videoAnalysis.ts:29 | authenticated | isAuthenticated | authenticated |
+| 1549 | GET | /api/video-analysis/status/:taskId | server/routes/videoAnalysis.ts:88 | authenticated | isAuthenticated | authenticated |
+| 1550 | GET | /api/video-analysis/jobs | server/routes/videoAnalysis.ts:113 | authenticated | isAuthenticated | authenticated |
+| 1551 | GET | /api/video-analysis/transcript/:taskId | server/routes/videoAnalysis.ts:125 | authenticated | isAuthenticated | authenticated |
+| 1552 | POST | /api/video-analysis/analyze/:taskId | server/routes/videoAnalysis.ts:161 | authenticated | isAuthenticated | authenticated |
+| 1553 | POST | /api/video-analysis/search/:taskId | server/routes/videoAnalysis.ts:198 | authenticated | isAuthenticated | authenticated |
+| 1554 | GET | /api/video-analysis/full/:taskId | server/routes/videoAnalysis.ts:239 | authenticated | isAuthenticated | authenticated |
+| 1555 | POST | /api/integrations/twelvelabs/webhook | server/routes/videoAnalysis.ts:285 | public | none | public, webhook |
+| 1556 | GET | /api/video-analysis/frames/:taskId/:filename | server/routes/videoAnalysis.ts:361 | authenticated | isAuthenticated | authenticated |
+| 1557 | GET | /api/website/inquiry/config | server/routes/website.ts:179 | public | none | public |
+| 1558 | POST | /api/website/inquiry | server/routes/website.ts:188 | public | none | public |

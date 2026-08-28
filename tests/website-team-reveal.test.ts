@@ -34,7 +34,7 @@ test-registration */
  *   After clicking the button — expanded state:
  *     7. .nb-team section carries data-team-expanded="1" (collapsed attr removed).
  *     8. The button's aria-expanded attribute is "true".
- *     9. All 18 team cards are visible (display ≠ none).
+ *     9. All 20 team cards are visible (display ≠ none).
  *
  *   After clicking the button again — re-collapsed state:
  *    10. .nb-team section carries data-team-collapsed="1" (expanded attr removed).
@@ -42,7 +42,7 @@ test-registration */
  *    12. The expected remaining cards are hidden again (display:none).
  *
  *   With JavaScript disabled — served-markup fallback:
- *    13. All 18 cards are visible (display !== none).
+ *    13. All 20 cards are visible (display !== none).
  *    14. No reveal button is present.
  *    15. Neither team-reveal state attribute is present on the section.
  *
@@ -68,8 +68,102 @@ import {
 // Constants (must stay in sync with home.ts TEAM array and home.css rules)
 // ---------------------------------------------------------------------------
 
-/** Total team cards in the grid (TEAM array length in home.ts). */
-const TOTAL_TEAM_CARDS = 18;
+/** Exact owner-confirmed roster contract rendered by the shared source. */
+const EXPECTED_TEAM = [
+  { img: "nobull-redesign/team/ronnie2.jpg", name: "Ronnie Deaver", role: "Founder" },
+  {
+    img: "nobull-redesign/team/oliver.webp",
+    name: "Oliver Goessler",
+    role: "Head of Operations",
+  },
+  {
+    img: "nobull-redesign/team/brett2.jpg",
+    name: "Brett Barney",
+    role: "Head of Accounts",
+  },
+  { img: "nobull-redesign/team/jeff.jpg", name: "Jeff Mangle", role: "Head of Sales" },
+  {
+    img: "nobull-redesign/team/janno2.jpg",
+    name: "Janno Perez",
+    role: "Head of Paid Search",
+  },
+  {
+    img: "nobull-redesign/team/cam-2026.jpg",
+    name: "Cam Duhart",
+    role: "Sr. Intake Engineer",
+  },
+  {
+    img: "nobull-redesign/team/jake2.jpg",
+    name: "Jake Davis",
+    role: "Sr. Marketing Engineer",
+  },
+  {
+    img: "nobull-redesign/team/jason.jpg",
+    name: "Jason Robbins",
+    role: "Marketing Engineer",
+  },
+  {
+    img: "nobull-redesign/team/priyanka-2026.jpg",
+    name: "Priyanka Lakha",
+    role: "Onboarding Engineer",
+  },
+  {
+    img: "nobull-redesign/team/cat2.jpg",
+    name: "Cat McManus",
+    role: "Executive Assistant",
+  },
+  {
+    img: "nobull-redesign/team/juan.jpg",
+    name: "Juan Antoniazzi",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/santiago.jpg",
+    name: "Santiago Sanchez",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/devin-2026.jpg",
+    name: "Devin Petersen",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/kreston.jpg",
+    name: "Kreston Nathras",
+    role: "Senior Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/kaylie.jpg",
+    name: "Kaylie Dietrichsen",
+    role: "Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/inno.jpg",
+    name: "Inno Mdletshe",
+    role: "Paid Search Expert",
+  },
+  {
+    img: "nobull-redesign/team/jordan.jpg",
+    name: "Jordan Scrimgeour",
+    role: "Google Business Profile Expert",
+  },
+  {
+    img: "nobull-redesign/team/liri-abdullahu-2026.jpg",
+    name: "Liri Abdullahu",
+    role: "Intake Engineer",
+  },
+  {
+    img: "nobull-redesign/team/cleo.jpg",
+    name: "Cleo Ortega",
+    role: "Virtual Assistant",
+  },
+  {
+    img: "nobull-redesign/team/lotis.jpg",
+    name: "Lotis Florida",
+    role: "Virtual Assistant",
+  },
+] as const;
+const TOTAL_TEAM_CARDS = EXPECTED_TEAM.length;
 
 /**
  * The responsive grid keeps its first two rows visible while collapsed. These
@@ -192,12 +286,21 @@ async function runTeamRevealTests(
     const hiddenCount = cards.filter(
       (c) => window.getComputedStyle(c).display === "none",
     ).length;
-    return { total: cards.length, visibleCount, hiddenCount };
+    const roster = cards.map((card) => ({
+      img: card.querySelector("img")?.getAttribute("src") ?? "",
+      name: card.querySelector("h3")?.textContent?.trim() ?? "",
+      role: card.querySelector(".nb-team-role")?.textContent?.trim() ?? "",
+    }));
+    return { total: cards.length, visibleCount, hiddenCount, roster };
   });
 
   assert(
     cardVisibility.total === TOTAL_TEAM_CARDS,
     `total team cards in DOM = ${TOTAL_TEAM_CARDS} (got ${cardVisibility.total})`,
+  );
+  assert(
+    JSON.stringify(cardVisibility.roster) === JSON.stringify(EXPECTED_TEAM),
+    `roster cards keep the exact owner-confirmed image/name/role order at ${width} px`,
   );
   assert(
     cardVisibility.visibleCount === visibleWhenCollapsed,
@@ -253,7 +356,7 @@ async function runTeamRevealTests(
     `expanded: aria-expanded="true" on reveal button (got: ${JSON.stringify(ariaExpandedAfterOpen)})`,
   );
 
-  // 9. All 18 cards visible and none hidden.
+  // 9. All 20 cards visible and none hidden.
   const expandedVisibility = await page.evaluate(() => {
     const cards = Array.from(
       document.querySelectorAll<HTMLElement>(".nb-team-grid .nb-team-card"),
@@ -313,18 +416,27 @@ async function runTeamRevealTests(
     `re-collapsed: aria-expanded="false" on reveal button (got: ${JSON.stringify(ariaExpandedAfterReclose)})`,
   );
 
-  // 12. The expected remaining cards are hidden again.
-  const recollapsedHidden = await page.evaluate(() => {
+  // 12. The expected first two rows are visible and the remainder hidden again.
+  const recollapsedVisibility = await page.evaluate(() => {
     const cards = Array.from(
       document.querySelectorAll<HTMLElement>(".nb-team-grid .nb-team-card"),
     );
-    return cards.filter(
-      (c) => window.getComputedStyle(c).display === "none",
-    ).length;
+    return {
+      visibleCount: cards.filter(
+        (c) => window.getComputedStyle(c).display !== "none",
+      ).length,
+      hiddenCount: cards.filter(
+        (c) => window.getComputedStyle(c).display === "none",
+      ).length,
+    };
   });
   assert(
-    recollapsedHidden === hiddenWhenCollapsed,
-    `re-collapsed: ${hiddenWhenCollapsed} cards hidden again at ${width} px (got ${recollapsedHidden})`,
+    recollapsedVisibility.visibleCount === visibleWhenCollapsed,
+    `re-collapsed: ${visibleWhenCollapsed} cards visible again at ${width} px (got ${recollapsedVisibility.visibleCount})`,
+  );
+  assert(
+    recollapsedVisibility.hiddenCount === hiddenWhenCollapsed,
+    `re-collapsed: ${hiddenWhenCollapsed} cards hidden again at ${width} px (got ${recollapsedVisibility.hiddenCount})`,
   );
 }
 
@@ -351,6 +463,11 @@ async function runNoJavaScriptTeamRevealTests(
         document.querySelector(".nb-team-reveal") !== null,
       collapsedAttr: section?.getAttribute("data-team-collapsed") ?? null,
       expandedAttr: section?.getAttribute("data-team-expanded") ?? null,
+      roster: cards.map((card) => ({
+        img: card.querySelector("img")?.getAttribute("src") ?? "",
+        name: card.querySelector("h3")?.textContent?.trim() ?? "",
+        role: card.querySelector(".nb-team-role")?.textContent?.trim() ?? "",
+      })),
     };
   });
 
@@ -358,6 +475,10 @@ async function runNoJavaScriptTeamRevealTests(
     fallback.total === TOTAL_TEAM_CARDS &&
       fallback.visibleCount === TOTAL_TEAM_CARDS,
     `no-JS fallback: all ${TOTAL_TEAM_CARDS} cards are visible (total ${fallback.total}, visible ${fallback.visibleCount})`,
+  );
+  assert(
+    JSON.stringify(fallback.roster) === JSON.stringify(EXPECTED_TEAM),
+    "no-JS fallback: exact owner-confirmed image/name/role order is served",
   );
   assert(
     !fallback.revealButtonPresent,

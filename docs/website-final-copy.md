@@ -52,15 +52,13 @@ endless video testimonials/quotes (5 + 11, Task #3997 — #4925's
 static 3 + 3 curated set reversed by Task #4980: the marquee rows
 drift again for motion-allowed visitors, the served grids stay the
 complete no-JS/reduced-motion fallback) →
-team (FULL 18-person roster band, Task #4979 owner directive — led by
-Ronnie → Oliver → Brett → Jeff → Janno → Cam, the rest in prior
-relative order; the #4903 endless wall RESURRECTED for motion-allowed
-visitors, the served 18-card grid = the complete no-JS/reduced-motion
-fallback; NO in-band CTA and no About roster link — supersedes the
-#4926 five-person compression) →
-fit (nb-fit, Task #4926, brief §12 — the fit / not-a-fit verdict cards
-re-homed out of the closing band, both lists rewritten to the brief) →
-FAQ (nb-faq-sec, Task #4926, brief §13 — cut to six buying questions) →
+team (FULL 20-person roster band, refreshed by Task #5269 — Cat follows
+Priyanka; the paid-search run is Juan → Santiago → Devin → Kreston →
+Kaylie → Inno; the served 20-card grid remains the complete
+no-JS/reduced-motion fallback; NO in-band CTA and no About roster link) →
+FAQ (nb-faq-sec, refreshed by Task #5269 — seven buying questions, with
+the complete fit/not-fit criteria folded into the final native disclosure;
+the standalone fit band is retired) →
 book (#book — the intact lower-commitment handoff now sits after FAQ and
 before the final conversion close) →
 conversion close (bull + `Ready to Build Your Revenue Engine?` display
@@ -83,16 +81,16 @@ hrefs `#casegen`, `#caseintake`, and `#caseconvert` to name their
 - H1 (unchanged): `More Leads Aren't Enough. We Turn Them Into Signed Cases.`
 - Lede (Task #4923, owner brief 2026-08-18 §1 — build-and-manage framing, revenue measured at every stage; deviation: house-style spaced em dash replaces the brief's closed `case—and`): `Most agencies stop at the lead. NoBull builds and manages the Marketing, Intake, and Sales systems that move qualified prospects from first click to signed case — and measures the revenue produced at every stage.` (retired #4120 lede — was `Most agencies stop at the lead. NoBull installs The Law Firm Revenue Engine™ — Marketing, Intake, and Sales working as one system, measured from first click to signed case.` — the ™ engine naming stays with the meta description — since Task #4992 the §4 funnel eyebrow renders THE LAW FIRM REVENUE ENGINE unmarked.)
 - Primary CTA: `Book a High Impact Revenue Session →` (Task #4261, owner doc §4 — ONE primary CTA language everywhere: header/menu, hero, post-proof, team ask, and closing all carry the full session phrase; source/DOM is title case and `.nb-btn`/`.btn` chrome renders it uppercase — never hyphenate "High Impact". Was `BOOK YOUR SESSION →`, the Task #4124 sitewide short label reconciled Task #4195; before that `BOOK A STRATEGY CALL →`.) · Secondary: `Read the Book →` (→ `/free-chapters/`; Task #5017, owner request 2026-08-18 — the hero pair feeds the book funnel (cover → free chapters → session, owner doc §3) and the hero no longer links `#system` (header Solutions + footer OUR SERVICES Revenue Engine link keep it reachable). Source/DOM is title case; the `.nb-btn-outline` chrome uppercases. Label history: was `SEE THE THREE CORE COMPONENTS →` (#4923, named the then-#system destination) and `SEE THE SYSTEM →` before that. Rendered as a clearly clickable OUTLINED button since Task #4816, owner feedback: the quiet text link read as decoration; the filled session CTA stays visually dominant)
-- Session-explainer note (`.nb-hero-note`, one quiet line under the CTA pair saying what the session is): `A free working session to build the plan for making your revenue goals a reality.` (the approved live use of ledger #36's verified plan-shaped-to-revenue-goals promise; "free" also rides that row. It adds no duration, guaranteed outcome, pricing recommendation, or handed-over-artifact promise.) RETIRED hero note: `A free working session to identify what is limiting signed cases and what should be fixed first.` (the former constraint-first framing, Task #5063, 2026-08-19).
+- Session-explainer note: REMOVED (Task #5269). The hero now moves directly from its CTA pair into the visual; the session facts remain documented in the booking surfaces and claim ledger.
 - Trust line: REMOVED (Task #4816 — the credibility rail directly below the hero now carries the $150M+ and 350+ figures ONCE; ledger #17/#13 wording rules live on there. Retired rendered copy for the record: `✓ $150M+ in new client revenue — across 350+ law firms we've worked with` — Task #4165, owner confirmed the $150M+ aggregate in session 2026-08-09; combined [proof.ts:REVENUE_GENERATED] with the [proof.ts:CLIENTS] figure in its mandated cumulative framing — never phrase the firm count as active clients. It had replaced `✓ 350+ law firms grown`, which had replaced the vague "Trusted by law firms across the U.S.")
 - Hero book cover (Task #4262, owner doc §3 — book-funnel entry): the cover art on the hero's dark side is a subtle LINK → `/free-chapters/` (aria-label "Read the first two chapters of The Law Firm Revenue Engine — free" — the content promise points at the real on-site excerpt, satisfying the ledger's book-content-CTA rule). The machinery art/shadow/reflection stay decorative (aria-hidden per layer); the affordance is hover/focus rim light + a gold keyboard-focus outline only — geometry untouched, and the hero's PRIMARY action remains the session CTA on the copy side.
-- Connection line (Task #4262, owner doc §3 — the doc's first approved option): `The book explains the system. NoBull installs it.` — quiet serif-italic caption on the dark floor beneath the cover (`.nb-book-caption`), deliberately a caption and never a competing headline; it names the book's role at the funnel's entry.
+- Connection line: REMOVED (Task #5269). The hero book cover remains the link into `/free-chapters/`, without a second book/system caption.
 
 
 ### 2. The Million Dollar Gap (duel chart Task #3904; $1,000,000 model rework Task #3936; de-dupe + redesign Task #3949; two-column compress + gain-framed payoff Task #3991; leak→fix strip restyled scannable Task #4031, then FOLDED into the chart captions Task #4166; narrative bridge — priced H2, system-tagged rows, handoffs closer — Task #4259; §3 simplification Task #4923 — priced lede, stage-only rows, diagnosis-line closer, standalone handoff band deleted)
 - Eyebrow: `THE MILLION DOLLAR GAP`
 - H2: `Same 500 Leads. $1,000,000 Apart.` (Task #4259 owner direction — the H2 now PRICES the gap, both figures GAP_MODEL-templated so the generate-time arithmetic check guards them; was `Same Leads. Very Different Firm.`, replaced Task #4259)
-- Support (Task #4923, owner brief 2026-08-18 §3 — the tighter setup prices the gap in one breath; keeps the visible "Picture two firms" hypothetical cue that carries the model label in rendered copy, claim-ledger row 19 — the brief's setup dropped the cue, deliberately restored, and the brief's "$1 million" renders `$1,000,000` (house style, matches the H2/receipt); prior forms retired — the #4259 lede was `Picture two firms: one turns 500 qualified leads into 20 signed cases; the other turns the same 500 into 120. The difference isn't lead volume. It's what happens between the lead and the signed case.`; the pre-#4259 one-sentence form was `Picture two firms generating the same 500 qualified leads — one leaky, one tuned.`, replaced Task #4259): `Picture two firms with the same 500 qualified leads. One signs 20 cases. The other signs 120. At a $10,000 average case value, that is a $1,000,000 difference without generating one additional lead.` [proof.ts:GAP_MODEL — owner-provided figures 2026-08-06 (Task #3936; supersedes the deck-S6 ×5 scaling); the old number-narrating paragraph was compressed in Task #3949, and Task #4259 deliberately superseded the #3949 numbers-land-once rule for the HEADLINE figures only — the H2 prices the leads + the gap and the lede (since #4923) walks leads→cases→case value→gap for both firms, while the consults pair and the revenue duel still land only in the chart/receipt and the receipt still PROVES the $1,000,000 the H2 poses; the visually-hidden `.nb-vh` summary — still fully GAP_MODEL-templated — names the STAGES only since #4923 (Marketing / Intake / Sales — brief §3 keeps product names out of the problem illustration; the #4259 stage→system attributions left with the visible row tags, themselves now stage-only `MARKETING` / `INTAKE` / `SALES`) and speaks the complete model (100→20 vs 300→120 consults/cases, 6× the clients, $200,000 vs $1,200,000, an extra $1,000,000 from the same lead flow — tail reframed gain-side in Task #3991, in lockstep with the receipt caps) to screen readers while the chart + receipt stay aria-hidden; distinct from the Presti client result the 500-lead figure coincidentally echoes; Task #4166 appended one closing sentence to the `.nb-vh` summary — `The leaks: missed calls and slow follow-up before the consult, a weak consult offer and too much friction after it.` — the four leak names' accessible home after the trade-strip fold]
+- Support: REMOVED (Task #5269). The chart and payoff remain intact, and the visually-hidden `.nb-vh` summary is their accessible home. It begins `Hypothetical model:` so the GAP_MODEL comparison remains clearly hypothetical without a visible setup paragraph. The summary stays fully GAP_MODEL-templated and retains the complete stages, revenue comparison, payoff, and leak explanation for screen readers.
 - Duel chart + payoff receipt (the numbers' ONE visible home since Task #3949; paired side by side in the two-column `.nb-gap-cols` since Task #3991 — chart left, receipt right, stacked ≤850px — with `aria-hidden` on the wrapper; the visually-hidden summary after the support line is their accessible copy): `THE LEAKY FIRM` (crimson bars, leftward) vs `THE TUNED FIRM` (gold bars, rightward) over `SAME 500 LEADS IN`; stages `QUALIFIED LEADS 500|500 → CONSULTS BOOKED 100|300 → CASES SIGNED 20|120` (stage labels ride centered above each bar pair since Task #3991 — the 170px center spine column is gone so bars stay legible at half width; the Task #4259 system tags above each stage label — `CASEGEN™ · MARKETING` / `CASEINTAKE™ · INTAKE` / `CASECONVERT™ · SALES` — RETIRED to stage-only labels by Task #4923 (`MARKETING` / `INTAKE` / `SALES`; since Task #4992 no homepage surface pairs a product name with its department), while the revenue line's attribution stays the receipt itself); per-stage shortfall captions compare the two firms with each other (ghosts span leaky tip → tuned same-stage tip, never framed against 100% conversion) and since Task #4166 carry the leak names the retired trade strip used to own: `200 fewer consults booked — missed calls, slow follow-up` / `100 fewer cases signed — weak consult offer, too much friction`; payoff receipt `6×` + `THE CLIENTS`, then `$200,000 vs $1,200,000` + `AT A $10,000 AVERAGE CASE VALUE`, then `AN EXTRA` + `$1,000,000` + `FROM THE SAME LEAD FLOW` (Task #3991 reframe — the money moment reads top-to-bottom as the tuned firm's upside and the figure lands gold-ink, retiring the crimson `OPENED ENTIRELY AFTER THE LEAD` loss cap; Task #3949 de-dupe still holds: the clients cap doesn't restate the `SAME 500 LEADS IN` head tag, and no cap restates the eyebrow — each fact lands once)
 - Trade rows — FOLDED (Task #4166; the #4031 `WHERE IT LEAKS` → `HOW IT'S TUNED` ledger strip no longer renders): the four leak names now ride the duel chart's own shortfall captions (two per caption, above) and the `.nb-vh` summary's closing sentence; the fix answers left visible copy entirely — the §4 product section names every fix lane (respond/recover = CaseIntake™, offer/structure = CaseConvert™ — capability stacks since Task #4295, carried through the #4837 component sections into the #4992 funnel's capability lines), so the strip restated what §4 delivers moments later. Retired pair copy for the record: `Missed calls → Every call answered` · `Slow follow-up → Follow-up in minutes` · `Weak consult offer → Consults built to close` · `Too much friction → Signing made effortless`. Do not rebuild the strip.
 - Microcopy under rows: REMOVED (Task #3936) — the `Illustrative model — the same math we diagnose on a strategy call.` caption no longer renders
@@ -160,8 +158,8 @@ the optimize-for-signed-cases principle stays in
 - Stages (each: a large lightly-transparent numeral behind the copy
   and an engraved architectural emblem on the funnel surface — search
   pin / conversation-calendar / agreement seal — both aria-hidden;
-  then dept label → product name → outcome headline → ONE compact
-  capability line, all brief-verbatim; NO body paragraphs,
+  then dept label → product name → outcome headline → THREE capability
+  beats, all brief-verbatim; NO body paragraphs,
   per-product CTAs, input/output labels, between-stage copy, or
   arrows anywhere in the section):
   - 01 `MARKETING` · `CASEGEN™` · `Create More of the Right
@@ -169,11 +167,11 @@ the optimize-for-signed-cases principle stays in
     Search Control System™ · Review Velocity System™` (the three ™
     system names render on CaseGen only)
   - 02 `INTAKE` · `CASEINTAKE™` · `Stop Qualified Leads From
-    Disappearing.` · caps `Answer faster · Guide consistently ·
-    Follow up · Remove friction`
+    Disappearing.` · caps `speed to human, consult capture, revenue
+    follow through`
   - 03 `SALES` · `CASECONVERT™` · `Turn More Booked Consultations
-    Into Signed Cases.` · caps `Script the conversation · Strengthen
-    the offer · Coach the execution`
+    Into Signed Cases.` · caps `Consult to Client Script, Obvious Choice
+    Offer, Close Rate Lab`
 - Terminus: the `SIGNED CASES` plaque — the engine's output, gold
   face under the same continuous rim, narrower than every stage; no
   number, no product name, no caps line (the result, not a
@@ -236,8 +234,8 @@ the optimize-for-signed-cases principle stays in
 - Stages (each: a large lightly-transparent numeral behind the copy
   and an engraved architectural emblem on the funnel surface — search
   pin / conversation-calendar / agreement seal — both aria-hidden;
-  then dept label → product name → outcome headline → ONE compact
-  capability line, all brief-verbatim; NO body paragraphs,
+  then dept label → product name → outcome headline → THREE capability
+  beats, all brief-verbatim; NO body paragraphs,
   per-product CTAs, input/output labels, between-stage copy, or
   arrows anywhere in the section):
   - 01 `MARKETING` · `CASEGEN™` · `Create More of the Right
@@ -245,11 +243,11 @@ the optimize-for-signed-cases principle stays in
     Search Control System™ · Review Velocity System™` (the three ™
     system names render on CaseGen only)
   - 02 `INTAKE` · `CASEINTAKE™` · `Stop Qualified Leads From
-    Disappearing.` · caps `Answer faster · Guide consistently ·
-    Follow up · Remove friction`
+    Disappearing.` · caps `speed to human, consult capture, revenue
+    follow through`
   - 03 `SALES` · `CASECONVERT™` · `Turn More Booked Consultations
-    Into Signed Cases.` · caps `Script the conversation · Strengthen
-    the offer · Coach the execution`
+    Into Signed Cases.` · caps `Consult to Client Script, Obvious Choice
+    Offer, Close Rate Lab`
 - Terminus: the `SIGNED CASES` plaque — the engine's output, gold
   face under the same continuous rim, narrower than every stage; no
   number, no product name, no caps line (the result, not a
@@ -312,8 +310,8 @@ the optimize-for-signed-cases principle stays in
 - Stages (each: a large lightly-transparent numeral behind the copy
   and an engraved architectural emblem on the funnel surface — search
   pin / conversation-calendar / agreement seal — both aria-hidden;
-  then dept label → product name → outcome headline → ONE compact
-  capability line, all brief-verbatim; NO body paragraphs,
+  then dept label → product name → outcome headline → THREE capability
+  beats, all brief-verbatim; NO body paragraphs,
   per-product CTAs, input/output labels, between-stage copy, or
   arrows anywhere in the section):
   - 01 `MARKETING` · `CASEGEN™` · `Create More of the Right
@@ -321,11 +319,11 @@ the optimize-for-signed-cases principle stays in
     Search Control System™ · Review Velocity System™` (the three ™
     system names render on CaseGen only)
   - 02 `INTAKE` · `CASEINTAKE™` · `Stop Qualified Leads From
-    Disappearing.` · caps `Answer faster · Guide consistently ·
-    Follow up · Remove friction`
+    Disappearing.` · caps `speed to human, consult capture, revenue
+    follow through`
   - 03 `SALES` · `CASECONVERT™` · `Turn More Booked Consultations
-    Into Signed Cases.` · caps `Script the conversation · Strengthen
-    the offer · Coach the execution`
+    Into Signed Cases.` · caps `Consult to Client Script, Obvious Choice
+    Offer, Close Rate Lab`
 - Terminus: the `SIGNED CASES` plaque — the engine's output, gold
   face under the same continuous rim, narrower than every stage; no
   number, no product name, no caps line (the result, not a
@@ -388,8 +386,8 @@ the optimize-for-signed-cases principle stays in
 - Stages (each: a large lightly-transparent numeral behind the copy
   and an engraved architectural emblem on the funnel surface — search
   pin / conversation-calendar / agreement seal — both aria-hidden;
-  then dept label → product name → outcome headline → ONE compact
-  capability line, all brief-verbatim; NO body paragraphs,
+  then dept label → product name → outcome headline → THREE capability
+  beats, all brief-verbatim; NO body paragraphs,
   per-product CTAs, input/output labels, between-stage copy, or
   arrows anywhere in the section):
   - 01 `MARKETING` · `CASEGEN™` · `Create More of the Right
@@ -397,11 +395,11 @@ the optimize-for-signed-cases principle stays in
     Search Control System™ · Review Velocity System™` (the three ™
     system names render on CaseGen only)
   - 02 `INTAKE` · `CASEINTAKE™` · `Stop Qualified Leads From
-    Disappearing.` · caps `Answer faster · Guide consistently ·
-    Follow up · Remove friction`
+    Disappearing.` · caps `speed to human, consult capture, revenue
+    follow through`
   - 03 `SALES` · `CASECONVERT™` · `Turn More Booked Consultations
-    Into Signed Cases.` · caps `Script the conversation · Strengthen
-    the offer · Coach the execution`
+    Into Signed Cases.` · caps `Consult to Client Script, Obvious Choice
+    Offer, Close Rate Lab`
 - Terminus: the `SIGNED CASES` plaque — the engine's output, gold
   face under the same continuous rim, narrower than every stage; no
   number, no product name, no caps line (the result, not a
@@ -431,18 +429,22 @@ the optimize-for-signed-cases principle stays in
   inks on burgundy/navy, near-black label on the gold plaque; bright
   gold stays decorative on light grounds (rim, numerals, emblems).
 
-### 6. Credibility rail (ONE compact band since Task #4816 — the press logos and the four aggregates merged; the metrics had sat in their own band directly after the press strip since Task #4261 moved them up from after the cinematic, owner doc §2, and before that after the cinematic since Task #3999 merged the former systems band into §4)
-Updated 2026-08-14 (Task #4816, owner-endorsed feedback): the standalone
-press strip and metrics band fused into one ~180–220px credibility rail —
-`AS SEEN ON` logos row over the four count-up aggregates — so the hero's
-claim gets third-party + outcome backing in a single glance and the gap
-band arrives sooner. Copy unchanged in the merge: same logos row (§5),
-same four aggregates, money first (Task #4261) — the rail still opens
-the proof story before The Gap prices it. Figures still count
-up once when the band scrolls into view (home-client/statsBand.ts; the
+### 6. Credibility rail (ONE compact band since Task #4816 — the four outcome aggregates lead, followed by the press validation row; the metrics and logos remain one rail)
+Updated 2026-08-27 (Task #5369): the outcome metrics now lead the
+hairline-framed credibility rail as its primary proof moment, with the
+`AS SEEN ON` logos row following as clearly secondary validation. The two
+groups retain the same single-glance rail and the gap band still arrives
+sooner. Copy is unchanged: same five opaque logos (§5), same four
+aggregates, money first (Task #4261) — the rail opens the proof story before
+The Gap prices it. Figures still count up once when the band scrolls into
+view (home-client/statsBand.ts; the
 `$`/`M` prefix and suffix render as static aria-hidden spans around the
 counted digits so `$150M+` animates digits-only) and render statically
 for no-JS / reduced-motion visitors.
+- The five preserved press assets are deliberately opaque: they retain their
+  order and visual treatment but publish no individual organization name,
+  caption, or permission claim until client confirmation exists. Each image is
+  empty-alt and `aria-hidden`; do not infer an identity from a filename.
 - `$150M+` / `In New Client Revenue` [proof.ts:REVENUE_GENERATED] — ledger #17; NEW band surface Task #4261 (the rail is the figure's ONLY homepage surface since Task #4816 retired the hero trust line's combined $150M+/350+ form; always "new client revenue" — client firms' revenue, never NoBull's own)
 - `350+` / `Law Firms Worked With` [proof.ts:CLIENTS] — ledger #13; renamed Task #4261 from `Law Firms Grown`: "worked with" is the ledger's own mandated cumulative framing, and the claim ledger documents no defensible "grown" standard (owner doc §2 flagged the wording)
 - `10+` / `Years of Results` — ledger #15
@@ -506,12 +508,12 @@ The `growth you control` bullet in the qualification cards survived this
 removal but was itself rewritten on 2026-08-08 (Task #4035,
 scale-up-only owner directive — see §12c).
 
-### 12. Team — eyebrow `NOBLE. NO B.S.`, H2 `One Team Responsible From First Click to Signed Case.` (full 18-person roster Task #4979; collapsed grid Task #5011 — the #4979 endless wall RETIRED; compressed Task #4926, owner brief §10; was `The People Behind The Engine.` — RETIRED)
-- Task #4979 owner directive (supersedes the #4926 §10 five-person compression): the band carries the FULL 18-person roster again, led by the six named people in exactly this order — Ronnie Deaver (Founder) · Oliver Goessler (Head of Operations) · Brett Barney (Head of Accounts) · Jeff Mangle (Head of Sales) · Janno Perez (Head of Paid Search) · Cam Duhart (Sr. Intake Engineer) — then everyone else in the roster's prior relative order: Jake Davis (Sr. Marketing Engineer) · Cat McManus (Executive Assistant) · Jason Robbins (Marketing Engineer) · Priyanka Lakha (Onboarding Engineer) · Juan Antoniazzi · Santiago Sanchez · Kaylie Dietrichsen · Devin Petersen (all Paid Search Expert) · Jordan Scrimgeour (Google Business Profile Expert) · Liri Abdullahu (Intake Expert) · Cleo Ortega · Lotis Florida (both Virtual Assistant). Names/roles/photos verbatim from the pre-#4926 roster — zero copy edits to any member.
-- Presentation (Task #5011, superseding the #4979 wall): the endless vertical wall is RETIRED — owner verdict: it didn't look good — `home-client/teamWall.ts` is deleted with its `data-team-mode` CSS family, and the band never scrolls or drifts for any visitor. The served static grid (6 → 2 → 1 columns) IS the complete presentation; for JS-enabled visitors `home-client/teamReveal.ts` collapses it to the first two rows per breakpoint (12 / 4 / 2 cards at the 6 / 2 / 1-column splits) behind the `Meet the Full Team` toggle — native button, aria-expanded + aria-controls announced state, aria-hidden chevron; collapsed cards are display:none (out of the tab order and accessibility tree); the expand rise + chevron flip animate only under prefers-reduced-motion: no-preference. No-JS visitors always see all 18 cards.
+### 12. Team — eyebrow `NOBLE. NO B.S.`, H2 `One Team Responsible From First Click to Signed Case.` (full 20-person roster Task #5239; collapsed grid Task #5011 — the #4979 endless wall RETIRED; compressed Task #4926, owner brief §10; was `The People Behind The Engine.` — RETIRED)
+- The owner-confirmed roster is the FULL 20-person shared homepage/About source. The six leaders remain Ronnie Deaver (Founder) · Oliver Goessler (Head of Operations) · Brett Barney (Head of Accounts) · Jeff Mangle (Head of Sales) · Janno Perez (Head of Paid Search) · Cam Duhart (Sr. Intake Engineer), followed by Jake Davis (Sr. Marketing Engineer) · Jason Robbins (Marketing Engineer) · Priyanka Lakha (Onboarding Engineer) · Cat McManus (Executive Assistant) · Juan Antoniazzi · Santiago Sanchez · Devin Petersen · Kreston Nathras (all Senior Paid Search Expert) · Kaylie Dietrichsen · Inno Mdletshe (both Paid Search Expert) · Jordan Scrimgeour (Google Business Profile Expert) · Liri Abdullahu (Intake Engineer) · Cleo Ortega · Lotis Florida (both Virtual Assistant). Liri uses the owner-supplied square portrait derivative `liri-abdullahu-2026.jpg`.
+- Presentation (Task #5011, superseding the #4979 wall): the endless vertical wall is RETIRED — owner verdict: it didn't look good — `home-client/teamWall.ts` is deleted with its `data-team-mode` CSS family, and the band never scrolls or drifts for any visitor. The served static grid (6 → 3 → 2 → 1 columns) IS the complete presentation; for JS-enabled visitors `home-client/teamReveal.ts` collapses it to the first two rows per breakpoint (12 / 6 / 4 / 2 cards at the 6 / 3 / 2 / 1-column splits) behind the `Meet the Full Team` toggle — native button, aria-expanded + aria-controls announced state, aria-hidden chevron; collapsed cards are display:none (out of the tab order and accessibility tree); the expand rise + chevron flip animate only under prefers-reduced-motion: no-preference. No-JS visitors always see all 20 cards.
 - REMOVED (Task #4979): the About text link below the grid — label was `MEET THE COMPLETE NOBULL TEAM →` — because the complete roster now renders in-band and /about/ carries only three bios, so the label over-promised. (Header nav + footer keep the page's About routes.)
 - NO in-band booking CTA. The active booking placements are header, hero, product funnel, after proof, and footer; the former final-close button is retired. The #4261 `.nb-team-ask` button stays REMOVED.
-- STILL RETIRED (unchanged by the wall's own retirement): the #4261 7-default + 11-behind-disclosure split (the `<details>` disclosure stays deleted — the #5011 collapsed grid opens from the ONE 18-card grid via a runtime button, not a details element).
+- STILL RETIRED (unchanged by the wall's own retirement): the #4261 7-default + 11-behind-disclosure split (the `<details>` disclosure stays deleted — the #5011 collapsed grid opens from the ONE 20-card grid via a runtime button, not a details element).
 
 
 ### 12b. Session offer — REMOVED (2026-08-18, Task #5016; was NEW Task #4926, owner brief §11)
@@ -529,17 +531,16 @@ for the record:
 - `YOU LEAVE KNOWING` card — four bullets, brief-verbatim (row #37 session activities in the estimate-honest register): `Which part of the engine is limiting revenue` · `The estimated value of that constraint` · `What should be addressed first` · `Whether NoBull is the right partner to build it`.
 - The Task #4926 WITHHELD record (session length, who should attend, what to bring, what happens after the session, and the review list's "average case value" item — not on file, ledger §5 / #36 limits) is unchanged history: those facts stay off the site everywhere.
 
-### 12c. Fit (nb-fit — Task #4926, owner brief §12) — H2 `Is Your Firm a Fit?` (verdict cards re-homed from the closing band, both lists rewritten)
+### 12c. Fit — folded into FAQ 7 (Task #5269; standalone `nb-fit` band retired)
 - Fit list: `You want more signed cases, not merely more marketing activity` · `You'll let NoBull measure Marketing, Intake, Sales, and revenue` · `Someone at the firm can approve and support implementation changes` · `You want the entire system working toward the same outcome`.
 - Not-fit list: `You only need a logo, a website refresh, or a one-off campaign` · `You can't provide the access needed to measure results` · `You want more leads but won't improve Intake or Sales` · `Nobody at the firm can own implementation decisions`.
 - The rewrite resolves the brief-flagged contradiction: the old fit list required existing lead flow while the FAQ said none was needed — lead generation is no longer a fit condition; willingness to improve Intake and Sales alongside is. Brief §12's minimum-investment criterion is WITHHELD (no threshold on file). The retired #3916/#4035 lists are quoted in the changelog.
-- Presentation: the same gold-vs-crimson `.nb-qual-*` verdict pair the closing band carried (shared classes — gold-ink vs crimson heads, matched ✓/✕ on a shared glyph column, stacking at ≤1000px), now under this band's own H2 on the egg background.
+- Presentation: the same gold-vs-crimson `.nb-qual-*` verdict pair now appears inside the native `Is Your Firm a Fit?` FAQ disclosure. Both lists retain semantic `<ul>`/`<li>` markup and stack responsively; no standalone fit section remains.
 
 
-### 13. FAQ — SIX buying questions (nb-faq-sec, Task #4926, owner brief §13; renders between the §12c fit band and the book handoff)
-Eyebrow `BEFORE YOU BOOK`, H2 `Six Questions, Answered Straight.` The
-#3908/#4120/#4261 ten-question set is cut to the six questions a buyer
-actually asks before booking; answers keep the claim-safe register
+### 13. FAQ — SEVEN buying questions (nb-faq-sec; renders between team and the book handoff)
+Eyebrow `BEFORE YOU BOOK`, H2 `Seven Questions, Answered Straight.` The
+first six questions retain the claim-safe register
 (product-specific typical implementation windows with an explicit
 non-guarantee and client-pace caveat — ledger #43, while ledger #23's generic
 onboarding path stays withheld; no figures — ledger #29 pricing stays banned;
@@ -547,12 +548,17 @@ software-conditional, estimate-honest tracking — ledger #42 and #37;
 component-by-component is ledger #24's publishable rule). Retired Q&As are
 quoted in the changelog.
 - FAQ 1 `Do we need all three components at once?` (NEW) → `No. We install the engine in a fixed order: Marketing, then Intake, then Sales. A stage that is already well established can move through its work faster, but it does not change the sequence. Engagements are incremental: we normally cover one stage at a time, with no more than two active at once. All three feed the same click-to-close measurement, so each stage you add joins numbers that are already running.`
-- FAQ 2 `Will we need to replace our current team or software?` (question reworded — was `Do we need to replace our CRM, intake staff, or sales team?`) → `Not by default. The engine installs around the people and tools you already have: CaseIntake™ builds answering, follow-up, and booking systems around your intake team, and CaseConvert™ scripts, records, and coaches the consultation your attorneys already run. We generally build around your existing software rather than prescribing change. If a tool is materially inadequate or obstructs the system, we will recommend replacing it.` (ledger #24's preserve-by-default, replace-when-necessary position; "the consultation your attorneys already run" keeps the house singular-institution form)
-- FAQ 3 `What does NoBull handle, and what does our firm handle?` (ledger #41 — the firm supplies three empowered operating owners; NoBull carries the hands-on implementation) → `Your firm needs three owners: a decision-maker empowered to make and enforce the changes the engine needs, an Intake owner, and a Sales owner. NoBull does the hands-on implementation: we get campaigns live, configure and improve your CRM software, coordinate supporting vendors such as call-answering services, and measure results from first click to signed case. You keep practicing law; running the engine is our job. But the work cannot succeed if necessary decisions cannot be made and enforced.`
-- FAQ 4 `How long does implementation take?` (replaces the narrow prior 30-to-90-day question and its generic no-schedule answer; exact retired wording is preserved in the changelog) → `CaseGen™ is typically fully launched within 21 days and profitable within 60 days. CaseIntake™ is typically launched within 90 days and in fine-tuning within 180 days. CaseConvert™ is typically launched within 30 days and seeing profitable ROI within 90 days. These are typical expectations, not guarantees. Client implementation pace is the number-one timing factor, and NoBull will go as fast as your firm allows.` (owner-confirmed typical product windows and governing caveat — ledger #43; the generic Day 0 / Days 3–5 / Day 14 path remains withheld under ledger #23)
-- FAQ 5 `How do you track leads, consultations, signed cases, and revenue?` (question reworded; prior wording is preserved in the changelog) → `We use WhatConverts for complete lead tracking and lead scoring. Visibility into Intake and Sales outcomes depends on your firm's software and how consistently it is used. We go as deep as the available data allows to report outcomes and improve your marketing campaigns. Where your data can't support a precise revenue number, we say so and give you the best honest estimate instead of a guess.` (owner-confirmed WhatConverts and software-use boundary — ledger #42; estimate-honest arm per ledger #37's load-bearing wording)
+- FAQ order follows the buying story: engagement scope, operating ownership, compatibility with the current team and tools, measurement, timing, investment, then fit.
+- FAQ 2 `What does NoBull handle, and what does our firm handle?` (ledger #41 — the firm supplies three empowered operating owners; NoBull carries the hands-on implementation) → `Your firm needs three owners: a decision-maker empowered to make and enforce the changes the engine needs, an Intake owner, and a Sales owner. NoBull does the hands-on implementation: we get campaigns live, configure and improve your CRM software, coordinate supporting vendors such as call-answering services, and measure results from first click to signed case. You keep practicing law; running the engine is our job. But the work cannot succeed if necessary decisions cannot be made and enforced.`
+- FAQ 3 `Will we need to replace our current team or software?` (question reworded — was `Do we need to replace our CRM, intake staff, or sales team?`) → `Not by default. The engine installs around the people and tools you already have: CaseIntake™ builds answering, follow-up, and booking systems around your intake team, and CaseConvert™ scripts, records, and coaches the consultation your attorneys already run. We generally build around your existing software rather than prescribing change. If a tool is materially inadequate or obstructs the system, we will recommend replacing it.` (ledger #24's preserve-by-default, replace-when-necessary position; "the consultation your attorneys already run" keeps the house singular-institution form)
+- FAQ 4 `How do you track leads, consultations, signed cases, and revenue?` (question reworded; prior wording is preserved in the changelog) → `We use WhatConverts for complete lead tracking and lead scoring. Visibility into Intake and Sales outcomes depends on your firm's software and how consistently it is used. We go as deep as the available data allows to report outcomes and improve your marketing campaigns. Where your data can't support a precise revenue number, we say so and give you the best honest estimate instead of a guess.` (owner-confirmed WhatConverts and software-use boundary — ledger #42; estimate-honest arm per ledger #37's load-bearing wording)
+- FAQ 5 `How long does implementation take?` (replaces the narrow prior 30-to-90-day question and its generic no-schedule answer; exact retired wording is preserved in the changelog) → `CaseGen™ is typically fully launched within 21 days and profitable within 60 days. CaseIntake™ is typically launched within 90 days and in fine-tuning within 180 days. CaseConvert™ is typically launched within 30 days and seeing profitable ROI within 90 days. These are typical expectations, not guarantees. Client implementation pace is the number-one timing factor, and NoBull will go as fast as your firm allows.` (owner-confirmed typical product windows and governing caveat — ledger #43; the generic Day 0 / Days 3–5 / Day 14 path remains withheld under ledger #23)
 - FAQ 6 `What does working with NoBull cost?` (NEW — answers the cost question with ZERO figures; ledger #29 commitment pricing stays banned) → `It depends on which components your firm needs — the engine is scoped component by component, not sold as a one-size package, and we don't publish a flat rate. The free High Impact Revenue Session is where the number gets real: it puts an estimated value on the constraint we'd be fixing, so you can weigh the investment with your own numbers in front of you.`
-- Final narrative order: FAQ → book handoff → §14 conversion close. The book keeps its cover, free-chapters action, and store destinations intact before the final ask.
+- FAQ 7 `Is Your Firm a Fit?` → the complete fit and not-fit criteria recorded in §12c, presented as the final native disclosure. The criteria are unchanged; only their placement moved.
+- Final narrative order: FAQ → book handoff → §14 conversion close. The book
+  keeps its cover and free-chapters action before the final ask. Amazon and
+  Audible are explicit, non-interactive `Coming Soon!` availability notices
+  until the client supplies canonical current-edition destinations.
 - Conversion hub: homepage `#booking` owns the only branded Calendly handoff and external scheduler action; homepage `#contact` owns the only `data-nb-inquiry="contact"` form. The independent `/unsubscribe/` utility continues through the shared inquiry handler without contact fields or reCAPTCHA.
 ### Footer (both home.ts + html.ts)
 - Book secondary (Task #5017, owner request): both footers carry the outlined `Read the Book →` button (→ `/free-chapters/`) in the logo column — dark-scheme outline variant (warm-white hairline/label, gold-pale arrow). On the homepage it is the footer's ONLY styled action (the booking budget keeps that footer session-free); the subpage footer pairs it with the COMPANY column's session text link. The RESOURCES `The Book` → #book text link stays as-is.
@@ -573,7 +579,7 @@ quoted in the changelog.
   - FAQ 3 → `Book a high impact revenue session through our website. It covers your goals, your current funnel — marketing, intake, and sales — and whether the engine fits your firm.` (topics only; no mapping/approach/pricing promises; opening ask renamed Task #4124, reconciled Task #4195)
 - Composition: company story and FAQ → Practice Areas Served → Our Dedicated Team → booking band. The About page has no First Lead Records proof strip or Recent News/resource-card section.
 - Practice-area section: stable destination `#practice-areas-served`; label `Built For B2C Law Firms`; H2 exactly `Practice Areas Served`; intro `Our Marketing, Intake, and Sales services are built for B2C law firms across a wide range of practices. We connect the systems that bring in qualified opportunities, move them to consultations, and help turn those consultations into signed cases.` List all 14 entries from the shared canonical practice-area source in this order: Bankruptcy Law; Criminal Law; Environment Law; Family Law; Health Law; Immigration Law; Real Estate Law; International Law; Entertainment Law; Personal Injury Law; Estate Planning / Elder Law; Intellectual Property Law; Labor (Employment) Law; Tax Law. The list is complete in place with no dependency on `/services/`; the former industries-page CTA is retired.
-- Team: render the complete canonical 18-person roster in homepage order, with the same photo/name/role contract on both pages: Ronnie Deaver / Founder; Oliver Goessler / Head of Operations; Brett Barney / Head of Accounts; Jeff Mangle / Head of Sales; Janno Perez / Head of Paid Search; Cam Duhart / Sr. Intake Engineer; Jake Davis / Sr. Marketing Engineer; Cat McManus / Executive Assistant; Jason Robbins / Marketing Engineer; Priyanka Lakha / Onboarding Engineer; Juan Antoniazzi, Santiago Sanchez, Kaylie Dietrichsen, and Devin Petersen / Paid Search Expert; Jordan Scrimgeour / Google Business Profile Expert; Liri Abdullahu / Intake Expert; Cleo Ortega and Lotis Florida / Virtual Assistant. The only biographies are the three existing Ronnie, Oliver, and Jake biographies; each remains available through a native disclosure labeled with that member's first name. Do not invent biographies for the other 15 members.
+- Team: render the complete canonical 20-person roster in homepage order, with the same photo/name/role contract on both pages: Ronnie Deaver / Founder; Oliver Goessler / Head of Operations; Brett Barney / Head of Accounts; Jeff Mangle / Head of Sales; Janno Perez / Head of Paid Search; Cam Duhart / Sr. Intake Engineer; Jake Davis / Sr. Marketing Engineer; Jason Robbins / Marketing Engineer; Priyanka Lakha / Onboarding Engineer; Cat McManus / Executive Assistant; Juan Antoniazzi, Santiago Sanchez, Devin Petersen, and Kreston Nathras / Senior Paid Search Expert; Kaylie Dietrichsen and Inno Mdletshe / Paid Search Expert; Jordan Scrimgeour / Google Business Profile Expert; Liri Abdullahu / Intake Engineer; Cleo Ortega and Lotis Florida / Virtual Assistant. Liri's image is `liri-abdullahu-2026.jpg`. The only biographies are the three existing Ronnie, Oliver, and Jake biographies; each remains available through a native disclosure labeled with that member's first name. Do not invent biographies for the other 17 members.
 - Ronnie bio (fixed, unverified numbers removed; Task #4120: "engineering growth" → "engineering revenue"): `Ronnie Deaver founded NoBull Marketing after more than a decade engineering revenue for law firms. He's the author of The Law Firm Revenue Engine and a speaker at industry events including the American Bar Association and the National Association of Divorce Professionals.`
 - Jake/Oliver biographies stay as the existing trimmed copy; their roles remain Sr. Marketing Engineer / Head of Operations.
 - Header destination: every generated header carries `Practice Areas Served`
@@ -600,9 +606,9 @@ entry, redirect, or case-study-library shell.
 
 ## Homepage conversion hub (`/#booking` + `/#contact`)
 
-- The homepage ends FAQ → book → one final conversion section. Its title block carries the crimson bull, H2 `Ready to Build Your Revenue Engine?`, lede `You're already paying to create opportunity. The question is how much of it becomes revenue.`, and supporting line `Sound like a fit? The session is free — you leave knowing how to start with Marketing, then build through Intake to Sales.`
+- The homepage ends FAQ → book → one final conversion section. Its title block carries the crimson bull, H2 `Ready to Build Your Revenue Engine?`, and lede `You're already paying to create opportunity. The question is how much of it becomes revenue.`
 - The former standalone close CTA and booking/message chooser are retired. Desktop presents booking first and contact second in one two-column composition; at ≤850px they stack in that same booking-first DOM and keyboard order.
-- `#booking`: `Book a High Impact Revenue Session`; a compact NoBull booking handoff with `View Available Times →`, two session facts, an explicit new-tab Calendly destination note, and a no-JavaScript assurance. The former embedded Calendly widget/script, loading copy, and `Open Calendly directly →` recovery link are retired.
+- `#booking`: `Book a High Impact Revenue Session` with one `View Available Times →` action opening the canonical Calendly destination in a new tab. The former booking explainer copy, fact list, scheduler note, no-JavaScript assurance, embedded Calendly widget/script, loading copy, and `Open Calendly directly →` recovery link are retired.
 - `#contact`: `Prefer to Send a Message?`; the only contact-kind inquiry form, with visible Name/Email/Phone/Message labels, honeypot, Google reCAPTCHA checkbox mount, `Send Message →`, and live status.
 - `/book-free-demo/` and `/contact/` are compatibility-only 301s to these anchors. They have no generated page, canonical, sitemap row, or standalone copy.
 

@@ -138,6 +138,22 @@ const STATUSES = {
       change: "drain apply tail",
       status: { state: "applied", detail: "Nothing stuck." },
     },
+    {
+      id: "lever_alpha",
+      title: "Lever Alpha",
+      description: "First independent manual lever.",
+      change: "run alpha",
+      manualLever: true,
+      status: { state: "not-needed", detail: "Ready." },
+    },
+    {
+      id: "lever_beta",
+      title: "Lever Beta",
+      description: "Second independent manual lever.",
+      change: "run beta",
+      manualLever: true,
+      status: { state: "not-needed", detail: "Ready." },
+    },
   ],
   active: [
     {
@@ -152,6 +168,9 @@ const STATUSES = {
   selfHealEnabled: false,
   selfHealLastRun: null,
 };
+
+const leverCalls = new Map<string, number>();
+const leverResolvers = new Map<string, (value: any) => void>();
 
 // The body returned by POST /apply — one applied, one blocked
 // (reconnect-needed) and one error row so the persistent results panel
@@ -228,6 +247,16 @@ const fetchHandler = createFetchStub({
       method: "POST",
       path: "/api/admin/prod-actions/apply",
       json: { results: applyResults },
+    },
+    {
+      method: "POST",
+      path: /\/api\/admin\/prod-actions\/lever_(alpha|beta)\/apply$/,
+      respond: ({ url }: any) =>
+        new Promise((resolve) => {
+          const id = url.includes("lever_alpha") ? "lever_alpha" : "lever_beta";
+          leverCalls.set(id, (leverCalls.get(id) ?? 0) + 1);
+          leverResolvers.set(id, resolve);
+        }),
     },
     { method: "POST", json: { results: [] } },
     { path: "/api/admin/prod-actions/runs", json: { runs: [] } },
@@ -311,6 +340,33 @@ async function runApply(): Promise<void> {
   assert(!applyBtn!.disabled, "'Apply all' must be enabled when a pending action exists");
   await clickById("button-prod-actions-apply");
   await clickById("button-prod-actions-confirm");
+}
+
+async function startLever(actionId: string): Promise<void> {
+  await clickById(`button-prod-action-lever-${actionId}`);
+  await clickById("button-prod-action-lever-confirm");
+}
+
+async function settleLever(actionId: string): Promise<void> {
+  const resolve = leverResolvers.get(actionId);
+  assert(resolve, `${actionId} request must be waiting`);
+  await act(async () => {
+    resolve!({
+      status: 200,
+      json: {
+        result: {
+          id: actionId,
+          title: actionId === "lever_alpha" ? "Lever Alpha" : "Lever Beta",
+          description: "fixture",
+          change: "fixture",
+          outcome: { state: "applied", detail: `${actionId} settled` },
+          appliedAt: "2026-08-27T00:00:00.000Z",
+        },
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+  });
+  await flush();
 }
 
 // Returns the StateBadge element rendered inside the given result row of
@@ -475,13 +531,13 @@ async function main(): Promise<void> {
     const scope = $("text-prod-actions-apply-scope");
     assert(scope !== null, "the Apply-all scope explainer must render next to the control");
     assert(
-      (scope!.textContent || "").includes("every registered action (3)"),
+      (scope!.textContent || "").includes("every registered action (5)"),
       `the scope explainer must state the live registered count — got "${scope!.textContent}"`,
     );
     const dialogScope = $("text-prod-actions-confirm-scope");
     assert(dialogScope !== null, "the confirm-dialog scope line must render");
     assert(
-      (dialogScope!.textContent || "").includes("every registered action (3)"),
+      (dialogScope!.textContent || "").includes("every registered action (5)"),
       `the confirm dialog must state the full-registry scope with the live count — got "${dialogScope!.textContent}"`,
     );
     assert(
@@ -489,6 +545,29 @@ async function main(): Promise<void> {
       "the confirm dialog must keep the manual-lever exclusion statement",
     );
     console.log("  ✓ scope explainer states the full-registry run with live count (footer + dialog)");
+
+    // Per-action manual-lever concurrency: Alpha stays disabled/busy while
+    // Beta can open and submit. Re-clicking Alpha cannot duplicate its POST.
+    await startLever("lever_alpha");
+    const alphaButton = $("button-prod-action-lever-lever_alpha") as HTMLButtonElement;
+    const betaButton = $("button-prod-action-lever-lever_beta") as HTMLButtonElement;
+    assert(alphaButton.disabled, "active Alpha lever must be disabled");
+    assert((alphaButton.textContent || "").includes("Firing"), "active Alpha shows firing feedback");
+    assert(!betaButton.disabled, "unrelated Beta lever remains enabled");
+    await clickById("button-prod-action-lever-lever_alpha");
+    assert(leverCalls.get("lever_alpha") === 1, "same active lever cannot submit twice");
+
+    await startLever("lever_beta");
+    assert(leverCalls.get("lever_alpha") === 1, "Alpha has one in-flight request");
+    assert(leverCalls.get("lever_beta") === 1, "Beta can submit while Alpha is in flight");
+    assert(alphaButton.disabled && betaButton.disabled, "each active lever disables only itself");
+
+    await settleLever("lever_beta");
+    assert(alphaButton.disabled, "Alpha remains busy until its own request settles");
+    assert(!betaButton.disabled, "Beta re-enables after its request settles");
+    await settleLever("lever_alpha");
+    assert(!alphaButton.disabled, "Alpha re-enables after its request settles");
+    console.log("  ✓ manual levers track busy state per action and prevent same-action duplicates");
   } finally {
     await unmount(root);
   }

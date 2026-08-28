@@ -44,6 +44,7 @@ import {
 } from "@shared/schema";
 import { getDb, withDbAttribution } from "../db";
 import { digitsOnly, normalizeToE164 } from "../services/phoneNormalization";
+import { stageClientMirrorIntentInTx } from "../services/clickUpClientMirrorKick";
 
 /** Leads-view list hard bound. */
 export const LEADS_LIST_MAX_LIMIT = 200;
@@ -144,6 +145,13 @@ export async function advanceClientLifecycle(
         source: opts.source,
         reason: opts.reason ?? null,
       });
+      if (updated && (target === "customer" || from === "customer")) {
+        await stageClientMirrorIntentInTx(tx, {
+          clientId: updated.id,
+          desiredName: updated.firmName,
+          desiredArchived: updated.isArchived === true || target !== "customer",
+        });
+      }
       return { changed: true, fromStage: from, toStage: target, client: updated ?? null };
     });
   });
@@ -188,6 +196,13 @@ export async function setClientLifecycleManual(
         source: "manual",
         reason: reason ?? null,
       });
+      if (updated && (target === "customer" || from === "customer")) {
+        await stageClientMirrorIntentInTx(tx, {
+          clientId: updated.id,
+          desiredName: updated.firmName,
+          desiredArchived: updated.isArchived === true || target !== "customer",
+        });
+      }
       return { changed: true, fromStage: from, toStage: target, client: updated ?? null };
     });
   });
@@ -772,6 +787,22 @@ export async function mergeLeadIntoClient(
         changedByUserId: actorUserId,
         source: "manual",
         reason: mergeNote,
+      });
+
+      if (winner?.lifecycleStage === "customer") {
+        await stageClientMirrorIntentInTx(tx, {
+          clientId: winner.id,
+          desiredName: winner.firmName,
+          desiredArchived: winner.isArchived === true,
+        });
+      }
+      // A mistakenly mapped prospect is never hard-deleted remotely. Preserve
+      // enough loser identity in the command to archive it after this tx.
+      await stageClientMirrorIntentInTx(tx, {
+        clientId: source.id,
+        desiredName: source.firmName,
+        desiredArchived: true,
+        mergedIntoClientId: targetId,
       });
 
       // Everything is relinked — the delete removes only the loser row

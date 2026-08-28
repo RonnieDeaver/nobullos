@@ -5,7 +5,7 @@
     "--import",
     "./tests/helpers/risBigQuerySetup.mjs"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

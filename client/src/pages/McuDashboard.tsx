@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/kit/ConfirmActionDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -181,6 +182,7 @@ function MetricTooltip({ label, children }: { label: string; children: React.Rea
 
 export default function McuDashboard() {
   const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   usePageTitle("MCU Dashboard");
   const queryClient = useQueryClient();
 
@@ -269,6 +271,13 @@ export default function McuDashboard() {
     onSuccess: () => {
       setRefreshTriggeredAt(Date.now());
       void queryClient.invalidateQueries({ queryKey: ["/api/mcu/internal/summary"] }); // fire-and-forget: cache refresh only
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Refresh failed",
+        description: error.message || "Could not trigger a capacity recompute. Try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -435,6 +444,13 @@ export default function McuDashboard() {
       return res.json();
     },
     onSuccess: (data) => setResults(data.results),
+    onError: (error: Error) => {
+      toast({
+        title: "Evaluation failed",
+        description: error.message || "Could not check capacity for these addresses. Try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleEvaluate = () => {

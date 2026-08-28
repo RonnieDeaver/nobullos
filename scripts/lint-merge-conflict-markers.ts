@@ -47,7 +47,7 @@
  * (recursive / non-recursive respectively) instead of `git ls-files`, with
  * the SAME denylist applied. An explicit `files` list is also accepted.
  *
- * Gating: the `.replit` `Validate` workflow runs `npm run gate`, including
+ * Gating: the managed Long validation workflow runs the reviewed routine-gate profile, including
  * this lint through scripts/gate.ts LINT_CHECKS. It is also enforced by
  * tests/lint-merge-conflict-markers.test.ts, whose FIRST assertion runs
  * runLint() against the real tree and which is registered in SMOKE_FILES

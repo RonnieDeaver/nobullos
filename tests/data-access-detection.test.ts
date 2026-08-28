@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Data access detection (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Front analytics coverage overflow fix (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises analytics coverage aggregation and overflow handling across multiple result sets."
 }
 test-registration */
 /**

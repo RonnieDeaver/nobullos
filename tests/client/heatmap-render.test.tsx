@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Heatmap render",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Renders the heatmap component across its data and layout states in jsdom."
 }
 test-registration */
 /**

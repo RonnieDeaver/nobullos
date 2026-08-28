@@ -20,7 +20,7 @@ test-registration */
  * (audits/integrations-hub-rollup-2026-08/).
  *
  * Mounts the real IntegrationsHub against a mixed all-status fixture
- * (7 healthy, zoom needs-attention via reconnectRequired.authGate,
+ * (8 healthy, zoom needs-attention via reconnectRequired.authGate,
  * stripe checking via connected:null) and asserts:
  *   1. Rollup counts match the fixture-derived classification.
  *   2. Every attention jump chip has a live `integration-card-{id}` target,
@@ -120,7 +120,7 @@ const ADMIN_USER = {
 // zoom = needs attention (reconnectRequired.authGate), stripe = checking
 // (connected:null forever), everything else healthy. Booking health answers
 // {} so the booking entry is absent (bookingReady null) and the grid holds
-// exactly the 9 integration cards.
+// exactly the 10 integration cards.
 const ALL_STATUS_MIXED = {
   front: { connected: true, webhookSecretConfigured: true },
   slack: { connected: true, team: "Example Team" },
@@ -133,6 +133,7 @@ const ALL_STATUS_MIXED = {
   },
   twilio: { connected: true },
   pandadoc: { connected: true },
+  ghl: { connected: true },
   stripe: { connected: null },
   googleAds: {
     configured: true,
@@ -248,6 +249,7 @@ const CARD_TESTID_BY_ID: Record<string, string> = {
   twilio: "card-twilio-integration",
   semrush: "card-semrush-integration",
   pandadoc: "card-pandadoc-integration",
+  ghl: "card-ghl-integration",
   stripe: "card-stripe-integration",
 };
 
@@ -284,19 +286,19 @@ async function main(): Promise<void> {
 
     // ------------------------------------------------------------------
     // 1. Rollup counts derived from the mixed fixture.
-    //    9 entries: zoom attention, stripe checking, 7 healthy.
+    //    10 entries: zoom attention, stripe checking, 8 healthy.
     // ------------------------------------------------------------------
     assert($("bar-integrations-rollup") !== null, "rollup bar must render");
     const healthy = $("text-rollup-healthy-count");
     const attention = $("text-rollup-attention-count");
     const checking = $("text-rollup-checking-count");
-    assert(healthy !== null && /\b7 healthy\b/.test(healthy!.textContent || ""),
-      `healthy count must read "7 healthy" — got "${healthy?.textContent}"`);
+    assert(healthy !== null && /\b8 healthy\b/.test(healthy!.textContent || ""),
+      `healthy count must read "8 healthy" — got "${healthy?.textContent}"`);
     assert(attention !== null && /\b1 needs attention\b/.test(attention!.textContent || ""),
       `attention count must read "1 needs attention" — got "${attention?.textContent}"`);
     assert(checking !== null && /\b1 checking\b/.test(checking!.textContent || ""),
       `checking count must read "1 checking" — got "${checking?.textContent}"`);
-    console.log("  ✓ rollup counts: 7 healthy / 1 needs attention / 1 checking");
+    console.log("  ✓ rollup counts: 8 healthy / 1 needs attention / 1 checking");
 
     // ------------------------------------------------------------------
     // 2. Jump chips: every attention entry has a chip whose target card
@@ -328,7 +330,7 @@ async function main(): Promise<void> {
     // ------------------------------------------------------------------
     const zoomOrder = mobileOrderOf("zoom"); // attention
     const stripeOrder = mobileOrderOf("stripe"); // checking
-    const healthyOrders = ["front", "slack", "clickup", "google-ads", "twilio", "semrush", "pandadoc"]
+    const healthyOrders = ["front", "slack", "clickup", "google-ads", "twilio", "semrush", "pandadoc", "ghl"]
       .map((id) => mobileOrderOf(id));
     assert(zoomOrder === 1, `attention (zoom) must rank first — got order-${zoomOrder}`);
     assert(

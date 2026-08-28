@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Local dominance manual reserve",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

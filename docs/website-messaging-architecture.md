@@ -241,7 +241,7 @@ site-wide; do not revert).
 
 Header/navigation contract: `Practice Areas Served` links directly to
 `/about/#practice-areas-served` from every generated depth. About owns the
-complete 18-person roster and 14-item list. The retired dropdown and
+complete 20-person roster and 14-item list. The retired dropdown and
 standalone services route are not current surfaces. Footer product links
 continue to target homepage `#system`, `#casegen`, `#caseintake`, and
 `#caseconvert`.

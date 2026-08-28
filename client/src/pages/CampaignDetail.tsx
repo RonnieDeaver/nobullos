@@ -144,9 +144,18 @@ export default function CampaignDetail() {
     enabled: !!id,
   });
 
+  const invalidateAttributionReport = () =>
+    void queryClient.invalidateQueries({
+      predicate: (q) =>
+        typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/attribution/report"),
+    });
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: [detailKey] });
     void queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+    // Editing the UTM key or archive state can change what the Source
+    // report attributes to this campaign; keep it in sync too.
+    invalidateAttributionReport();
   };
 
   const updateMutation = useMutation({
@@ -179,6 +188,7 @@ export default function CampaignDetail() {
         description: "Attributed leads and deals keep their first-touch stamps.",
       });
       void queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      invalidateAttributionReport();
       setLocation("/campaigns");
     },
     onError: (err: any) => {

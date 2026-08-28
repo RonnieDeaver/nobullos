@@ -3,10 +3,11 @@
 Point-in-time, read-only inspection of this repository, produced 2026-08-09 so an external architect can design a project-specific **Architecture Governor** skill (`.agents/skills/architecture-governor/`). The governor is NOT built here; this report is the discovery input.
 
 > **Historical workflow note (superseded).** Workflow facts below describe the
-> 2026-08-09 inspection. Current operation uses exactly three roles — Start
-> application, Validate (`npm run gate`), and Long validation (the reviewed
-> request runner). Every lint is registered in `scripts/gate.ts` `LINT_CHECKS`;
-> individual lint workflows are forbidden.
+> 2026-08-09 inspection. Current operation uses exactly two repository roles —
+> Start application and Long validation (the reviewed request runner).
+> Explicitly requested canonical gates use Long validation; direct `npm run
+> gate` remains troubleshooting-only. Every lint is registered in
+> `scripts/gate.ts` `LINT_CHECKS`; individual lint workflows are forbidden.
 
 **How to read this report.** Every material conclusion carries one of three labels:
 
@@ -31,8 +32,9 @@ Recommendations are graded `ADOPT NOW`, `DEFER UNTIL [measurable trigger]`, or `
 1. **Historical FACT (superseded):** the inspected gate used one canonical
    entrypoint and an enforced lint contract. **Current contract:** every lint
    exports side-effect-free `cliMain(): number`, is registered in `LINT_CHECKS`,
-   and runs through the single Validate workflow; standalone lints are CLI
-   tools, not workflows. The three-role topology is linted
+   and runs through the managed Long validation workflow's reviewed
+   `routine-gate` profile; standalone lints are CLI tools, not workflows. The
+   two-role repository topology is linted
    (`scripts/lint-gate-workflow-drift.ts`; contract enforced by
    `tests/gate-lint-phase.test.ts`).
 2. **FACT:** Hermetic per-run test Postgres with template caching and an escape-hatch-free guard against the shared dev DB and prod Neon (`tests/hermetic/provision.ts:9-35,152-194`; `server/db.ts:62-108`; `TESTING.md:16-28`).
@@ -446,7 +448,7 @@ Historical-count conflicts are explained in §3.1. Prose counts anywhere (incl. 
 ### 9.6 Timing data and runtime economics
 
 - **FACT** (committed data only): summed `durationMs` across the 750 green-baseline records ≈ **18.1 minutes of child-process runtime** (not wall time; excludes tsx boot amortization and the 144 suites without baseline records). `TESTING.md` (last commit 2026-08-08) records: gate lint+typecheck ≈ 1.6 min; full-smoke wall ≈ 25–30 min *for the 258-suite era (2026-08-05)*; predeploy incremental re-run ≈ 3.5 min.
-- **UNKNOWN:** Full-smoke wall time at HEAD (704 suites). Every committed wall figure predates the 08-08/09 promotion of 352 suites (§3.1). *Safe measurement:* run the `Validate` workflow (`npm run gate`) once off-hours and read its final validation verdict; do not time it from an interactive shell. Publish the result into `TESTING.md`'s timing table.
+- **UNKNOWN:** Full-smoke wall time at HEAD (704 suites). Every committed wall figure predates the 08-08/09 promotion of 352 suites (§3.1). *Safe measurement:* start the managed `Long validation` workflow with the reviewed requested-gate profile once off-hours and read its retained terminal verdict; do not time it from an interactive shell. Publish the result into `TESTING.md`'s timing table.
 - **The unbounded-growth mechanism:** **FACT:** nothing bounds portfolio cost. Membership is governed (smoke/sweep reasons), but (a) `smokeReason` is free text with no uniqueness/overlap requirement, (b) no per-suite runtime budget exists, (c) no aggregate smoke wall budget exists, (d) green-skip hides cost from developers day-to-day (skipped suites feel free until a fingerprint bust re-runs everything). An agent can keep adding suites indefinitely with zero pushback — the exact failure mode the governor must own (§13-G8/G9).
 
 ### 9.7 Layer mapping (current reality)
@@ -472,11 +474,11 @@ Historical-count conflicts are explained in §3.1. Prose counts anywhere (incl. 
 2. **Publish gate — `scripts/predeploy.sh`** (wired as the deployment build prefix, `.replit:12-15`): clean-scratch → worktree hygiene → SQL-array lint → migration-prefix lint → **runbook coverage** (`verify-runbook-coverage.ts`) → gate/workflow drift → Front triage lint → **incremental `npm test`** (full suite with green-skip) → `npm run build` (`scripts/predeploy.sh:14-195`).
 
 **Historical FACT (superseded):** this inspection found two workflow roles.
-**Current contract:** `.replit` has exactly three workflow roles: `Start
-application` for the Run button, `Validate` running `npm run gate`, and
-portless `Long validation` running the reviewed request command. The canonical
+**Current contract:** `.replit` has exactly two repository workflow roles:
+`Start application` for the Run button and portless `Long validation` running
+the reviewed request command. The canonical
 lint registry is `scripts/gate.ts` `LINT_CHECKS`;
-`scripts/lint-gate-workflow-drift.ts` guards all three roles, their commands,
+`scripts/lint-gate-workflow-drift.ts` guards both roles, their commands,
 and protected application/artifact ports.
 
 ### 10.2 Gate check inventory

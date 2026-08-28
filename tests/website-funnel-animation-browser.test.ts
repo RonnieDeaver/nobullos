@@ -360,6 +360,51 @@ async function runMotionScenario(
     `${label}: funnel stays in normal document flow`,
   );
 
+  const fragmentOffsets = await page.evaluate(() => {
+    const ids = [
+      "system",
+      "casegen",
+      "caseintake",
+      "caseconvert",
+      "proof",
+      "book",
+      "booking",
+      "contact",
+    ];
+    return ids.map((id) => ({
+      id,
+      offset: Number.parseFloat(
+        getComputedStyle(document.getElementById(id)!).scrollMarginBlockStart,
+      ),
+    }));
+  });
+  const expectedOffset = viewport.width <= 850 ? 72 : 86;
+  assert(
+    fragmentOffsets.every((target) => target.offset === expectedOffset),
+    `${label}: every live homepage fragment clears the ${expectedOffset}px header offset (${fragmentOffsets
+      .map((target) => `#${target.id}=${target.offset}px`)
+      .join(", ")})`,
+  );
+
+  const touchTargets = await page.evaluate(() => {
+    const booking = Array.from(
+      document.querySelectorAll<HTMLElement>(".nb-btn[href='#booking'], .nb-booking-cta"),
+    )
+      .filter((element) => getComputedStyle(element).display !== "none")
+      .map((element) => ({
+        label: element.textContent?.trim() ?? "",
+        height: element.getBoundingClientRect().height,
+      }));
+    return { booking };
+  });
+  assert(
+    touchTargets.booking.length > 0 &&
+      touchTargets.booking.every((target) => target.height >= 44),
+    `${label}: every visible booking action has a 44px touch target (${touchTargets.booking
+      .map((target) => `${target.height.toFixed(1)}px`)
+      .join(", ")})`,
+  );
+
   await page.close();
 }
 
@@ -418,7 +463,50 @@ async function main(): Promise<void> {
       "mobile",
     );
 
-    console.log("\n── Scenario 3: footer component fragments ──");
+    console.log("\n── Scenario 3: short viewport initial funnel sync ──");
+    {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 390, height: 260 });
+      await page.evaluateOnNewDocument("window.__name = (f) => f;");
+      await page.evaluateOnNewDocument(() => {
+        document.addEventListener(
+          "DOMContentLoaded",
+          () => {
+            const firstStage = document.querySelector<HTMLElement>(
+              "[data-fn-stage]",
+            );
+            if (!firstStage) return;
+            const rect = firstStage.getBoundingClientRect();
+            window.scrollTo({
+              top: Math.max(
+                0,
+                window.scrollY +
+                  rect.top +
+                  rect.height / 2 -
+                  window.innerHeight * 0.52,
+              ),
+              behavior: "instant",
+            });
+          },
+          { once: true },
+        );
+      });
+      await blockExternalRequests(page);
+      await page.goto(homeUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      await new Promise<void>((resolve) => setTimeout(resolve, 700));
+      const initial = await readFocusState(page);
+      assert(
+        initial.focus !== null &&
+          initial.stages.some((stage) => stage.key === initial.focus),
+        `short viewport: funnel initializes an active stage when it starts in its trigger zone (got ${String(initial.focus)})`,
+      );
+      await page.close();
+    }
+
+    console.log("\n── Scenario 4: footer component fragments ──");
     const fragmentEntries = [
       { url: homeUrl, label: "homepage footer" },
       { url: `${homeUrl}about/`, label: "nested subpage footer" },
@@ -439,7 +527,7 @@ async function main(): Promise<void> {
       }
     }
 
-    console.log("\n── Scenario 4: prefers-reduced-motion: reduce ──");
+    console.log("\n── Scenario 5: prefers-reduced-motion: reduce ──");
     {
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 900 });
@@ -469,7 +557,7 @@ async function main(): Promise<void> {
       await page.close();
     }
 
-    console.log("\n── Scenario 5: JavaScript disabled ──");
+    console.log("\n── Scenario 6: JavaScript disabled ──");
     {
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 900 });

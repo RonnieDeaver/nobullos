@@ -43,8 +43,8 @@
  * or the shared parser module is missing/renamed.
  *
  * Gate: scripts/gate.ts LINT_CHECKS plus
- * tests/lint-front-stripe-status-consumers.test.ts (SMOKE_FILES); `.replit`
- * `Validate` runs `npm run gate`.
+ * tests/lint-front-stripe-status-consumers.test.ts (SMOKE_FILES); the managed
+ * Long validation workflow runs the reviewed routine-gate profile.
  *
  * Emergency escape hatch: LINT_FRONT_STRIPE_STATUS_SKIP=1.
  */

@@ -648,7 +648,7 @@ export function TaskDetailDialog({
                 ) : (
                   timeEntries.map((e) => (
                     <div key={e.id} className="flex justify-between text-xs bg-gray-50 rounded px-2 py-1" data-testid={`time-entry-${e.id}`}>
-                      <span className="text-gray-600">{e.user.username}</span>
+                      <span className="text-gray-600">{e.user?.username ?? "Unknown"}</span>
                       <span className="text-gray-500">{e.description || "—"}</span>
                       <span className="font-medium">{fmtMs(e.duration)}</span>
                     </div>

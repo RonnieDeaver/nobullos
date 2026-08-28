@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Report JSONB typed accessors (Task #4151 / F5)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

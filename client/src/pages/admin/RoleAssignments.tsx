@@ -35,6 +35,59 @@ import { Link } from "wouter";
 // ── Types ────────────────────────────────────────────────────────────────────
 import { projectionToastLabel, ProjectionStatusBadge, ProjectionStatusCard, type ProjectionStatusRow, type ProjectionStatusKind, isResyncEligible } from "@/components/ui/ClickUpProjectionStatus";
 
+interface ClientMirrorStatusRow {
+  id: string;
+  clientId: string;
+  status: "pending" | "synced" | "ambiguous" | "blocked" | "drift" | "failed";
+  attemptCount: number;
+  lastErrorCode: string | null;
+  lastError: string | null;
+  retryEligible: boolean;
+}
+
+interface CanonicalRoleField {
+  id: string;
+  label: string;
+  type: string;
+  observedTaskCount: number;
+  observedMaxCardinality: number | null;
+}
+
+interface CanonicalRoleColumn {
+  departmentId: string;
+  departmentName: string;
+  responsibility: "doer" | "checker";
+  expectedLabel: string;
+  destination: {
+    id: string;
+    workspaceId: string;
+    peopleFieldId: string;
+    peopleFieldLabel: string | null;
+    peopleFieldType: string | null;
+    maxPeople: number;
+    enabled: boolean;
+    sandboxExitApprovedAt: string | null;
+    ownerApprovedAt: string | null;
+  } | null;
+  field: CanonicalRoleField | null;
+  duplicateLabelFieldIds: string[];
+  issues: string[];
+  ready: boolean;
+}
+
+interface CanonicalRoleColumnPreflight {
+  available: boolean;
+  canonicalListId: string;
+  workspaceId: string | null;
+  reason?: string;
+  fetchedAt?: number;
+  fields?: CanonicalRoleField[];
+  roleColumns?: CanonicalRoleColumn[];
+  mappings?: Array<{ observedSyncState: "verified" | "conflict" | "stale" }>;
+  totals?: { roleColumns: number; mappings: number };
+  truncated?: boolean;
+}
+
 interface SdDepartment {
   id: string;
   name: string;
@@ -194,6 +247,36 @@ export default function RoleAssignments() {
     retry: false,
   });
 
+  // The owner-only setup read is deliberately separate from command status.
+  // It performs a fresh canonical-list evidence read on each explicit recheck;
+  // the server repeats that proof before accepting a mapping or approval.
+  const roleColumnSetupQuery = useQuery<CanonicalRoleColumnPreflight>({
+    queryKey: ["/api/service-desk/role-projections/client-list/preflight", { limit: 200 }],
+    queryFn: async () => {
+      const res = await fetch("/api/service-desk/role-projections/client-list/preflight?limit=200");
+      if (!res.ok) throw new Error(res.status === 403
+        ? "Only the company owner can review ClickUp role-column setup."
+        : "ClickUp role-column setup could not be checked.");
+      return res.json();
+    },
+    staleTime: 0,
+    retry: false,
+  });
+
+  // Task #5245 — durable parent-task lifecycle mirror. Unlike role projection,
+  // this view includes synced rows as well as recovery states so operators can
+  // distinguish a healthy canonical client parent from one awaiting review.
+  const clientMirrorStatusQuery = useQuery<{ statuses: ClientMirrorStatusRow[] }>({
+    queryKey: ["/api/service-desk/client-mirror/status", { limit: 100 }],
+    queryFn: async () => {
+      const res = await fetch("/api/service-desk/client-mirror/status?limit=100");
+      if (!res.ok) throw new Error("Failed to load client mirror status");
+      return res.json();
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const [bulkOpen, setBulkOpen] = useState(false);
   // Task #4002 — controlled tabs + membership management. "No active members"
   // dead-ends route here: jump to the Members tab and open that department's
@@ -290,6 +373,7 @@ export default function RoleAssignments() {
       </section>
 
       {/* Task #5156 — Compact ClickUp projection problems panel */}
+      <RoleColumnSetupSection query={roleColumnSetupQuery} />
       <ProjectionStatusSection
         query={projectionStatusQuery}
         departments={departments}
@@ -297,6 +381,10 @@ export default function RoleAssignments() {
           void coverageQuery.refetch();
           void projectionStatusQuery.refetch();
         }}
+      />
+      <ClientMirrorStatusSection
+        query={clientMirrorStatusQuery}
+        clientNames={new Map(rows.map((row) => [row.clientId, row.firmName]))}
       />
 
       {coverageQuery.isLoading ? (
@@ -386,6 +474,112 @@ export default function RoleAssignments() {
         }}
       />
     </div>
+  );
+}
+
+function ClientMirrorStatusSection({
+  query,
+  clientNames,
+}: {
+  query: {
+    data?: { statuses: ClientMirrorStatusRow[] } | null;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
+    refetch: () => void;
+  };
+  clientNames: Map<string, string>;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const statuses = query.data?.statuses ?? [];
+
+  async function retry(row: ClientMirrorStatusRow) {
+    setRetrying(row.id);
+    try {
+      const response = await apiRequest("POST", `/api/service-desk/client-mirror/${row.id}/retry`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error((body as any).error ?? "Retry was not accepted");
+      await queryClient.invalidateQueries({ queryKey: ["/api/service-desk/client-mirror/status"] });
+      toast({ title: "Client mirror retry queued", description: "NoBull client data remains unchanged." });
+    } catch (error: any) {
+      toast({ title: "Client mirror retry not queued", description: error?.message ?? String(error) });
+    } finally {
+      setRetrying(null);
+    }
+  }
+
+  if (!query.isLoading && !query.isError && statuses.length === 0) return null;
+
+  return (
+    <section className="border bg-card" data-testid="client-mirror-status-section">
+      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div>
+          <h3 className="text-sm font-semibold">ClickUp Client Mirror</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Canonical parent-task state. NoBull remains the source of truth.
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => query.refetch()}
+          aria-label="Refresh client mirror status"
+          data-testid="button-refresh-client-mirror-status"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${query.isLoading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+      {query.isLoading ? (
+        <div className="px-4 py-3 text-xs text-muted-foreground">Checking client mirror status…</div>
+      ) : query.isError ? (
+        <div className="px-4 py-3 text-xs text-destructive" role="alert">
+          {query.error?.message ?? "Client mirror status could not be loaded. Refresh and try again."}
+        </div>
+      ) : (
+        <div className="divide-y">
+          {statuses.map((row) => (
+            <div
+              key={row.id}
+              className="flex items-start justify-between gap-3 px-4 py-2.5 text-xs"
+              data-testid={`client-mirror-status-row-${row.id}`}
+            >
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ProjectionStatusBadge kind={row.status} />
+                  <span className="text-muted-foreground">
+                    {clientNames.get(row.clientId) ?? row.clientId}
+                  </span>
+                </div>
+                {row.lastError && (
+                  <div className="max-w-lg truncate text-red-600 dark:text-red-400" title={row.lastError}>
+                    {row.lastError}
+                  </div>
+                )}
+                <div className="text-muted-foreground">
+                  {row.lastErrorCode ? `Error code: ${row.lastErrorCode} · ` : ""}
+                  {row.attemptCount} attempt{row.attemptCount === 1 ? "" : "s"}
+                </div>
+              </div>
+              {row.retryEligible && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 px-2 text-xs"
+                  disabled={retrying === row.id}
+                  onClick={() => retry(row)}
+                  data-testid={`button-retry-client-mirror-${row.id}`}
+                >
+                  <RefreshCw className={`mr-1 h-3 w-3 ${retrying === row.id ? "animate-spin" : ""}`} />
+                  {retrying === row.id ? "Retrying…" : "Retry"}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -560,6 +754,9 @@ function GridView({
         throw new Error((err as any)?.error ?? "Save failed");
       }
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/role-assignments"] });
+      // Task #5156 — also refresh projection status panel after assignment change
+      // (matches the default-departments and bulk-assignment save paths below).
+      await queryClient.invalidateQueries({ queryKey: ["/api/service-desk/role-projections/status"] });
       toast({ title: "Assignment saved" });
       cancelEdit();
     } catch (err: any) {
@@ -1585,6 +1782,301 @@ function BulkAssignDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RoleColumnSetupSection({
+  query,
+}: {
+  query: {
+    data?: CanonicalRoleColumnPreflight | null;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
+    refetch: () => Promise<unknown>;
+  };
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<Record<string, string>>({});
+  const preflight = query.data;
+  const fields = preflight?.fields ?? [];
+  const columns = preflight?.roleColumns ?? [];
+  const mappedClients = (preflight?.mappings ?? []).filter(
+    (mapping) => mapping.observedSyncState === "verified",
+  ).length;
+  const readyCount = columns.filter((column) => column.ready).length;
+
+  async function saveColumn(
+    column: CanonicalRoleColumn,
+    field: CanonicalRoleField,
+    ownerApproval?: "approve",
+  ) {
+    if (!preflight?.workspaceId) {
+      toast({
+        title: "Workspace setup is incomplete",
+        description: "Set the Service Desk ClickUp workspace before mapping role columns.",
+      });
+      return;
+    }
+    const key = `${column.departmentId}:${column.responsibility}`;
+    setSavingKey(key);
+    try {
+      const response = await apiRequest(
+        "PUT",
+        "/api/service-desk/role-projections/destinations",
+        {
+          workspaceId: preflight.workspaceId,
+          departmentId: column.departmentId,
+          responsibility: column.responsibility,
+          environment: "production",
+          listId: preflight.canonicalListId,
+          targetKind: "client_list_parent",
+          peopleFieldId: field.id,
+          peopleFieldLabel: field.label,
+          peopleFieldType: field.type.toLowerCase(),
+          enabled: false,
+          ...(ownerApproval ? { ownerApproval } : {}),
+        },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error((body as { error?: string }).error ?? "Role column was not saved");
+      await Promise.all([
+        query.refetch(),
+        queryClient.invalidateQueries({ queryKey: ["/api/service-desk/role-projections/status"] }),
+      ]);
+      toast({
+        title: ownerApproval ? "Owner approval recorded" : "ClickUp role field mapped",
+        description: "Projection remains paused until sandbox evidence and all required approvals are complete.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Role column was not changed",
+        description: error?.message ?? String(error),
+      });
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  if (!query.isLoading && !query.isError && !preflight?.available) {
+    return (
+      <section className="border bg-card px-4 py-3" data-testid="role-column-setup-section">
+        <h3 className="text-sm font-semibold">ClickUp role columns</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          The canonical Client List could not be freshly read. No role field can be mapped or approved until it is available.
+        </p>
+        <Button
+          className="mt-3"
+          variant="outline"
+          size="sm"
+          onClick={() => void query.refetch()}
+          data-testid="button-recheck-role-columns"
+        >
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Recheck
+        </Button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="border bg-card" data-testid="role-column-setup-section">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
+        <div>
+          <h3 className="text-sm font-semibold">ClickUp role columns</h3>
+          <p className="mt-0.5 max-w-3xl text-xs text-muted-foreground">
+            Create missing one-person People fields in ClickUp’s canonical Client List, then choose the exact field ID below.
+            The ClickUp label is shown as descriptive metadata; the NoBull role and exact field ID remain the mapping identity.
+            Company-scoped and inactive departments are intentionally excluded.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" data-testid="role-column-readiness">
+            {readyCount} of {columns.length} ready · {mappedClients} mapped client{mappedClients !== 1 ? "s" : ""}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void query.refetch()}
+            disabled={query.isLoading}
+            aria-label="Recheck ClickUp role columns"
+            data-testid="button-recheck-role-columns"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${query.isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      {query.isLoading ? (
+        <div className="px-4 py-3 text-xs text-muted-foreground">Reading canonical ClickUp field metadata…</div>
+      ) : query.isError ? (
+        <div className="px-4 py-3 text-xs text-muted-foreground" role="status">
+          {query.error?.message ?? "ClickUp role-column setup is available to the company owner."}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table data-testid="role-column-setup-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>NoBull role</TableHead>
+                <TableHead>Exact ClickUp field</TableHead>
+                <TableHead>Validation</TableHead>
+                <TableHead>Approvals</TableHead>
+                <TableHead className="text-right">Setup</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {columns.map((column) => {
+                const key = `${column.departmentId}:${column.responsibility}`;
+                const saving = savingKey === key;
+                const usedFieldIds = new Set(
+                  columns
+                    .filter(
+                      (other) =>
+                        other.destination &&
+                        (
+                          other.departmentId !== column.departmentId ||
+                          other.responsibility !== column.responsibility
+                        ),
+                    )
+                    .map((other) => other.destination!.peopleFieldId),
+                );
+                const candidates = fields.filter(
+                  (field) =>
+                    ["users", "people"].includes(field.type.toLowerCase()) &&
+                    (field.observedMaxCardinality === null || field.observedMaxCardinality <= 1) &&
+                    !usedFieldIds.has(field.id),
+                );
+                const mappedField = column.field;
+                const selectedFieldId = selectedFieldIds[key] ?? "";
+                const selectedField = candidates.find((field) => field.id === selectedFieldId) ?? null;
+                const fieldForSave = mappedField ?? selectedField;
+                const canMap = !column.destination && !!fieldForSave && !!preflight?.workspaceId;
+                const canApprove =
+                  !!column.destination &&
+                  !!mappedField &&
+                  !column.destination.ownerApprovedAt &&
+                  column.issues.length === 0;
+
+                return (
+                  <TableRow key={key} data-testid={`role-column-row-${column.departmentId}-${column.responsibility}`}>
+                    <TableCell className="min-w-48">
+                      <div className="font-medium">NoBull role: {column.expectedLabel}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {column.departmentName} · {column.responsibility === "doer" ? "Doer" : "Checker"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-52">
+                      {mappedField ? (
+                        <>
+                          <div className="break-all text-xs font-medium">{mappedField.label}</div>
+                          <div className="break-all text-xs font-medium">{mappedField.id}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            {mappedField.type} · max observed {mappedField.observedMaxCardinality ?? "not yet present"}
+                          </div>
+                        </>
+                      ) : !column.destination ? (
+                        <Select
+                          value={selectedFieldId || SELECT_NONE_VALUE}
+                          onValueChange={(value) =>
+                            setSelectedFieldIds((current) => ({
+                              ...current,
+                              [key]: value === SELECT_NONE_VALUE ? "" : value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger
+                            className="h-9 min-w-64 text-left"
+                            data-testid={`select-role-column-field-${column.departmentId}-${column.responsibility}`}
+                          >
+                            <SelectValue placeholder="Choose a ClickUp People field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SELECT_NONE_VALUE}>Choose a field</SelectItem>
+                            {candidates.map((field) => (
+                              <SelectItem key={field.id} value={field.id}>
+                                <span className="font-medium">{field.label}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">({field.id})</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No exact field is mapped</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-48">
+                      {column.ready ? (
+                        <Badge variant="secondary" className="bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300">
+                          ID, type & cardinality verified
+                        </Badge>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {(column.issues.length ? column.issues : ["fresh review required"]).map((issue) => (
+                            <Badge key={issue} variant="outline" className="text-caption">
+                              {issue.replaceAll("_", " ")}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-40 text-xs">
+                      {column.destination ? (
+                        <div className="space-y-1 text-muted-foreground">
+                          <div>Sandbox: {column.destination.sandboxExitApprovedAt ? "approved" : "not approved"}</div>
+                          <div>Owner: {column.destination.ownerApprovedAt ? "approved" : "not approved"}</div>
+                          <div>{column.destination.enabled ? "Enabled" : "Paused"}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Map a verified field first</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-52 text-right">
+                      {canMap ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saving}
+                          onClick={() => void saveColumn(column, fieldForSave!)}
+                          data-testid={`button-map-role-column-${column.departmentId}-${column.responsibility}`}
+                        >
+                          {saving ? "Mapping…" : "Map field (paused)"}
+                        </Button>
+                      ) : canApprove ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saving}
+                          onClick={() => void saveColumn(column, fieldForSave!, "approve")}
+                          data-testid={`button-approve-role-column-${column.departmentId}-${column.responsibility}`}
+                        >
+                          {saving ? "Saving…" : "Record owner approval"}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {!column.destination
+                            ? candidates.length > 1
+                              ? "Choose one eligible field by its exact ID."
+                              : "Choose an eligible one-person People field from the fresh read."
+                            : "Fix the listed validation issue, then recheck."}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          {preflight?.truncated && (
+            <p className="px-4 py-2 text-xs text-muted-foreground">
+              The response is limited; recheck after resolving visible items.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

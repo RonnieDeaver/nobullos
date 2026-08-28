@@ -3,7 +3,7 @@
   "name": "lint-route-inventory-freshness guard",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Freshness guard for the committed API route inventory (tests/route-inventory.json drifted 775 → 1349 routes unnoticed and misled audits with phantom routes). The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS; this SMOKE_FILES entry adds real-inventory coverage. Fast, DB-free, deterministic (parseRoutes source scan + tmpdir fixtures).",
+  "smokeReason": "Freshness guard for the committed API route inventory (tests/route-inventory.json drifted 775 → 1349 routes unnoticed and misled audits with phantom routes). The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS; this SMOKE_FILES entry adds real-inventory coverage. Fast, DB-free, deterministic (parseRoutes source scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -22,7 +22,7 @@ test-registration */
  *   6. Duplicate live method+path registrations are flagged (first-wins
  *      shadowing means the later handler is dead code).
  *   7. Wiring lockstep: gate.ts LINT_CHECKS registers the lint and the drift
- *      guard defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      guard defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
@@ -176,8 +176,8 @@ async function main(): Promise<void> {
     );
     const drift = readFileSync("scripts/lint-gate-workflow-drift.ts", "utf-8");
     assert(
-      /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(drift),
-      "lint-gate-workflow-drift.ts defines VALIDATION_WORKFLOW with command npm run gate",
+      /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(drift),
+      "lint-gate-workflow-drift.ts defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
     );
   }
 

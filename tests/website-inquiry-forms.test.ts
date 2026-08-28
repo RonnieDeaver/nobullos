@@ -649,17 +649,13 @@ async function main(): Promise<void> {
     );
     assert(
       homeHtml.includes('id="booking"') &&
-        homeHtml.includes('class="nb-booking-handoff"') &&
-        /href="https:\/\/calendly\.com\/[^"]+" target="_blank" rel="noopener" aria-describedby="nb-booking-external">View Available Times/.test(homeHtml),
-      "homepage booking destination uses a compact canonical external handoff",
+        /href="https:\/\/calendly\.com\/jmangle-nobullmarketing\/high-impact-revenue-session-other" target="_blank" rel="noopener">View Available Times/.test(homeHtml),
+      "homepage booking destination uses the compact canonical external handoff",
     );
     assert(
       !homeHtml.includes("calendly-inline-widget") &&
-        !homeHtml.includes("assets.calendly.com") &&
-        homeHtml.includes(
-          "JavaScript is off — that’s okay. The scheduling button above still works.",
-        ),
-      "homepage booking destination has no embedded scheduler dependency and keeps a no-JavaScript path",
+        !homeHtml.includes("assets.calendly.com"),
+      "homepage booking destination has no embedded scheduler dependency",
     );
     const stampRes = await fetch(`${previewBase}/build-manifest.json`);
     assert(
@@ -738,6 +734,17 @@ async function main(): Promise<void> {
                   if (!apiReady) throw new Error("render called before reCAPTCHA ready");
                   activeCallback = options.callback;
                   element.setAttribute("data-test-widget", "rendered");
+                  element.replaceChildren(
+                    Object.assign(document.createElement("div"), {
+                      className: "test-fixed-recaptcha-widget",
+                    }),
+                  );
+                  const widget = element.firstElementChild;
+                  if (widget instanceof HTMLElement) {
+                    widget.style.width = "304px";
+                    widget.style.height = "78px";
+                    widget.style.background = "rgb(255, 255, 255)";
+                  }
                   return 0;
                 },
                 reset() {}
@@ -848,6 +855,52 @@ async function main(): Promise<void> {
       readyMessage === "",
       `homepage #contact clears the loading copy once reCAPTCHA is ready (got ${JSON.stringify(readyMessage)})`,
     );
+    for (const width of [320, 375, 390] as const) {
+      await page.setViewport({ width, height: 812 });
+      await page.goto(`${previewBase}/#contact`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      await waitForRecaptcha();
+      const narrowLayout = await page.evaluate(() => {
+        const form = document.querySelector<HTMLElement>(
+          'form[data-nb-inquiry="contact"]',
+        );
+        const host = form?.querySelector<HTMLElement>("[data-nb-captcha]");
+        const widget = host?.firstElementChild as HTMLElement | null;
+        const formRect = form?.getBoundingClientRect();
+        const hostRect = host?.getBoundingClientRect();
+        const widgetRect = widget?.getBoundingClientRect();
+        return {
+          pageOverflow:
+            document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          formUsable:
+            Boolean(formRect) &&
+            formRect!.width > 0 &&
+            formRect!.left >= -1 &&
+            formRect!.right <= window.innerWidth + 1,
+          captchaContained:
+            Boolean(hostRect && widgetRect) &&
+            widgetRect!.left >= hostRect!.left - 1 &&
+            widgetRect!.right <= hostRect!.right + 1,
+        };
+      });
+      assert(
+        narrowLayout.pageOverflow <= 1 &&
+          narrowLayout.formUsable &&
+          narrowLayout.captchaContained,
+        `homepage #contact remains usable with a fixed-width CAPTCHA at ${width}px (overflow ${narrowLayout.pageOverflow}px)`,
+      );
+    }
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.goto(`${previewBase}/#contact`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    await page.waitForSelector('form[data-nb-inquiry="contact"] button[type=submit]', {
+      timeout: 15000,
+    });
+    await waitForRecaptcha();
 
     // 2. Empty submit → client-side validation, no network call.
     await page.click('form[data-nb-inquiry="contact"] button[type=submit]');

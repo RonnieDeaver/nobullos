@@ -119,5 +119,17 @@ export function jumpToSlide(e: { preventDefault: () => void }, target: string): 
   const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
   const top = el.getBoundingClientRect().top + window.scrollY - margin;
   window.scrollTo({ top, behavior: motionSafeScrollBehavior() });
-  history.pushState(null, "", `#${target}`);
+  // Skip redundant history entries when re-clicking the slide we're already
+  // on, and never let the address-bar hash update crash the deck: Safari and
+  // Chromium throw a SecurityError once pushState is called >100 times in
+  // 10s (e.g. rapid repeated taps or an automated browser mashing agenda
+  // links), which was propagating uncaught into GlobalErrorBoundary and
+  // taking down the whole report with "Something went wrong."
+  if (window.location.hash !== `#${target}`) {
+    try {
+      history.pushState(null, "", `#${target}`);
+    } catch {
+      // Cosmetic URL update only — the scroll above already happened.
+    }
+  }
 }

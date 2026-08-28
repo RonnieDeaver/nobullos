@@ -1755,7 +1755,7 @@ function ClientCRMTable({ summaries, currentUserId, isAccountManager }: { summar
       {sorted.length === 0 && (
         <div className="text-center py-8">
           <p className="text-sm text-muted-foreground">
-            {searchQuery || perfFilter !== "all" || relFilter !== "all" || ownerFilter !== "all"
+            {activeFilterCount > 0
               ? "No clients match the current filters."
               : "No clients yet."}
           </p>
@@ -1910,6 +1910,11 @@ export default function Dashboard() {
   const isCeo = user?.role === "ceo";
   const isAccountManager = user?.role === "account_manager";
   const myClients = clients || [];
+  // Task #4363 — the duplicate-report client picker should honor the global
+  // hide-demo toggle like every other client-derived list on this page.
+  const duplicateDialogClients = hideDemo
+    ? myClients.filter((c) => !demoClientIds.has(c.id))
+    : myClients;
 
   const healthCounts = useMemo(() => {
     if (!visibleSummaries) return { healthy: 0, watch: 0, atRisk: 0, critical: 0, noData: 0 };
@@ -2276,7 +2281,7 @@ export default function Dashboard() {
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
-                  {myClients.map(c => (
+                  {duplicateDialogClients.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.firmName}</SelectItem>
                   ))}
                 </SelectContent>

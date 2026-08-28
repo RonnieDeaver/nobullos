@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Orphaned communications hidden from client-linked views (Task #904)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

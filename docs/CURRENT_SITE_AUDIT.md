@@ -7,7 +7,7 @@
 observations below remain an audit snapshot, not current Replit requirements.
 The Replit build is the canonical replacement bundle. Its current navigation
 uses `Practice Areas Served` → `/about/#practice-areas-served`; About renders
-the full 18-person roster and 14-item practice-area list; `/services/` is
+the full 20-person roster and 14-item practice-area list; `/services/` is
 retired with no page, sitemap entry, link, or redirect and returns the branded
 404 on both host paths. The homepage/footer retain the Revenue Engine and
 component destinations independently. The homepage is also the sole

@@ -292,10 +292,9 @@ export interface SmokeSelectionResolution {
 /**
  * Resolve budget-enforcement mode from the selector's ACTUAL outcome, never
  * the requested flag: a related-selection run that falls back to the full
- * smoke universe IS a full-smoke run — warn-only treatment there would
- * exempt exactly the runs the budget exists to bound, because the gate
- * defaults to related selection and the selector deliberately falls back to
- * full on untrustworthy analysis. `--full-smoke` refuses an inherited
+ * smoke universe IS a full-smoke run. Deferred selector outcomes remain
+ * bounded task proof and transfer the omitted broad work to central integrity.
+ * `--full-smoke` refuses an inherited
  * TEST_SMOKE_RELATED so parent environment state cannot silently narrow an
  * intended-full run.
  */
@@ -303,7 +302,7 @@ export function resolveSmokeSelection(input: {
   requestedRelated: boolean;
   fullSmokeForced: boolean;
   /** null = selector did not run (no related request, or full-smoke forced). */
-  manifestMode: "related" | "full" | null;
+  manifestMode: "related" | "deferred" | null;
 }): SmokeSelectionResolution {
   if (input.fullSmokeForced) {
     return {
@@ -321,11 +320,11 @@ export function resolveSmokeSelection(input: {
     return { narrowToRelated: true, relatedSelectionForBudget: true, note: null };
   }
   return {
-    narrowToRelated: false,
-    relatedSelectionForBudget: false,
+    narrowToRelated: input.manifestMode === "deferred",
+    relatedSelectionForBudget: input.manifestMode === "deferred",
     note:
-      input.manifestMode === "full"
-        ? "[duration-budget] related selection fell back to the FULL smoke universe — budget enforcement applies (a fallback run is a full-smoke run)."
+      input.manifestMode === "deferred"
+        ? "[selection] broad coverage deferred to the post-merge/nightly/weekly integrity lane; this bounded task run is NOT full-smoke verification."
         : null,
   };
 }

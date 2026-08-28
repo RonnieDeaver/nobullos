@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -519,31 +519,33 @@ export function ProdActionsPanel() {
 
   // Task #4019 — fire one manual lever via its dedicated endpoint. Never
   // part of Apply-all; each press is confirmed individually (the lever's
-  // own AlertDialog) and the button disables while the press is in flight.
+  // own AlertDialog). Busy state is keyed per action so unrelated levers
+  // remain available while one request is in flight.
   const [leverConfirmId, setLeverConfirmId] = useState<string | null>(null);
   const [leverConfirmation, setLeverConfirmation] = useState("");
-  const leverMutation = useMutation({
-    meta: { silent: true },
-    mutationFn: async (input: { actionId: string; confirmation?: string }) => {
+  const [firingLeverIds, setFiringLeverIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const firingLeverIdsRef = useRef<Set<string>>(new Set());
+  const fireLever = async (input: {
+    actionId: string;
+    confirmation?: string;
+  }): Promise<void> => {
+    if (firingLeverIdsRef.current.has(input.actionId)) return;
+    firingLeverIdsRef.current.add(input.actionId);
+    setFiringLeverIds((current) => {
+      const next = new Set(current);
+      next.add(input.actionId);
+      return next;
+    });
+    try {
       const res = await apiRequest(
         "POST",
         `/api/admin/prod-actions/${encodeURIComponent(input.actionId)}/apply`,
         input.confirmation ? { confirmation: input.confirmation } : {},
       );
-      return (await res.json()) as { result: ApplyResult };
-    },
-    onSuccess: (data) => {
+      const data = (await res.json()) as { result: ApplyResult };
       const r = data.result;
-      // (Task #4050 gate) void-annotated: intentional fire-and-forget UI
-      // refreshes — the two floaters below arrived with the S2S rollback
-      // lever panel section and pushed this file past its async-correctness
-      // allowance.
-      void qc.invalidateQueries({ queryKey: ["/api/admin/prod-actions"] });
-      void qc.invalidateQueries({
-        predicate: (q) =>
-          typeof q.queryKey[0] === "string" &&
-          (q.queryKey[0] as string).startsWith(SELF_HEAL_RUNS_BASE),
-      });
       toast({
         title:
           r.outcome.state === "applied"
@@ -552,15 +554,30 @@ export function ProdActionsPanel() {
         description: r.outcome.detail,
         variant: r.outcome.state === "error" ? "destructive" : "default",
       });
-    },
-    onError: (err: any) => {
+    } catch (err: any) {
       toast({
         title: "Lever failed",
         description: err?.message ?? "Unknown error",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      firingLeverIdsRef.current.delete(input.actionId);
+      setFiringLeverIds((current) => {
+        if (!current.has(input.actionId)) return current;
+        const next = new Set(current);
+        next.delete(input.actionId);
+        return next;
+      });
+      // Reconcile both status/completed history and the visible run timeline
+      // after every settled response, including request failures.
+      void qc.invalidateQueries({ queryKey: ["/api/admin/prod-actions"] });
+      void qc.invalidateQueries({
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" &&
+          (q.queryKey[0] as string).startsWith(SELF_HEAL_RUNS_BASE),
+      });
+    }
+  };
   // This is intentionally separate from registered prod actions. The
   // portfolio-wide judgment pass is an existing CEO-only background route,
   // not an action that Apply all should ever trigger.
@@ -1440,7 +1457,9 @@ export function ProdActionsPanel() {
                 This starts background work; it does not wait for every rating to finish.
               </div>
             </div>
-            {manualLevers.map((a) => (
+            {manualLevers.map((a) => {
+              const isFiring = firingLeverIds.has(a.id);
+              return (
               <div
                 key={a.id}
                 className="rounded border border-red-200 bg-card p-2 space-y-1"
@@ -1452,11 +1471,11 @@ export function ProdActionsPanel() {
                     size="sm"
                     variant="outline"
                     className="border-red-300 text-red-800 hover:bg-red-100 shrink-0"
-                    disabled={leverMutation.isPending}
+                    disabled={isFiring}
                     onClick={() => setLeverConfirmId(a.id)}
                     data-testid={`button-prod-action-lever-${a.id}`}
                   >
-                    {leverMutation.isPending && leverMutation.variables?.actionId === a.id ? (
+                    {isFiring ? (
                       <>
                         <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Firing…
                       </>
@@ -1474,7 +1493,8 @@ export function ProdActionsPanel() {
                   {a.status.detail}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Task #4842 — plain statement of Apply-all's true scope: it
@@ -1642,7 +1662,7 @@ export function ProdActionsPanel() {
                 setLeverConfirmId(null);
                 setLeverConfirmation("");
                 if (id) {
-                  leverMutation.mutate({
+                  void fireLever({
                     actionId: id,
                     ...(confirmation ? { confirmation } : {}),
                   });

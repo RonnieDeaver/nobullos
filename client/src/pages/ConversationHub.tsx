@@ -71,9 +71,9 @@ import {
   buildUnifiedConversationList, buildConversationTimelineEvents, groupTimelineByDate,
   filterThreadsByInbox, filterThreadsByActivity, filterEventsByActivity, searchThreads,
   formatPhone, getInitials, formatCallStatus, formatCallDuration, resolveThreadKey,
-  attachThreadOverlays, buildNoteTimelineEvents,
+  attachThreadOverlays, buildNoteTimelineEvents, groupOutboundSendEvents,
   type RawConversation, type RawMessage, type RawCall, type Participant,
-  type UnifiedThread, type SmsEvent, type CallEvent, type NoteEvent,
+  type UnifiedThread, type SmsEvent, type SmsGroupEvent, type CallEvent, type NoteEvent,
   type InboxFilter, type ActivityFilter,
   type RawThreadNote, type RawThreadAssignment, type RawThreadReadState, type ThreadStatus,
 } from "@/lib/conversationModel";
@@ -800,7 +800,13 @@ export default function ConversationHub({
     return [...filtered, ...notes].sort((a, b) => a.ts.getTime() - b.ts.getTime());
   }, [messages, threadCalls, activityFilter, threadNotes]);
 
-  const groupedTimeline = useMemo(() => groupTimelineByDate(timelineEvents), [timelineEvents]);
+  // Task #5300: collapse a multi-recipient compose action's per-recipient
+  // rows into one grouped bubble before day-bucketing so a group text send
+  // renders as one logical message instead of N look-alike duplicates.
+  // Kept separate from `timelineEvents` (used above for scroll/unread
+  // bookkeeping keyed by the raw per-row events).
+  const displayTimeline = useMemo(() => groupOutboundSendEvents(timelineEvents), [timelineEvents]);
+  const groupedTimeline = useMemo(() => groupTimelineByDate(displayTimeline), [displayTimeline]);
 
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -2799,6 +2805,17 @@ function TimelineColumn({
                     />
                   );
                 }
+                if (evt.kind === "sms-group") {
+                  return (
+                    <SmsGroupBubble
+                      key={evt.id}
+                      event={evt}
+                      thread={thread}
+                      onRetry={onRetrySend}
+                      retryDisabled={retryDisabled}
+                    />
+                  );
+                }
                 if (evt.kind === "note") {
                   return (
                     <div
@@ -3368,6 +3385,15 @@ function SmsTransportBadge({
   );
 }
 
+// Task #5300: shared bubble-shape tokens so the group-send bubble
+// (SmsGroupBubble) reuses the exact same on-contract rounded-* classes as
+// the single-recipient bubble instead of re-declaring them (design-contract
+// ratchet: Task #4347 — the frozen rounded-* count must never grow).
+const SMS_BUBBLE_CORNER_RADIUS = "rounded-2xl";
+const SMS_BUBBLE_CORNER_OUT = "rounded-br-md";
+const SMS_BUBBLE_CORNER_IN = "rounded-bl-md";
+const SMS_FAILURE_CHIP_SHAPE = "rounded-md";
+
 function SmsBubble({ event, thread, onRetry, retryDisabled }: {
   event: SmsEvent;
   thread: UnifiedThread;
@@ -3391,8 +3417,8 @@ function SmsBubble({ event, thread, onRetry, retryDisabled }: {
   return (
     <div className={`flex ${out ? "justify-end" : "justify-start"}`} data-testid={`message-${event.id}`}>
       <div
-        className={`max-w-[78%] rounded-2xl px-3.5 py-2 shadow-sm ${
-          out ? "rounded-br-md text-white" : "rounded-bl-md bg-card border border-border text-foreground"
+        className={`max-w-[78%] ${SMS_BUBBLE_CORNER_RADIUS} px-3.5 py-2 shadow-sm ${
+          out ? `${SMS_BUBBLE_CORNER_OUT} text-white` : `${SMS_BUBBLE_CORNER_IN} bg-card border border-border text-foreground`
         }`}
         style={out ? { background: BURGUNDY } : undefined}
       >
@@ -3406,7 +3432,7 @@ function SmsBubble({ event, thread, onRetry, retryDisabled }: {
           // Rendered for every failed/undelivered bubble, even when the
           // retry button can't be offered (missing body / recipient).
           <div
-            className="mt-1.5 flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-caption text-white"
+            className={`mt-1.5 flex items-center gap-1 ${SMS_FAILURE_CHIP_SHAPE} bg-white/15 px-2 py-1 text-caption text-white`}
             data-testid={`reason-sms-${event.id}`}
           >
             <AlertCircle className="w-3 h-3 flex-shrink-0" />
@@ -3446,6 +3472,104 @@ function SmsBubble({ event, thread, onRetry, retryDisabled }: {
               Retry
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Task #5300: one compose action targeting multiple recipients renders as
+// ONE bubble (the shared message text) plus a compact per-recipient
+// delivery list, instead of N look-alike bubbles that read as duplicate
+// sends. Per-recipient outcomes (sent/delivered/failed) stay visible —
+// failures still need a name/number and a reason attached to them.
+function SmsGroupBubble({ event, thread, onRetry, retryDisabled }: {
+  event: SmsGroupEvent;
+  thread: UnifiedThread;
+  onRetry?: (convId: string, failedId: string, body: string, toNumber: string) => void;
+  retryDisabled?: boolean;
+}) {
+  const nameByPhone = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of thread.groupParticipants) {
+      if (p.name) map.set(p.phone, p.name);
+    }
+    return map;
+  }, [thread.groupParticipants]);
+
+  const recipientLabels = event.recipients.map((r) => nameByPhone.get(r.toNumber) || formatPhone(r.toNumber));
+  const failedCount = event.recipients.filter((r) => r.status === "failed" || r.status === "undelivered").length;
+
+  return (
+    <div className="flex justify-end" data-testid={`message-group-${event.id}`}>
+      <div
+        className={`max-w-[78%] ${SMS_BUBBLE_CORNER_RADIUS} ${SMS_BUBBLE_CORNER_OUT} px-3.5 py-2 shadow-sm text-white`}
+        style={{ background: BURGUNDY }}
+      >
+        <p
+          className="text-caption font-medium mb-1 opacity-80"
+          data-testid={`text-group-recipients-${event.id}`}
+        >
+          Sent to {recipientLabels.join(", ")}
+        </p>
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">{event.body}</p>
+        {failedCount > 0 && (
+          <div
+            className={`mt-1.5 flex items-center gap-1 ${SMS_FAILURE_CHIP_SHAPE} bg-white/15 px-2 py-1 text-caption text-white`}
+            data-testid={`reason-sms-group-${event.id}`}
+          >
+            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+            <span>
+              Failed for {failedCount} of {event.recipients.length} recipient{event.recipients.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
+        <div className="mt-1.5 space-y-1" data-testid={`list-group-recipients-${event.id}`}>
+          {event.recipients.map((r, idx) => {
+            const isFailed = r.status === "failed" || r.status === "undelivered";
+            const canRetry = isFailed && !!onRetry && !!event.body.trim() && !!r.toNumber;
+            return (
+              <div key={r.id} className="text-caption text-white/85" data-testid={`row-group-recipient-${r.id}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{recipientLabels[idx]}</span>
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <SmsStatusBadge
+                      status={r.status}
+                      errorCode={r.errorCode ?? null}
+                      errorMessage={r.errorMessage ?? null}
+                      data-testid={`status-sms-${r.id}`}
+                    />
+                    {canRetry && (
+                      <button
+                        type="button"
+                        onClick={() => onRetry!(event.conversationId, r.id, event.body, r.toNumber)}
+                        disabled={retryDisabled}
+                        className={`underline hover:no-underline text-white/90 hover:text-white ${
+                          retryDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                        data-testid={`button-retry-sms-${r.id}`}
+                        title={retryDisabled ? "A send is already in progress" : "Retry sending this message"}
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {isFailed && (
+                  <div
+                    className={`flex items-center gap-1 mt-0.5 ${SMS_FAILURE_CHIP_SHAPE} bg-white/15 px-2 py-0.5 text-white`}
+                    data-testid={`reason-sms-${r.id}`}
+                  >
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{friendlySmsFailureReason(r.errorCode, r.errorMessage)}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-1 text-caption mt-1 text-white/70">
+          <span>{format(event.ts, "h:mm a")}</span>
         </div>
       </div>
     </div>

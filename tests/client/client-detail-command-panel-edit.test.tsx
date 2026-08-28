@@ -12,7 +12,8 @@
     "TSX_TSCONFIG_PATH": "./tsconfig.tests.json",
     "NODE_ENV": "test"
   },
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Renders and drives the client-detail command panel's edit interactions in jsdom."
 }
 test-registration */
 

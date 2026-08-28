@@ -39,6 +39,38 @@ export interface PageDef {
   headExtra?: (r: string) => string;
   /** Extra tags appended just before </body> (page-specific JS). */
   bodyEnd?: (r: string) => string;
+  /**
+   * Absolute https URL for this page's og:image/twitter:image. Unset pages
+   * fall back to the sitewide DEFAULT_OG_IMAGE — set this whenever a page
+   * has its own representative image (e.g. an article's full-resolution
+   * photo) instead of the generic sitewide default.
+   */
+  image?: string;
+  /**
+   * Overrides the path used to build `<link rel="canonical">` and the
+   * WebPage/og:url JSON-LD `url` (relative to SITE_ORIGIN, e.g. "privacy/").
+   * Used by legacy URLs that must keep resolving with their own content but
+   * should point search engines at the current canonical URL instead of
+   * themselves (duplicate-content dedup without moving or redirecting the
+   * page).
+   */
+  canonicalPath?: string;
+  /**
+   * ISO date (YYYY-MM-DD) for this page's sitemap `<lastmod>` — set this
+   * for pages with a real authored date (e.g. an article's publish date).
+   * Pages that don't set one get a git-history-derived date computed in
+   * website/generate.ts (last commit that touched the page's known source
+   * files) instead of a fabricated "now" — regenerating the bundle on a
+   * later day must never change an unmodified page's lastmod.
+   */
+  lastmod?: string;
+  /**
+   * Extra JSON-LD objects appended after the sitewide Organization/WebPage/
+   * BreadcrumbList blocks every page already gets from layout() — e.g.
+   * Article schema on resource pages. `r` is the same relative-root prefix
+   * passed to render().
+   */
+  jsonLd?: (r: string) => Record<string, unknown>[];
 }
 
 export const SITE_ORIGIN = "https://nobullmarketing.com";
@@ -50,6 +82,22 @@ export const AUDIBLE_BOOK_URL =
   "https://www.amazon.com/Revenue-Engineering-Law-Firms-Skyrocket/dp/B0DRWC53C9/ref=tmm_aud_swatch_0?_encoding=UTF8";
 export const FACEBOOK_URL = "https://www.facebook.com/BSfreeMarketing";
 export const LINKEDIN_URL = "https://www.linkedin.com/company/nobull-marketing1/";
+
+/** Absolute-URL upload path (SITE_ORIGIN + /assets/uploads/…) for contexts
+    that require an absolute URL (meta tags, JSON-LD) rather than the
+    relative-to-page-root form `up()` produces for in-page links. */
+export function absoluteUpload(rest: string): string {
+  return `${SITE_ORIGIN}/assets/uploads/${rest}`;
+}
+
+/**
+ * Sitewide default og:image/twitter:image — a ~1200x630 crop of the
+ * approved homepage hero art (scripts/generate-marketing-hero-variants.ts),
+ * replacing the old WordPress background image every page used to share.
+ * Pages with their own representative image (e.g. articles) set
+ * `PageDef.image` instead.
+ */
+export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/nobull-redesign/brand/og-social-default.jpg`;
 
 /** Relative prefix from a page path back to the site root. */
 // Content-hash cache-buster appended to css/js URLs. Static serving caches
@@ -329,9 +377,115 @@ ${articles.slice(0, count).map((a) => articleCard(r, a)).join("\n")}
 </section>`;
 }
 
+// ---------------------------------------------------------------------------
+// JSON-LD structured data (docs/DO_NOT_BREAK.md §13 — WebPage + Organization
+// + BreadcrumbList gap vs the old WordPress site). Organization + WebPage
+// are emitted sitewide by layout(); BreadcrumbList is derived generically
+// from the page's own path; Article schema is supplied per-page via
+// PageDef.jsonLd (see website/src/pages/article.ts).
+// ---------------------------------------------------------------------------
+
+const ORGANIZATION_JSON_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "NoBull Marketing",
+  url: `${SITE_ORIGIN}/`,
+  logo: `${SITE_ORIGIN}/nobull-redesign/brand/nobull-logo-full-color.svg`,
+  sameAs: [FACEBOOK_URL, LINKEDIN_URL],
+};
+
+function webPageJsonLd(p: PageDef, canonical: string): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: p.title,
+    description: p.desc,
+    url: canonical,
+    isPartOf: { "@type": "WebSite", name: "NoBull Marketing", url: `${SITE_ORIGIN}/` },
+  };
+}
+
+/** Readable label overrides for path segments whose directory name doesn't
+    match the page a visitor actually lands on (e.g. articles live under the
+    singular "resource/" directory but the real listing page is "resources/"),
+    or that need better casing than a hyphen-to-title-case pass gives. */
+const BREADCRUMB_SEGMENT_LABELS: Record<string, string> = {
+  resource: "Resources",
+  book: "The Book",
+  "free-chapters": "Free Chapters",
+  "data-notes": "Data Notes",
+  "shipping-returns": "Shipping & Returns",
+  "privacy-policy": "Privacy Policy",
+  "order-status": "Order Status",
+};
+
+function segmentLabel(seg: string): string {
+  return (
+    BREADCRUMB_SEGMENT_LABELS[seg] ??
+    seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
+/** Strips a trailing " - NoBull Marketing" / " | NoBull Marketing" /
+    " — NoBull Marketing" site-name suffix for a clean breadcrumb label;
+    titles without that suffix pattern are used as-is. */
+function breadcrumbPageName(title: string): string {
+  return title.replace(/\s*[-|\u2014]\s*NoBull Marketing\s*$/, "").trim();
+}
+
+/**
+ * BreadcrumbList JSON-LD derived from the page's own URL path — every
+ * non-homepage page gets one. The special-cased "resource" segment points
+ * at the real "resources/" listing page (there is no bare "resource/" page)
+ * while the accumulated path used for later segments still follows the
+ * real URL structure.
+ */
+function breadcrumbJsonLd(p: PageDef): Record<string, unknown> | null {
+  const segments = p.path.split("/").filter(Boolean);
+  if (segments.length === 0) return null; // homepage is the root — no breadcrumb
+  const items: { name: string; url: string }[] = [{ name: "Home", url: `${SITE_ORIGIN}/` }];
+  let acc = "";
+  segments.forEach((seg, i) => {
+    const isLast = i === segments.length - 1;
+    acc = acc ? `${acc}/${seg}` : seg;
+    if (seg === "resource" && !isLast) {
+      items.push({ name: "Resources", url: `${SITE_ORIGIN}/resources/` });
+      return;
+    }
+    items.push({
+      name: isLast ? breadcrumbPageName(p.title) : segmentLabel(seg),
+      url: `${SITE_ORIGIN}/${acc}/`,
+    });
+  });
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+/** Serializes a JSON-LD object into a <script> tag, escaping "<" so an
+    unexpected "</script>" inside string content can't prematurely close
+    the tag. */
+function jsonLdScript(obj: Record<string, unknown>): string {
+  return `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, "\\u003c")}</script>`;
+}
+
 export function layout(p: PageDef): string {
   const r = p.rOverride ?? relPrefix(p.path);
-  const canonical = `${SITE_ORIGIN}/${p.path}`;
+  const canonicalPath = p.canonicalPath ?? p.path;
+  const canonical = `${SITE_ORIGIN}/${canonicalPath}`;
+  const ogImage = p.image ?? DEFAULT_OG_IMAGE;
+  const jsonLdBlocks: Record<string, unknown>[] = [ORGANIZATION_JSON_LD, webPageJsonLd(p, canonical)];
+  const breadcrumb = breadcrumbJsonLd(p);
+  if (breadcrumb) jsonLdBlocks.push(breadcrumb);
+  if (p.jsonLd) jsonLdBlocks.push(...p.jsonLd(r));
+  const jsonLdTags = jsonLdBlocks.map(jsonLdScript).join("\n");
   const bare = p.chrome === false;
   const body = bare
     ? `${p.render(r)}`
@@ -355,9 +509,9 @@ ${footer(r)}
 <meta property="og:title" content="${esc(p.title)}">
 <meta property="og:description" content="${esc(p.desc)}">
 <meta property="og:url" content="${canonical}">
-<meta property="og:image" content="${SITE_ORIGIN}/assets/uploads/2023/12/NoBull-Marketing-The-Law-Firm-Experts-bg.png">
+<meta property="og:image" content="${ogImage}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="${SITE_ORIGIN}/assets/uploads/2023/12/NoBull-Marketing-The-Law-Firm-Experts-bg.png">
+<meta name="twitter:image" content="${ogImage}">
 <link rel="icon" href="${up(r, "2023/12/NoBull-Marketing-The-Law-Firm-Experts-Favicon.png")}" sizes="32x32">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -365,6 +519,7 @@ ${footer(r)}
 <link rel="preconnect" href="https://use.typekit.net" crossorigin>
 <link rel="stylesheet" href="https://use.typekit.net/hve0rhv.css">
 <link rel="stylesheet" href="${r}assets/css/site.css${assetSuffix()}">`}${p.headExtra ? p.headExtra(r) : ""}
+${jsonLdTags}
 </head>
 <body${p.bodyClass ? ` class="${p.bodyClass}"` : ""}>
 ${body}${p.bodyEnd ? p.bodyEnd(r) : ""}

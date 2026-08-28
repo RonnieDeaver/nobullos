@@ -2,7 +2,7 @@
 {
   "name": "Website product funnel semantic content — brief copy renders in funnel order, retired engine-story/cinematic elements stay out (Task #4992)",
   "smoke": true,
-  "smokeReason": "Guards the owner's #4992 product-section brief verbatim: the #system region opens on the THE LAW FIRM REVENUE ENGINE eyebrow directly followed by the One Revenue Engine. Three Core Components. headline (no intro paragraph), the funnel reads top-down as 01/MARKETING/CASEGEN™ → 02/INTAKE/CASEINTAKE™ → 03/SALES/CASECONVERT™ — each stage exactly dept label, product name, Title Case outcome headline, one ·-separated capability line (CaseGen's carries the three ™ system names) — terminating in the SIGNED CASES plaque, then the Build a Revenue Engine ask with the section's single Book Your High Impact Revenue Session CTA targeting #booking. The funnel object itself is arrow-, money-, and percent-free (receipts retired to /services/), and the removal list keeps out every retired engine-story family (overview/components/customization copy + class stems, diagram hooks) alongside the older cinematic/ribbon/#4925/#4926 material. A stale regen, copy edit, or merge that drops the brief copy or resurrects retired material fails here in under a second with no DB.",
+  "smokeReason": "Guards the owner's #4992 product-section brief verbatim: the #system region opens on the THE LAW FIRM REVENUE ENGINE eyebrow directly followed by the One Revenue Engine. Three Core Components. headline (no intro paragraph), the funnel reads top-down as 01/MARKETING/CASEGEN™ → 02/INTAKE/CASEINTAKE™ → 03/SALES/CASECONVERT™ — each stage exactly dept label, product name, Title Case outcome headline, and three capability beats (CaseGen's carries the three ™ system names) — terminating in the SIGNED CASES plaque, then the Build a Revenue Engine ask with the section's single Book Your High Impact Revenue Session CTA targeting #booking. The funnel object itself is arrow-, money-, and percent-free (receipts retired to /services/), and the removal list keeps out every retired engine-story family (overview/components/customization copy + class stems, diagram hooks) alongside the older cinematic/ribbon/#4925/#4926 material. A stale regen, copy edit, or merge that drops the brief copy or resurrects retired material fails here in under a second with no DB.",
   "regression": true,
   "scanPaths": ["website/public/index.html", "website/public/about/index.html", "website/src/proof.ts"],
   "tier": "small"
@@ -16,7 +16,7 @@ test-registration */
 // uploaded funnel brief, mirrored verbatim in website/src/pages/home.ts
 // and documented in docs/website-final-copy.md §4). The section is ONE
 // continuous funnel: eyebrow + headline, three stacked stages (dept →
-// product name → outcome headline → one capability line, nothing else),
+// product name → outcome headline → three capability beats, nothing else),
 // the SIGNED CASES plaque as the terminal result, and a single session
 // CTA below. This suite asserts the COMMITTED generator output carries
 // that copy in that order, so a stale regen or a hand edit to the
@@ -34,6 +34,7 @@ import {
   EXPANSION,
   PRESTI,
 } from "../website/src/proof";
+import { BOOK_STORES, BOOK_STORE_STATUS } from "../website/src/bookLinks";
 import { TEAM_ROSTER } from "../website/src/team";
 const HTML_PATH = "website/public/index.html";
 const ABOUT_HTML_PATH = "website/public/about/index.html";
@@ -123,21 +124,12 @@ function main(): void {
     checks += 2;
   }
 
-  // ── Page top (#4923 restructure, untouched by #4992): the hero copy
-  //    renders, the gap lede prices the model in one breath, and the gap
-  //    band closes on the handoff-diagnosis line. ──
+  // ── Page top: the concise hero copy renders, the redundant support lines
+  //    stay retired, and the gap closes on the handoff-diagnosis line. ──
   const pageCopy: Array<[string, string]> = [
     [
       "Most agencies stop at the lead. NoBull builds and manages the Marketing, Intake, and Sales systems that move qualified prospects from first click to signed case — and measures the revenue produced at every stage.",
       "hero lede (#4923 build-and-manage framing)",
-    ],
-    [
-      "A free working session to build the plan for making your revenue goals a reality.",
-      "hero session-explainer note (ledger #36 free + verified revenue-goals plan)",
-    ],
-    [
-      "Picture two firms with the same 500 qualified leads. One signs 20 cases. The other signs 120. At a $10,000 average case value, that is a $1,000,000 difference without generating one additional lead.",
-      "gap lede (priced in one breath, hypothetical cue kept — ledger row 19)",
     ],
     [
       "THE MILLION-DOLLAR OPPORTUNITY DIES IN THE HANDOFFS BETWEEN MARKETING, INTAKE, AND SALES.",
@@ -148,6 +140,17 @@ function main(): void {
     assert.ok(
       pageVis.includes(copy),
       `${what} renders: ${JSON.stringify(copy)}`,
+    );
+    checks += 1;
+  }
+  for (const retired of [
+    "A free working session to build the plan for making your revenue goals a reality.",
+    "The book explains the system. NoBull installs it.",
+    "Picture two firms with the same 500 qualified leads.",
+  ]) {
+    assert.ok(
+      !pageVis.includes(retired),
+      `redundant homepage support copy stays retired: ${JSON.stringify(retired)}`,
     );
     checks += 1;
   }
@@ -167,11 +170,66 @@ function main(): void {
     "gap band renders before the #system funnel",
   );
   const gapVis = visibleText(html.slice(gapStart, sysStart));
+  const gapMarkup = html.slice(gapStart, sysStart);
   assert.ok(
     !/CASEGEN™|CASEINTAKE™|CASECONVERT™/.test(gapVis),
     "no product names inside the gap problem illustration (brief §3)",
   );
-  checks += 2;
+  assert.ok(
+    gapMarkup.includes(
+      "Hypothetical model: two firms generate the same 500 qualified",
+    ),
+    "the hidden gap summary explicitly identifies the comparison as a hypothetical model",
+  );
+  checks += 3;
+
+  const faqStart = html.indexOf('<section class="nb-faq-sec">');
+  const faqEnd = html.indexOf("</section>", faqStart);
+  assert.ok(
+    faqStart >= 0 && faqEnd > faqStart,
+    "homepage FAQ renders as one complete semantic section",
+  );
+  const faqMarkup = html.slice(faqStart, faqEnd);
+  assert.ok(
+    faqMarkup.includes("Seven Questions, Answered Straight."),
+    "FAQ heading announces seven questions",
+  );
+  assert.equal(
+    (faqMarkup.match(/<details class="nb-faq-item(?: nb-faq-fit)?">/g) ?? [])
+      .length,
+    7,
+    "FAQ renders exactly seven native disclosure items",
+  );
+  const faqSummaries = Array.from(
+    faqMarkup.matchAll(/<summary>([^<]+)<\/summary>/g),
+    (match) => match[1],
+  );
+  assert.deepEqual(
+    faqSummaries,
+    [
+      "Do we need all three components at once?",
+      "What does NoBull handle, and what does our firm handle?",
+      "Will we need to replace our current team or software?",
+      "How do you track leads, consultations, signed cases, and revenue?",
+      "How long does implementation take?",
+      "What does working with NoBull cost?",
+      "Is Your Firm a Fit?",
+    ],
+    "FAQ follows scope, ownership, compatibility, measurement, timing, investment, then fit",
+  );
+  assert.ok(
+    faqMarkup.includes('class="nb-qual-card"') &&
+      faqMarkup.includes('class="nb-qual-card nb-qual-not"') &&
+      (faqMarkup.match(/<ul aria-labelledby="nb-(?:not)?fit-label">/g) ?? [])
+        .length === 2 &&
+      (faqMarkup.match(/<li>/g) ?? []).length === 8,
+    "the seventh disclosure preserves both complete semantic fit-criteria lists",
+  );
+  assert.ok(
+    !html.includes('<section class="nb-fit">'),
+    "the standalone fit band stays retired",
+  );
+  checks += 6;
 
   // ── Section open: explicit Product Lines eyebrow → headline, DIRECTLY — the
   //    brief bars any intro paragraph or transition copy, so the two
@@ -191,8 +249,8 @@ function main(): void {
   checks += 1;
 
   // ── The funnel, top to bottom, in one visible-text chain: numeral +
-  //    dept + name + Title Case outcome headline + the one capability
-  //    line per stage, three stages in engine order, terminating in the
+  //    dept + name + Title Case outcome headline + the three capability
+  //    beats per stage, three stages in engine order, terminating in the
   //    SIGNED CASES plaque — with NOTHING between the stages (no
   //    between-stage text, labels, or arrows: the chain match itself
   //    proves adjacency). ──
@@ -200,9 +258,9 @@ function main(): void {
     "01 MARKETING CASEGEN™ Create More of the Right Opportunities.",
     "Local Authority Optimization™ · Paid Search Control System™ · Review Velocity System™",
     "02 INTAKE CASEINTAKE™ Stop Qualified Leads From Disappearing.",
-    "Answer faster · Guide consistently · Follow up · Remove friction",
+    "speed to human, consult capture, revenue follow through",
     "03 SALES CASECONVERT™ Turn More Booked Consultations Into Signed Cases.",
-    "Script the conversation · Strengthen the offer · Coach the execution",
+    "Consult to Client Script, Obvious Choice Offer, Close Rate Lab",
     "SIGNED CASES",
     "Build a Revenue Engine That Produces More Signed Cases.",
     "Book Your High Impact Revenue Session",
@@ -226,13 +284,13 @@ function main(): void {
       dept: "INTAKE",
       name: "CASEINTAKE™",
       headline: "Stop Qualified Leads From Disappearing.",
-      caps: "Answer faster · Guide consistently · Follow up · Remove friction",
+      caps: "speed to human, consult capture, revenue follow through",
     },
     {
       dept: "SALES",
       name: "CASECONVERT™",
       headline: "Turn More Booked Consultations Into Signed Cases.",
-      caps: "Script the conversation · Strengthen the offer · Coach the execution",
+      caps: "Consult to Client Script, Obvious Choice Offer, Close Rate Lab",
     },
   ] as const;
   for (const s of stages) {
@@ -494,14 +552,21 @@ function main(): void {
     "all eleven written-quote cards serve statically",
   );
   checks += 2;
-  for (const firm of [
-    "Shields & Boris",
-    "Covington & Associates",
-    "Integrity Law",
-    "Presti Law",
-    "Burns Smith Law",
-  ]) {
-    expectZone(firm, "video card firm name");
+  for (const [firm, vimeoId] of [
+    ["Shields & Boris", "898391761"],
+    ["Covington & Associates", "701775821"],
+    ["Integrity Law", "898392089"],
+    ["Presti Law", "1106263914"],
+    ["Burns Smith Law", "1106262623"],
+  ] as const) {
+    expectZone(firm, "confirmed video card firm name");
+    const encodedFirm = firm.replace(/&/g, "&amp;");
+    assert.ok(
+      zone.includes(`href="https://vimeo.com/${vimeoId}"`) &&
+        zone.includes(`Watch the ${encodedFirm} testimonial on Vimeo`),
+      `${firm} keeps its confirmed Vimeo destination`,
+    );
+    checks += 1;
   }
   expectZone(BORIS.quotes[0], "Tom Boris turnkey client testimonial");
   expectZone(BORIS.quotes[1], "Tom Boris Google-reviews client testimonial");
@@ -716,7 +781,7 @@ function main(): void {
     "HAVE A QUESTION?",
     "The People Behind The Engine.",
     // #4979 removal — the About roster text link is dropped (the
-    // complete 18-person roster renders in-band; /about/ carries only
+    // complete 20-person roster renders in-band; /about/ carries only
     // three bios, so the label over-promised):
     "MEET THE COMPLETE NOBULL TEAM",
     // #4987 removal list — the REE score strip left the homepage whole
@@ -742,7 +807,7 @@ function main(): void {
   }
 
   // ── Team band (Task #4979 owner directive — supersedes the #4926 §10
-  //    five-person compression): the FULL 18-person roster renders
+  //    five-person compression): the FULL 20-person roster renders
   //    in-band, led by Ronnie → Oliver → Brett → Jeff → Janno → Cam and
   //    then the prior relative order. The served grid is the complete
   //    presentation for every visitor (Task #5011 retired the
@@ -759,17 +824,24 @@ function main(): void {
 
   assert.equal(
     (teamBand.match(/class="nb-team-card"/g) ?? []).length,
-    18,
-    "team band renders the complete 18-person roster",
+    20,
+    "team band renders the complete 20-person roster",
   );
   checks += 1;
 
   let rosterCursor = -1;
-  for (const { name, role } of TEAM_ROSTER) {
+  for (const { img, name, role } of TEAM_ROSTER) {
+    const imagePos = teamBand.indexOf(
+      `src="nobull-redesign/team/${img}" alt="${name}"`,
+    );
     const namePos = teamBand.indexOf(`<h3>${name}</h3>`);
     assert.ok(
       namePos > rosterCursor,
       `roster order (directive-first, then prior relative order): ${name}`,
+    );
+    assert.ok(
+      imagePos > rosterCursor && imagePos < namePos,
+      `canonical image renders with ${name}: ${img}`,
     );
     const rolePos = teamBand.indexOf(role, namePos);
     assert.ok(
@@ -777,7 +849,7 @@ function main(): void {
       `role renders with ${name}: ${role}`,
     );
     rosterCursor = namePos;
-    checks += 1;
+    checks += 3;
   }
 
   assert.ok(
@@ -840,12 +912,13 @@ function main(): void {
     "generated About page contains the complete team section",
   );
   const aboutTeam = aboutNoComments.slice(aboutTeamStart, aboutTeamEnd);
+  assert.equal(TEAM_ROSTER.length, 20, "canonical team roster stays at 20 people");
   assert.equal(
     (aboutTeam.match(/class="team-card"/g) ?? []).length,
     TEAM_ROSTER.length,
     "About renders one card for every canonical team member",
   );
-  checks += 2;
+  checks += 3;
 
   let aboutRosterCursor = -1;
   for (const member of TEAM_ROSTER) {
@@ -1003,6 +1076,62 @@ function main(): void {
   const bookAt = pageNoComments.indexOf('<section id="book" class="nb-book-sec">');
   const conversionAt = pageNoComments.indexOf('<section class="nb-conversion"');
   assert.ok(faqAt >= 0 && faqAt < bookAt && bookAt < conversionAt, "FAQ → book → final conversion close order holds");
+  const bookEnd = pageNoComments.indexOf("</section>", bookAt);
+  assert.ok(bookEnd > bookAt, "book band closes before the conversion close");
+  const book = pageNoComments.slice(bookAt, bookEnd);
+  assert.equal(
+    (book.match(/class="nb-store-btn"/g) ?? []).length,
+    BOOK_STORES.length,
+    "book band keeps exactly one status treatment for each approved store",
+  );
+  for (const { name } of BOOK_STORES) {
+    assert.ok(
+      book.includes(`role="group" aria-label="${name} — ${BOOK_STORE_STATUS}"`),
+      `${name} remains an explicit, non-interactive availability notice`,
+    );
+  }
+  assert.ok(
+    !/<a\b[^>]*class="nb-store-btn"/.test(book) &&
+      !book.includes("www.amazon.com") &&
+      !book.includes("audible.com"),
+    "book band withholds unconfirmed retailer destinations and legacy purchase URLs",
+  );
+  const credibilityStart = pageNoComments.indexOf('<section class="nb-cred"');
+  const credibilityEnd = pageNoComments.indexOf("</section>", credibilityStart);
+  const credibility = pageNoComments.slice(credibilityStart, credibilityEnd);
+  const metricsAt = credibility.indexOf('<div class="nb-wrap nb-metric-grid">');
+  const pressAt = credibility.indexOf('<div class="nb-wrap nb-cred-press">');
+  assert.ok(
+    metricsAt >= 0 && metricsAt < pressAt,
+    "credibility rail leads with metrics before secondary press validation",
+  );
+  const metricBlocks = [
+    ...credibility.matchAll(/<div class="nb-metric">([\s\S]*?)<\/div>/g),
+  ].map((match) => match[1]);
+  const expectedMetrics = [
+    ["$150M+", "In New Client Revenue"],
+    ["350+", "Law Firms Worked With"],
+    ["10+", "Years of Results"],
+    ["1,000,000+", "Leads Generated"],
+  ];
+  assert.equal(metricBlocks.length, expectedMetrics.length, "credibility rail keeps four outcome metrics");
+  expectedMetrics.forEach(([stat, label], index) => {
+    assert.ok(
+      metricBlocks[index]?.includes(stat) && metricBlocks[index]?.includes(label),
+      `credibility metric ${index + 1} keeps its exact value and label`,
+    );
+  });
+  assert.equal(
+    (credibility.match(/class="nb-press-logo"/g) ?? []).length,
+    5,
+    "credibility rail retains all five protected press-logo assets",
+  );
+  assert.ok(
+    (credibility.match(/class="nb-press-logo"[^>]*alt="" aria-hidden="true"/g) ?? [])
+      .length === 5,
+    "unconfirmed press identities remain opaque rather than becoming textual claims",
+  );
+  checks += 8;
   const conversionEnd = pageNoComments.indexOf(
     "</main>",
     conversionAt,
@@ -1013,7 +1142,7 @@ function main(): void {
     conversion.includes('<div class="nb-conversion-close">') &&
       conversion.includes('id="nb-conversion-head" class="nb-serif">Ready to Build Your Revenue Engine?</h2>') &&
       conversion.includes("You're already paying to create opportunity.") &&
-      conversion.includes("Sound like a fit? The session is free"),
+      conversion.includes("how much of it becomes revenue."),
     "final conversion close keeps the established title and supporting copy",
   );
   assert.ok(
@@ -1022,12 +1151,14 @@ function main(): void {
     "final conversion grid keeps booking first, then contact",
   );
   assert.ok(
-    conversion.includes('class="nb-booking-handoff"') &&
-      conversion.includes('target="_blank" rel="noopener" aria-describedby="nb-booking-external">View Available Times') &&
+    conversion.includes('target="_blank" rel="noopener">View Available Times') &&
       !conversion.includes("calendly-inline-widget") &&
       !conversion.includes("assets.calendly.com") &&
-      conversion.includes('<noscript><p class="nb-conversion-noscript">'),
-    "booking surface keeps the compact external handoff and no-JavaScript recovery without an embed dependency",
+      !conversion.includes("Choose a time that works") &&
+      !conversion.includes("nb-booking-facts") &&
+      !conversion.includes("nb-booking-external") &&
+      !conversion.includes("nb-conversion-noscript"),
+    "booking surface keeps only the compact external handoff without an embed dependency",
   );
   assert.ok(
     conversion.includes('<form class="nb-contact-form" data-nb-inquiry="contact" data-success=') &&

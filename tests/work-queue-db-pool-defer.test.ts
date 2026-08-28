@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Work-queue db-pool-saturation defer/re-enqueue (Task #2578)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

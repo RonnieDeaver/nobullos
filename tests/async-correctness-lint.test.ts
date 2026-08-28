@@ -22,7 +22,7 @@ test-registration */
  *
  * Assertion 1 runs the lint over the REAL tree (server/, client/src/,
  * shared/, scripts/) against the committed count baseline — in full-set runs
- * this test complements the `Validate` workflow's `npm run gate` enforcement;
+ * this test complements the managed Long validation workflow's reviewed routine-gate profile;
  * related-smoke gate runs are covered by the LINT_CHECKS entry instead, see
  * the registration block above for why this file is not lint-*-named).
  *

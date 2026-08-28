@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Activity Feed review-decision lookup",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Uses a transactional database sandbox to exercise the multi-key route lookup end to end."
 }
 test-registration */
 /**

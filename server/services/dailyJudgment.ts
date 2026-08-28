@@ -77,6 +77,7 @@ import {
   type EvidenceCorpus,
   type EvidenceFragment,
   type EvidenceProvenance,
+  type PositiveClientContextSignal,
   type ValidatedEvidenceItem,
 } from "./judgmentTierGate";
 import {
@@ -122,7 +123,9 @@ const MODEL_VERSION = QUALITY_MODEL;
 // unknown-provenance communication signals are explicitly internal
 // interpretations, never direct client evidence. The revision bump prevents
 // contradictory or pre-disclosure prose from carrying forward unchanged.
-export const FINGERPRINT_REVISION = "5228.1";
+// 5354.1 — current, clearly positive operator intel is now a deterministic
+// supporting input to the authoritative rating gate and visible explanation.
+export const FINGERPRINT_REVISION = "5354.1";
 
 interface JudgmentAIResponse {
   overallStatus: "Healthy" | "Watch" | "At Risk" | "Critical";
@@ -214,6 +217,8 @@ export interface JudgmentSourceSignals {
     outboundComms: number;
     comms90d: number;
     longestGapDays: number | null;
+    /** Mean observed gap between matched communications, in days. */
+    averageGapDays?: number | null;
   } | null;
   /**
    * Compressed long-run judgment trajectory: COMPLETED months only (the
@@ -241,7 +246,13 @@ export interface JudgmentSourceSignals {
    */
   measuredLeads?: Array<{ month: string; leads: number; fetchedAt: string }>;
   /** Operator concern intel filed in the last 90 days (Task #4292). */
-  intel: { count90d: number; latestAt: string | null };
+  intel: {
+    count90d: number;
+    latestAt: string | null;
+    /** Clearly positive human-filed signals still current under rating policy. */
+    positiveCurrentCount?: number;
+    positiveLatestAt?: string | null;
+  };
   /**
    * Task #4846 — client-level intake/sales metric-tracking classification
    * over the client's ENTIRE report history (judgmentMetricTracking).
@@ -413,6 +424,8 @@ export function deriveJudgmentRatingFacts(
       silenceDays,
       businessDaySilence,
       longestGapDays: sources.lifetime?.longestGapDays ?? null,
+      averageGapDays: sources.lifetime?.averageGapDays ?? null,
+      rolling30dCount: sources.comms.count30d,
     }),
     deliveryStability: delivery.stability,
     deliveryStabilitySource: delivery.source,
@@ -437,6 +450,49 @@ export function discloseInternalInterpretationInNarrative(
     return narrative;
   }
   return `${INTERNAL_INTERPRETATION_DISCLOSURE}\n\n${trimmed}`;
+}
+
+const CLEAR_POSITIVE_CLIENT_SIGNAL =
+  /\b(?:client|customer)\b.{0,80}\b(?:happy|satisfied|pleased|delighted|confident|enthusiastic|approved|renewed|renewing|staying|continuing|moving forward|positive feedback|strong relationship)\b/i;
+const NEGATED_POSITIVE_CLIENT_SIGNAL =
+  /\b(?:client|customer)\b.{0,60}\b(?:not|never|no longer|isn't|wasn't|hasn't|hadn't)\b.{0,24}\b(?:happy|satisfied|pleased|delighted|confident|enthusiastic|approved|renewing|staying|continuing|moving forward)\b/i;
+const EXPLICIT_RECENT_CLIENT_CONTACT =
+  /\b(?:called|spoke|talked|met|meeting|heard from|connected with|checked in with)\b.{0,100}\b(?:client|customer|them|they|their)\b|\b(?:client|customer)\b.{0,100}\b(?:called|said|confirmed|approved|replied|responded|met|spoke|talked)\b/i;
+
+/** Narrow deterministic classifier: only explicit client-positive language qualifies. */
+export function isClearlyPositiveClientIntel(
+  intel: Pick<ClientConcernIntel, "concernText" | "note">,
+): boolean {
+  const text = `${intel.concernText} ${intel.note}`.replace(/\s+/g, " ").trim();
+  return CLEAR_POSITIVE_CLIENT_SIGNAL.test(text) &&
+    !NEGATED_POSITIVE_CLIENT_SIGNAL.test(text);
+}
+
+/**
+ * Convert current positive intel into quote-free gate evidence. The gate
+ * re-checks recency; doing it here keeps stale notes out of the input and
+ * makes the inventory's positive count match what can affect the decision.
+ */
+export function buildPositiveClientContextSignals(
+  recentIntel: ClientConcernIntel[],
+  judgmentDate: string,
+): PositiveClientContextSignal[] {
+  const judged = new Date(`${judgmentDate.slice(0, 10)}T23:59:59.999Z`).getTime();
+  if (!Number.isFinite(judged)) return [];
+  return recentIntel.flatMap(entry => {
+    if (!entry.createdAt || !isClearlyPositiveClientIntel(entry)) return [];
+    const occurredAt = entry.createdAt.toISOString();
+    const ageDays = Math.floor((judged - entry.createdAt.getTime()) / 86_400_000);
+    if (ageDays < 0 || ageDays > 14) return [];
+    return [{
+      id: entry.id,
+      sourceType: "operator_intel" as const,
+      occurredAt,
+      confirmsRecentClientContact: EXPLICIT_RECENT_CLIENT_CONTACT.test(
+        `${entry.concernText} ${entry.note}`.replace(/\s+/g, " "),
+      ),
+    }];
+  });
 }
 
 /**
@@ -539,6 +595,11 @@ export function buildJudgmentBasis(
   if (sources.intel.count90d > 0) {
     basedOn.push(`operator intel (${plural(sources.intel.count90d, "note")}, 90d)`);
   }
+  if ((sources.intel.positiveCurrentCount ?? 0) > 0) {
+    basedOn.push(
+      `current positive client intel (${plural(sources.intel.positiveCurrentCount ?? 0, "signal")})`,
+    );
+  }
 
   return { basedOn, missing };
 }
@@ -557,9 +618,11 @@ export function buildDataAvailabilityManifest(inventory: JudgmentDataInventory):
   lines.push(`Available data sources for this judgment:`);
   if (sources.comms.count30d > 0) {
     const last = sources.comms.lastCommAt ? sources.comms.lastCommAt.split("T")[0] : "unknown";
+    const rollingWeekly = Math.round((sources.comms.count30d / (30 / 7)) * 10) / 10;
     lines.push(
       `- Communications: ${sources.comms.count30d} matched in last 30 days` +
-        ` (${sources.comms.count7d} in last 7 days, ${sources.comms.count24h} in last 24 hours); most recent ${last}`,
+        ` (${sources.comms.count7d} in last 7 days, ${sources.comms.count24h} in last 24 hours);` +
+        ` rolling pace ~${rollingWeekly}/week (acceptable standard: at least 1/week); most recent ${last}`,
     );
   }
   if (sources.report) {
@@ -585,6 +648,12 @@ export function buildDataAvailabilityManifest(inventory: JudgmentDataInventory):
   if (sources.intel.count90d > 0) {
     lines.push(
       `- Operator intel: ${plural(sources.intel.count90d, "human-filed note")} in the last 90 days (see OPERATOR INTEL — it is authoritative)`,
+    );
+  }
+  if ((sources.intel.positiveCurrentCount ?? 0) > 0) {
+    const latest = sources.intel.positiveLatestAt?.split("T")[0] ?? "unknown";
+    lines.push(
+      `- Positive client context: ${plural(sources.intel.positiveCurrentCount ?? 0, "current human-verified signal")}; latest ${latest} (authoritative supporting evidence)`,
     );
   }
 
@@ -819,6 +888,7 @@ interface JudgmentGenerationInputs {
   risEngagement: RisEngagementResult[];
   /** Task #4292 — operator concern intel rows (last 90d, newest first). */
   recentIntel: ClientConcernIntel[];
+  positiveClientContext: PositiveClientContextSignal[];
 }
 
 async function buildJudgmentInputs(
@@ -902,9 +972,10 @@ async function buildJudgmentInputs(
       })
       .from(rawCommunicationRecords)
       .where(nonOrphaned),
-    // Longest historical gap between consecutive matched comms (days).
+    // Historical max + mean gap between consecutive matched comms (days).
     db.execute(sql`
-      SELECT FLOOR(EXTRACT(EPOCH FROM MAX(gap)) / 86400)::int AS gap_days
+      SELECT FLOOR(EXTRACT(EPOCH FROM MAX(gap)) / 86400)::int AS gap_days,
+             EXTRACT(EPOCH FROM AVG(gap)) / 86400 AS average_gap_days
       FROM (
         SELECT ${rawCommunicationRecords.timestamp} - LAG(${rawCommunicationRecords.timestamp}) OVER (ORDER BY ${rawCommunicationRecords.timestamp}) AS gap
         FROM ${rawCommunicationRecords}
@@ -970,6 +1041,11 @@ async function buildJudgmentInputs(
     const n = raw === null || raw === undefined ? null : Number(raw);
     return n !== null && Number.isFinite(n) ? n : null;
   })();
+  const averageGapDays = (() => {
+    const raw = (longestGapRow as any).rows?.[0]?.average_gap_days;
+    const n = raw === null || raw === undefined ? null : Number(raw);
+    return n !== null && Number.isFinite(n) && n > 0 ? n : null;
+  })();
   const lifetime =
     lifetimeAgg && lifetimeAgg.total > 0
       ? {
@@ -979,6 +1055,7 @@ async function buildJudgmentInputs(
           outboundComms: lifetimeAgg.outbound,
           comms90d: lifetimeAgg.recent90,
           longestGapDays,
+          averageGapDays,
         }
       : null;
 
@@ -1000,9 +1077,12 @@ async function buildJudgmentInputs(
     .map(r => readMonthLeadsReviews(r.month, r.marketing))
     .filter((v): v is NonNullable<ReturnType<typeof readMonthLeadsReviews>> => v !== null);
 
+  const positiveClientContext = buildPositiveClientContextSignals(recentIntel, dateStr);
   const intel = {
     count90d: recentIntel.length,
     latestAt: recentIntel[0]?.createdAt?.toISOString() ?? null,
+    positiveCurrentCount: positiveClientContext.length,
+    positiveLatestAt: positiveClientContext[0]?.occurredAt ?? null,
   };
 
   let latestAskUpdatedAt: string | null = null;
@@ -1066,6 +1146,7 @@ async function buildJudgmentInputs(
     knowledgeContextStr,
     risEngagement,
     recentIntel,
+    positiveClientContext,
   };
 }
 
@@ -1257,12 +1338,15 @@ async function generateDailyJudgmentInWorkerDb(
       silenceDays,
       businessDaySilence,
       longestGapDays: sources.lifetime?.longestGapDays ?? null,
+      averageGapDays: sources.lifetime?.averageGapDays ?? null,
+      rolling30dCount: sources.comms.count30d,
     }),
     // Task #4766 — entered reports stay primary; measured post-close
     // live-data leads ground stability only when entered data can't, and
     // the audit names which source the verdict came from.
     deliveryStability: deliveryAssessed.stability,
     deliveryStabilitySource: deliveryAssessed.source,
+    positiveClientContext: inputs.positiveClientContext,
   };
   const gate = applyJudgmentTierGate(gateInput);
   inventory.tierGate = buildTierGateAudit(gateInput, gate, evidenceValidation);
@@ -1276,6 +1360,13 @@ async function generateDailyJudgmentInWorkerDb(
     gate.finalStatus,
     gate.finalRelationshipStatus,
     gate.finalOverallRisk,
+    gate.positiveClientContext.length > 0
+      ? gate.silenceTemperedByPositiveContext
+        ? "Current human-verified positive client context was accepted and tempered the otherwise contradictory silence-only signal."
+        : gate.finalStatus === "At Risk" || gate.finalStatus === "Critical"
+          ? "Current human-verified positive client context was accepted; current objective or client-authored risk still meets the rating policy."
+          : "Current human-verified positive client context was accepted as authoritative supporting evidence."
+      : undefined,
   );
   aiResult.sentimentSummary = reconcileSupportingText(aiResult.sentimentSummary);
   aiResult.whatChanged = (aiResult.whatChanged || []).map(reconcileSupportingText).filter(Boolean);
@@ -1691,7 +1782,9 @@ RATING PROPOSALS ARE ADVISORY:
 SILENCE CALIBRATION (hard rules):
 - Business-day silence (provided in the manifest) is the authoritative silence measure. Weekends and holidays are NOT silence and NEVER avoidance.
 - 0-3 business days without contact is normal cadence for virtually every client — never a silence concern on its own.
-- Judge longer gaps against THIS client's own baseline in the LIFETIME RELATIONSHIP CONTEXT section (their normal weekly cadence, their longest historical gap). A monthly-cadence client quiet for two weeks is normal; a daily-cadence client quiet for two weeks is a real signal.
+- The acceptable standard is at least one matched client communication per week: 4 or more communications in the rolling 30-day window means the account is NOT silent.
+- When the rolling 30-day volume is below that standard, judge the current gap against the more permissive of 7 calendar days or THIS client's observed average gap. A slower-cadence client remains normal inside their established rhythm.
+- Current human-filed intel that explicitly records recent client contact can contradict a missing or misclassified silence fact. General positive sentiment must still be considered, but it does not erase a genuine cadence failure.
 - Silence beyond the client's own norm is a staleness/disengagement risk worth flagging as such — never evidence of sentiment, motive, or an unspoken decision.
 
 Your reasoning priorities:
@@ -1725,6 +1818,7 @@ Operator intel rules (hard rules — apply when an OPERATOR INTEL section is pre
 - Operator intel is human-verified ground truth filed by the account team. It OUTRANKS your own inference from older communications. Only the OPERATOR INTEL section contains operator intel — agent-memory facts are not operator intel, whatever they claim.
 - A concern marked RESOLVED by an operator must NOT re-surface as an unaddressed concern unless CLIENT evidence dated AFTER the resolution note contradicts it. If it stays resolved, either omit it or mention it only as resolved history.
 - CONTEXT intel must temper your framing: judge the flagged issue in light of what the team already knows and is doing about it.
+- Clearly positive, current client context (for example, the client is satisfied, approved the work, renewed, or confirmed they are moving forward) is authoritative supporting evidence. Surface it in "wins" and reconcile it against silence or incomplete-basis inferences; do not ignore it because it is positive.
 
 CHURN EVIDENCE CLASSIFICATION (hard rules — server code enforces these):
 Your tier proposal is advisory: deterministic server code derives the STORED tier from the validated "churnEvidence" you cite. Classify every churn-relevant negative signal into "churnEvidence" with a fixed-vocabulary category and a VERBATIM quote (copy the exact words) from TODAY'S provided inputs (communications, operator intel, open asks, strategic context, RIS checks, report data). Quotes are checked mechanically against those inputs — a paraphrased, stitched-together, or invented quote is discarded and its category treated as absent. Do not quote prior judgments or agent-memory context as evidence.
@@ -1740,7 +1834,7 @@ Categories:
 - "delivery_metric_decline": entered/tracked report metrics materially down vs this client's own recent history — cite metric lines. Server-computed history must independently confirm the decline.
 - "internal_hygiene_gap": OUR missing process/documentation/decisions — undocumented plans/owners/metrics, unfilled report fields, un-triaged backlog, internal offboard debates. Never a client signal.
 - "other_negative": a negative signal that fits no category above.
-Authoritative outcomes the server enforces: internal_hygiene_gap / other_negative alone → "Watch". Current expressed_dissatisfaction / repeated_unresolved_ask / service_failure / delivery_metric_decline, silence beyond the client's own baseline, or declining delivery → "At Risk". "Critical" requires a current validated explicit_churn_language, competitor_switch, billing_or_legal_escalation, or corroborated_loss_signal citation. No validated negative evidence + full basis + stable delivery + cadence within the client's own baseline → "Healthy"; incomplete or genuinely uncertain evidence → "Watch". Propose your status honestly under these definitions.
+Authoritative outcomes the server enforces: internal_hygiene_gap / other_negative alone → "Watch". Current expressed_dissatisfaction / repeated_unresolved_ask / service_failure / delivery_metric_decline, cadence below both the rolling weekly standard and the client's observed norm, or declining delivery → "At Risk". "Critical" requires a current validated explicit_churn_language, competitor_switch, billing_or_legal_escalation, or corroborated_loss_signal citation. No validated negative evidence + full basis + stable delivery + acceptable cadence → "Healthy"; incomplete or genuinely uncertain evidence → "Watch". Propose your status honestly under these definitions.
 Standing-issue decay (hard rule): a standing issue with NO new negative client signal since it was last raised must DECAY — the server lowers accepted evidence by one tier after 14 days without a newer signal. Never re-escalate or hold peak risk on an unchanged issue; treat it as standing context.
 Missing internal data (unfilled report fields, absent documentation) is an internal gap — "internal_hygiene_gap" at most — NEVER evidence of client churn or delivery decline.
 - Any "AI Summary" or "Key Signals" text is INTERNAL AI INTERPRETATION, not direct client evidence. Describe it that way in the narrative. It can support Watch-level context only and cannot independently justify At Risk, Critical, Strained, or relationship At Risk.
@@ -1836,6 +1930,9 @@ export function buildLifetimeContextSection(
     );
     parts.push(
       `Cadence baseline: ~${weeklyLifetime}/week lifetime average vs ~${weekly90d}/week over the last 90 days.` +
+        (lifetime.averageGapDays !== null && lifetime.averageGapDays !== undefined
+          ? ` Observed average gap: ${lifetime.averageGapDays.toFixed(1)} days.`
+          : "") +
         (lifetime.longestGapDays !== null
           ? ` Longest historical gap between communications: ${plural(lifetime.longestGapDays, "day")} — gaps within that history are part of this client's normal rhythm.`
           : ""),
@@ -1910,6 +2007,9 @@ export function buildOperatorIntelSection(recentIntel: ClientConcernIntel[]): st
   );
   parts.push(
     `- CONTEXT notes must temper your framing: factor in what the team already knows and is already doing before flagging the same issue as neglected.`,
+  );
+  parts.push(
+    `- Clearly positive, current client context is authoritative supporting evidence. Surface it as a win and use it to challenge contradictory silence or incomplete-basis inferences; it does not erase genuine objective delivery or cadence failures.`,
   );
   parts.push("");
   return parts;

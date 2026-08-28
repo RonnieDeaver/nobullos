@@ -34,9 +34,9 @@ METRICS.md §Typography carries the same correction.
 Inventory (rendered bundle, all pages): `nb-*` header (logo, 4 links + CTA button, mobile
 drawer) · footer (4 columns + social + legal) · eyebrow + gold-rule section opener · square
 `nb-btn` (crimson primary / outline secondary) · square cards (verdict, review, case-study,
-resource) · proof slider + per-firm gauges · cinematic stage rail (home `#system`) · category
-filter tabs (resources) · accordion FAQ (about) · homepage contact form + unsubscribe utility ·
-homepage Calendly embed · floating book bar (free-chapters).
+resource) · homepage Revenue Engine funnel + per-firm proof receipts · category filter tabs
+(resources) · accordion FAQ (about) · homepage contact form + unsubscribe utility · external
+Calendly handoff · floating book bar (free-chapters).
 
 Verdicts (Phase 3 Brief):
 
@@ -64,7 +64,7 @@ Severity 0–4. Statuses: open · in-flight · owner-gated · pass.
 | U-03 | Client validation checks **presence only** — malformed email costs a server round-trip (`novalidate` + no format check; server message does render verbatim, so recovery works). | 1 | `inquiry.ts` L102–115 | Add client email-shape check in the shared handler (fold into E-20) | open |
 | U-04 | Footer SOLUTIONS column: four product links (`The Revenue Engine™`/`CaseGen™`/`CaseIntake™`/`CaseConvert™`) all land on the same `/#system` anchor — label promises per-product depth, one destination (same pattern as F-08). | 1 | 404/footer screenshot; rendered footer markup | Point at `/services/` per-system anchors once they exist; note only — no template change in this audit | open |
 | U-05 | Resource library dates all read **"Jan 4, 2024"** (visible ×4 on one article view) — a migration stamp that reads as a dead blog on the authority surface. | 1 | `p2-d-article.png` (header + 3 sidebar items), `p2-d-resources.png` | Restore real publish dates from the source export, or drop the date element (E-22) | open |
-| U-06 | The homepage conversion hub is the only Calendly surface and keeps a visible direct-scheduler fallback beside the inline widget. | — | homepage `#booking` | Preserve one widget and the adjacent recovery link | resolved |
+| U-06 | The homepage conversion hub is the only Calendly surface and uses one explicit external `View Available Times →` action, avoiding an embedded-widget dependency. | — | homepage `#booking` | Preserve the compact action; do not restore the widget or recovery-link pattern without an approved decision. | resolved |
 | U-09 | JS-off: forms have no `action` fallback (dead without JS) — acceptable for this audience; content itself has static parity (kept from Phase 1 strengths). | 0 | `inquiry.ts` design; #4119 §1 | none — recorded so nobody "fixes" it into a worse pattern | pass |
 
 **Trunk Test** (Krug), all pages: site ID ✓ (logo) · page name ✓ (H1 + `<title>` correct on all

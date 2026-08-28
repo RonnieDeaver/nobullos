@@ -1,11 +1,14 @@
 /* test-registration
 {
-  "name": "Task-gate evidence ledger and 42-day report (Task #5061)",
+  "name": "Task-gate evidence ledger and retention-window report (Task #5061)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #5061: the CI control-plane re-review depends on one privacy-safe, bounded observation per completed gate. This fast unit/contract suite proves canonical field stripping, age/count retention, observation-ID de-duplication, 42-day median and unrelated-to-diff fraction math, and pass/fail gate wiring. DB-free, network-free, tmpdir-only.",
+  "smokeReason": "Task #5061: the CI control-plane re-review depends on one privacy-safe, bounded observation per completed gate. This fast unit/contract suite proves canonical field stripping, age/count retention, observation-ID de-duplication, retention-window median and unrelated-to-diff fraction math, minimum-observation readiness floor, and pass/fail gate wiring. DB-free, network-free, tmpdir-only.",
   "scanPaths": [
     "scripts/gate.ts",
+    "scripts/link-task-gate-delivery.ts",
+    "scripts/post-merge.sh",
+    "scripts/taskGatePolicy.ts",
     "scripts/taskGateEvidence.ts",
     "scripts/report-task-gate-evidence.ts",
     "tests/run-all.ts",
@@ -18,8 +21,8 @@
 test-registration */
 
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -27,13 +30,20 @@ import { pathToFileURL } from "node:url";
 import { formatTaskGateEvidenceReport } from "../scripts/report-task-gate-evidence";
 import {
   TASK_GATE_EVIDENCE_MAX_RECORDS,
+  TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS,
   TASK_GATE_EVIDENCE_RETENTION_DAYS,
   TASK_GATE_EVIDENCE_SCHEMA_VERSION,
+  attachTaskGateDelivery,
   appendTaskGateEvidence,
+  buildTaskGateProvenance,
   buildTaskGateEvidenceReport,
+  captureTaskGateSource,
   readTaskGateEvidence,
   type TaskGateEvidenceRecord,
 } from "../scripts/taskGateEvidence";
+import { isRailProof } from "../scripts/gate";
+import { cliMain as linkDeliveryCliMain } from "../scripts/link-task-gate-delivery";
+import { buildSweepReport, type SweepTestResult } from "../server/services/regressionSweep";
 
 type TestFn = () => void | Promise<void>;
 const tests: Array<{ name: string; fn: TestFn }> = [];
@@ -63,6 +73,7 @@ function record(overrides: Partial<TaskGateEvidenceRecord> = {}): TaskGateEviden
       unattributable: 0,
       unknown: 0,
     },
+    ...(overrides.provenance ? { provenance: overrides.provenance } : {}),
     ...(overrides.performance ? { performance: overrides.performance } : {}),
   };
 }
@@ -125,11 +136,11 @@ function performance(
 }
 
 test("writer strips foreign/privacy-sensitive fields, de-duplicates, prunes age, and caps count", () => {
-  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-"));
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-concurrent-"));
   const path = join(dir, "evidence.jsonl");
   try {
     const oldFinished = new Date(NOW.getTime() - (TASK_GATE_EVIDENCE_RETENTION_DAYS + 1) * DAY_MS);
-    const oldStarted = new Date(oldFinished.getTime() - 1000);
+  const oldStarted = new Date(NOW.getTime() - 50 * DAY_MS);
     const seed: TaskGateEvidenceRecord[] = [
       record({
         observationId: `${oldStarted.toISOString()}:1`,
@@ -165,7 +176,11 @@ test("writer strips foreign/privacy-sensitive fields, de-duplicates, prunes age,
     const retained = readTaskGateEvidence(path);
     assert.equal(retained.length, TASK_GATE_EVIDENCE_MAX_RECORDS);
     assert.equal(retained.filter((item) => item.observationId === safe.observationId).length, 1);
-    assert.ok(retained.every((item) => Date.parse(item.finishedAt) >= NOW.getTime() - 42 * DAY_MS));
+    assert.ok(
+      retained.every(
+        (item) => Date.parse(item.finishedAt) >= NOW.getTime() - TASK_GATE_EVIDENCE_RETENTION_DAYS * DAY_MS,
+      ),
+    );
     const retainedSafe = retained.find((item) => item.observationId === safe.observationId)!;
     assert.equal(retainedSafe.performance?.runner?.requestedShardCount, 4);
     assert.deepEqual(retainedSafe.performance?.runner?.shardCapReasons, ["selected-suite-count"]);
@@ -187,7 +202,192 @@ test("writer strips foreign/privacy-sensitive fields, de-duplicates, prunes age,
   }
 });
 
-test("42-day report de-duplicates observations before median and attribution math", () => {
+test("provenance is minimal, validated, and delivery attachment fails closed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-provenance-"));
+  const ledgerDir = mkdtempSync(join(tmpdir(), "task-gate-provenance-ledger-"));
+  const path = join(ledgerDir, "evidence.jsonl");
+  try {
+    const git = (args: string[]) => {
+      const result = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.invalid"]);
+    git(["config", "user.name", "Test"]);
+    writeFileSync(join(dir, "tracked.txt"), "before\n");
+    git(["add", "tracked.txt"]);
+    git(["commit", "-qm", "base"]);
+    writeFileSync(join(dir, "tracked.txt"), "after\n");
+    writeFileSync(join(dir, "untracked.txt"), "included\n");
+    const source = captureTaskGateSource(dir);
+    assert.ok(source, "the exact dirty source tree is captured without changing the real index");
+    const provenance = buildTaskGateProvenance({
+      taskRef: "#5290",
+      validatedCommit: source.validatedCommit.toUpperCase(),
+      validatedTree: source.validatedTree.toUpperCase(),
+    });
+    assert.deepEqual(provenance, {
+      schemaVersion: 1,
+      taskRef: "5290",
+      ...source,
+    });
+    assert.equal(
+      buildTaskGateProvenance({
+        taskRef: "task-5290",
+        validatedCommit: source.validatedCommit,
+        validatedTree: source.validatedTree,
+      }),
+      undefined,
+    );
+    const linkedRecord = record({
+      observationId: "2026-08-19T11:59:59.000Z:5290",
+      provenance,
+    });
+    assert.equal(appendTaskGateEvidence(linkedRecord, { ledgerPath: path, now: NOW }), true);
+    git(["add", "-A"]);
+    git(["commit", "-qm", "delivery"]);
+    const deliveryCommit = git(["rev-parse", "HEAD"]);
+    assert.equal(git(["rev-parse", "HEAD^{tree}"]), source.validatedTree);
+    assert.equal(
+      attachTaskGateDelivery(
+        {
+          observationId: linkedRecord.observationId,
+          taskRef: "9999",
+          ...source,
+          deliveryCommit,
+        },
+        { ledgerPath: path, repoRoot: dir, now: NOW },
+      ),
+      false,
+      "a task mismatch cannot relink an observation",
+    );
+    assert.equal(
+      attachTaskGateDelivery(
+        {
+          observationId: linkedRecord.observationId,
+          taskRef: "5290",
+          ...source,
+          deliveryCommit,
+        },
+        { ledgerPath: path, repoRoot: dir, now: NOW },
+      ),
+      true,
+    );
+    assert.equal(readTaskGateEvidence(path)[0].provenance?.deliveryCommit, deliveryCommit);
+    assert.equal(
+      attachTaskGateDelivery(
+        {
+          observationId: linkedRecord.observationId,
+          taskRef: "5290",
+          ...source,
+          deliveryCommit: "c".repeat(40),
+        },
+        { ledgerPath: path, repoRoot: dir, now: NOW },
+      ),
+      false,
+      "a conflicting delivery replay cannot rewrite history",
+    );
+    assert.equal(
+      linkDeliveryCliMain({
+        TASK_GATE_OBSERVATION_ID: linkedRecord.observationId,
+        TASK_GATE_TASK_REF: "5290",
+        TASK_GATE_VALIDATED_COMMIT: source.validatedCommit,
+        TASK_GATE_VALIDATED_TREE: source.validatedTree,
+        TASK_GATE_DELIVERY_COMMIT: deliveryCommit,
+        TASK_GATE_EVIDENCE_PATH: path,
+        TASK_GATE_REPO_ROOT: dir,
+      }),
+      0,
+      "the completion adapter exposes the exact merge-boundary handoff",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(ledgerDir, { recursive: true, force: true });
+  }
+});
+
+test("malformed provenance degrades to unknown without erasing aggregate evidence", () => {
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-malformed-provenance-"));
+  const path = join(dir, "evidence.jsonl");
+  try {
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...record(),
+        provenance: {
+          schemaVersion: 1,
+          taskRef: "not-a-task",
+          validatedCommit: "not-a-commit",
+          validatedTree: "not-a-tree",
+          deliveryCommit: "also-not-a-commit",
+        },
+      }) + "\n",
+    );
+    const retained = readTaskGateEvidence(path);
+    assert.equal(retained.length, 1);
+    assert.equal(retained[0].provenance, undefined);
+    assert.equal(
+      buildTaskGateEvidenceReport(retained, NOW).validationHistory.unknown.observations,
+      1,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("report counts only complete provenance chains as observed validation history", () => {
+  const linkedPass = record({
+    provenance: buildTaskGateProvenance({
+      taskRef: "5290",
+      validatedCommit: "a".repeat(40),
+      validatedTree: "1".repeat(40),
+      deliveryCommit: "b".repeat(40),
+    }),
+  });
+  const linkedFailure = record({
+    observationId: "2026-08-19T11:59:58.000Z:5291",
+    verdict: "fail",
+    provenance: buildTaskGateProvenance({
+      taskRef: "5291",
+      validatedCommit: "c".repeat(40),
+      validatedTree: "2".repeat(40),
+      deliveryCommit: "d".repeat(40),
+    }),
+  });
+  const incomplete = record({
+    observationId: "2026-08-19T11:59:57.000Z:5292",
+    provenance: buildTaskGateProvenance({
+      taskRef: "5292",
+      validatedCommit: "e".repeat(40),
+      validatedTree: "3".repeat(40),
+    }),
+  });
+  const report = buildTaskGateEvidenceReport([linkedPass, linkedFailure, incomplete], NOW);
+  assert.deepEqual(report.validationHistory.observed, {
+    linkedPasses: 1,
+    linkedFailures: 1,
+  });
+  assert.equal(report.validationHistory.unknown.observations, 1);
+  const malformedDirect = {
+    ...record({ observationId: "2026-08-19T11:59:56.000Z:5293" }),
+    provenance: {
+      schemaVersion: 1,
+      taskRef: "5293",
+      validatedCommit: "f".repeat(40),
+      validatedTree: "4".repeat(40),
+      deliveryCommit: "not-a-commit",
+    },
+  } as unknown as TaskGateEvidenceRecord;
+  const directReport = buildTaskGateEvidenceReport([malformedDirect], NOW);
+  assert.deepEqual(directReport.validationHistory.observed, {
+    linkedPasses: 0,
+    linkedFailures: 0,
+  });
+  assert.equal(directReport.validationHistory.unknown.observations, 1);
+});
+
+test("retention-window report de-duplicates observations before median and attribution math", () => {
   const startedA = "2026-08-18T10:00:00.000Z";
   const startedB = "2026-08-17T10:00:00.000Z";
   const duplicateOld = record({
@@ -214,7 +414,7 @@ test("42-day report de-duplicates observations before median and attribution mat
     startedAt: startedB,
     finishedAt: "2026-08-17T10:00:00.500Z",
     wallMs: 500,
-    selectionMode: "full-smoke-fallback",
+    selectionMode: "deferred-central-integrity",
     executedCount: 7,
     skippedCount: 0,
     deferredCount: 0,
@@ -316,11 +516,23 @@ test("42-day report de-duplicates observations before median and attribution mat
     inWindow: 3,
     outsideWindow: 1,
   });
+  assert.deepEqual(report.readiness, {
+    minObservationsForReadiness: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS,
+    observedInWindow: 3,
+    meetsObservationFloor: false,
+  });
   assert.equal(report.medianWallMs, 500);
   assert.equal(report.p95WallMs, 700);
   assert.deepEqual(report.verdicts, { pass: 2, fail: 1 });
+  assert.deepEqual(report.dispositions, {
+    "executed-and-passed": 2,
+    "reused-accepted-green-evidence": 0,
+    "deferred-and-not-verified": 0,
+    "quarantined-non-blocking": 0,
+    "blocking-failure": 1,
+  });
   assert.equal(report.selectionModes["full-smoke"], 2);
-  assert.equal(report.selectionModes["full-smoke-fallback"], 1);
+  assert.equal(report.selectionModes["deferred-central-integrity"], 1);
   assert.deepEqual(report.execution, { executed: 20, skipped: 0, deferred: 0 });
   assert.deepEqual(report.failureAttribution, {
     inherited: 3,
@@ -330,6 +542,55 @@ test("42-day report de-duplicates observations before median and attribution mat
     total: 6,
     unrelatedToDiff: 3,
     unrelatedToDiffFraction: 0.5,
+  });
+  assert.deepEqual(report.validationHistory, {
+    observed: { linkedPasses: 0, linkedFailures: 0 },
+    requiredButUnobserved: {
+      count: null,
+      reason: "policy requirements are not execution observations",
+    },
+    documentationOnlyMentions: {
+      count: null,
+      reason: "documentation mentions are not execution observations",
+    },
+    unknown: {
+      observations: 3,
+      reason: "missing or malformed task-delivery-validation provenance",
+    },
+  });
+  assert.deepEqual(report.costBoundary, {
+    repositoryValidation: {
+      status: "measured-resource-usage",
+      observations: 3,
+      totalWallMs: 1500,
+      resourceTelemetryObservations: 3,
+      totalCpuMs: 55_000,
+    },
+    platformOrModelBilling: {
+      status: "unavailable",
+      reason: "repository telemetry does not expose Replit, model, or platform billing",
+    },
+    affordability: {
+      monthlyCeilingUsd: 5_000,
+      attributableSpendUsd: null,
+      monthlyNormalizedSpendUsd: null,
+      outcome: "inconclusive",
+      reason: "no observable currency billing or monthly task-volume denominator",
+    },
+  });
+  assert.deepEqual(report.outcomes, {
+    execution: {
+      executedSuites: 20,
+      greenSkippedSuites: 0,
+      deferredNotVerifiedSuites: 0,
+    },
+    observations: {
+      quarantinedNonBlocking: 0,
+      inheritedFailures: 3,
+      taskCausedFailures: 1,
+      unresolvedFailures: 2,
+      incompleteVerification: 0,
+    },
   });
   assert.deepEqual(report.performance.lint.cache, {
     eligibleChecks: 9,
@@ -406,13 +667,44 @@ test("42-day report de-duplicates observations before median and attribution mat
   );
   assert.equal(report.performance.resources.p95MaxRssKb, 120_000);
   const text = formatTaskGateEvidenceReport(report);
+  assert.ok(
+    text.includes("Selection evidence:") &&
+      text.includes("related-smoke") &&
+      text.includes("deferred-central-integrity"),
+    "report distinguishes precise related selection from deferred broad integrity",
+  );
   assert.ok(text.includes("Completed-gate wall time: median 0.01 min; p95 0.01 min"));
   assert.ok(text.includes("cache hits=4, misses=5, hit rate=44.4%"));
+  assert.ok(
+    text.includes("Replit/model/platform billing=unavailable") &&
+      text.includes("Affordability: $5,000/month ceiling; attributable spend=unavailable") &&
+      text.includes("outcome=inconclusive") &&
+      text.includes("Outcome separation: executed=20, green-skipped=0, deferred-not-verified=0; quarantined=0, inherited=3, task-caused=1, unresolved=2, incomplete=0."),
+    "report distinguishes measured repository resource use from unavailable billing and rejects a savings claim",
+  );
   assert.ok(text.includes("Runner evidence: 3 observation(s), sharded=2, lane utilization=100.0%"));
   assert.ok(text.includes("Shard decisions: 3 source-tagged observation(s); sources serial=1, flag=1, env=0, default=1"));
   assert.ok(text.includes("Shard setting comparison: 2 qualified (passing full-smoke, zero-skip, zero-deferral) observation(s); 1 runner observation(s) excluded."));
   assert.ok(text.includes("requested=6 (flag), n=1, executed=10, effective=4-4"));
   assert.ok(text.includes("Unrelated-to-diff failure fraction: 50.0% (3/6)"));
+  assert.ok(
+    text.includes("observed linked validator failures=0, unknown=3") &&
+      text.includes("Policy-required but unobserved checks: not counted") &&
+      text.includes("Documentation-only mentions: not counted"),
+  );
+  assert.ok(
+    text.includes(
+      "Dispositions: executed-and-passed=2, reused-accepted-green-evidence=0, deferred-and-not-verified=0, quarantined-non-blocking=0, blocking-failure=1",
+    ),
+    "report names each bounded task-validation disposition separately",
+  );
+  assert.ok(
+    text.includes(
+      `Evidence readiness: 3/${TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS} completed-gate observation(s) ` +
+        "in the 14-day window (floor not met)",
+    ),
+    "report states the minimum-observation readiness floor alongside the calendar window",
+  );
 
   const reversed = buildTaskGateEvidenceReport(
     [duplicateNewest, duplicateOld, second, outside],
@@ -422,8 +714,48 @@ test("42-day report de-duplicates observations before median and attribution mat
   assert.deepEqual(reversed.failureAttribution, report.failureAttribution);
 });
 
+test("readiness floor is met only once in-window observations reach the minimum count", () => {
+  const below = Array.from({ length: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS - 1 }, (_, index) => {
+    const startedAt = new Date(NOW.getTime() - 60_000 - index * 1_000).toISOString();
+    return record({
+      observationId: `${startedAt}:${500 + index}`,
+      startedAt,
+      finishedAt: new Date(NOW.getTime() - 30_000 - index * 1_000).toISOString(),
+    });
+  });
+  const belowReport = buildTaskGateEvidenceReport(below, NOW);
+  assert.deepEqual(belowReport.readiness, {
+    minObservationsForReadiness: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS,
+    observedInWindow: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS - 1,
+    meetsObservationFloor: false,
+  });
+
+  const atFloor = [
+    ...below,
+    record({
+      observationId: "2026-08-19T11:00:00.000Z:999",
+      startedAt: "2026-08-19T11:00:00.000Z",
+      finishedAt: "2026-08-19T11:00:01.000Z",
+    }),
+  ];
+  const atFloorReport = buildTaskGateEvidenceReport(atFloor, NOW);
+  assert.deepEqual(atFloorReport.readiness, {
+    minObservationsForReadiness: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS,
+    observedInWindow: TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS,
+    meetsObservationFloor: true,
+  });
+  assert.ok(
+    formatTaskGateEvidenceReport(atFloorReport).includes(
+      `Evidence readiness: ${TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS}/` +
+        `${TASK_GATE_EVIDENCE_MIN_OBSERVATIONS_FOR_READINESS} completed-gate observation(s) ` +
+        "in the 14-day window (floor met)",
+    ),
+    "formatted report reflects a met observation floor",
+  );
+});
+
 test("legacy runner observations without batch-efficiency fields remain valid and report unavailable averages honestly", () => {
-  const runner = performance().runner;
+  const runner = readFileSync("tests/run-all.ts", "utf8");
   if (!runner) throw new Error("fixture unexpectedly omitted runner performance");
   const legacyRunner = { ...runner } as Record<string, unknown>;
   for (const field of [
@@ -455,6 +787,28 @@ test("legacy runner observations without batch-efficiency fields remain valid an
   assert.equal(report.performance.runner.batching.peakWorkerRssKb, 0);
   assert.equal(report.performance.runner.batching.averageSuitesPerWorker, null);
   assert.equal(report.performance.runner.batching.averageSoloFirstAttemptMs, null);
+});
+
+test("legacy deferred records remain not verified in the disposition report", () => {
+  const report = buildTaskGateEvidenceReport(
+    [
+      record({
+        executedCount: 2,
+        skippedCount: 3,
+        deferredCount: 4,
+        verdict: "pass",
+        // No policy fields: this simulates a retained pre-policy observation.
+      }),
+    ],
+    NOW,
+  );
+  assert.deepEqual(report.dispositions, {
+    "executed-and-passed": 1,
+    "reused-accepted-green-evidence": 1,
+    "deferred-and-not-verified": 1,
+    "quarantined-non-blocking": 0,
+    "blocking-failure": 0,
+  });
 });
 
 test("benchmark rows exclude non-comparable gates while retaining their global decision evidence", () => {
@@ -548,7 +902,7 @@ test("invalid aggregate telemetry is rejected while legacy observations remain r
       },
     }),
   });
-  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-invalid-"));
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-concurrent-"));
   const path = join(dir, "evidence.jsonl");
   try {
     assert.equal(appendTaskGateEvidence(invalid, { ledgerPath: path, now: NOW }), false);
@@ -564,7 +918,7 @@ test("invalid aggregate telemetry is rejected while legacy observations remain r
 });
 
 test("telemetry IO failures fall open without changing evidence callers", () => {
-  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-io-failure-"));
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-concurrent-"));
   const blockingFile = join(dir, "not-a-directory");
   writeFileSync(blockingFile, "block ledger parent");
   try {
@@ -577,6 +931,20 @@ test("telemetry IO failures fall open without changing evidence callers", () => 
         false,
       );
     });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a crashed stale recovery owner cannot wedge the evidence ledger", () => {
+  const dir = mkdtempSync(join(tmpdir(), "task-gate-evidence-stale-recovery-"));
+  const path = join(dir, "evidence.jsonl");
+  const recovery = `${path}.lock.recovery`;
+  try {
+    mkdirSync(recovery);
+    writeFileSync(join(recovery, "owner"), "2147483647:0");
+    assert.equal(appendTaskGateEvidence(record(), { ledgerPath: path, now: NOW }), true);
+    assert.equal(readTaskGateEvidence(path).length, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -638,6 +1006,22 @@ test("gate records both final verdict paths and docs point to the report", () =>
   assert.match(gate, /summarizeLintPerformance/);
   assert.match(gate, /reused cached green verdict/);
   assert.match(gate, /appendTaskGateEvidence\(record\)/);
+  assert.match(gate, /TASK_GATE_TASK_REF/);
+  assert.match(gate, /captureTaskGateSource/);
+  assert.match(gate, /observationId=\$\{record\.observationId\}/);
+  assert.doesNotMatch(gate, /deliveryCommit: process\.env\.TASK_GATE_DELIVERY_COMMIT/);
+  const postMerge = readFileSync("scripts/post-merge.sh", "utf8");
+  assert.match(postMerge, /scripts\/link-task-gate-delivery\.ts/);
+  assert.match(postMerge, /TASK_GATE_VALIDATED_TREE/);
+  assert.match(postMerge, /TASK_GATE_DELIVERY_COMMIT="\$CANARY_MERGE_SHA"/);
+  assert.match(gate, /classifyTaskGateDisposition/);
+  assert.match(gate, /currentTaskTouchesTaskControlPlane/);
+  assert.match(gate, /computeChangedFiles\(makeGitRunner\(ROOT\), process\.env\)/);
+  assert.match(gate, /TEST_FORCE_ALL === "1"/);
+  assert.match(gate, /effectiveVerdict === "fail"/);
+  assert.match(gate, /taskGateRailProof/);
+  assert.match(gate, /primaryDisposition: policy\.primaryDisposition/);
+  assert.match(gate, /dispositions: policy\.dispositions/);
   assert.match(gate, /TEST_TASK_GATE_SWEEP_REPORT_PATH: GATE_SWEEP_REPORT_PATH/);
   assert.match(gate, /TEST_TASK_GATE_ATTRIBUTION_REPORT_PATH: GATE_ATTRIBUTION_REPORT_PATH/);
   assert.match(gate, /unlinkSync\(path\)/);
@@ -662,6 +1046,106 @@ test("gate records both final verdict paths and docs point to the report", () =>
       `${path} must point its re-review reader to the task-gate evidence report`,
     );
   }
+  const testing = readFileSync("TESTING.md", "utf8");
+  assert.ok(testing.includes("Bounded task-validation policy (owner-approved)"));
+  for (const label of [
+    "executed-and-passed",
+    "reused-accepted-green-evidence",
+    "deferred-and-not-verified",
+    "quarantined-non-blocking",
+    "blocking-failure",
+  ]) {
+    assert.ok(testing.includes(`\`${label}\``), `policy doc names ${label}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// taskGateRailProof: writer→receipt→reader contract (buildSweepReport must
+// thread meta.taskGateRailProof into the returned report, or the private gate
+// receipt silently drops the field on JSON.stringify and the reader's
+// isRailProof rejects it as malformed even when every rail suite passed).
+// ---------------------------------------------------------------------------
+
+const RAIL_META = {
+  startedAt: "2026-08-19T11:00:00.000Z",
+  finishedAt: "2026-08-19T11:05:00.000Z",
+  mode: "smoke" as const,
+};
+
+function railResult(name: string): SweepTestResult {
+  return {
+    name,
+    file: `tests/${name}.test.ts`,
+    outcome: "passed",
+    quarantined: false,
+    attempts: 1,
+    elapsedMs: 500,
+  };
+}
+
+test("valid rail proof: buildSweepReport threads it through and the JSON receipt round-trip satisfies isRailProof", () => {
+  const railProof = {
+    directAffected: { selected: 3, executed: 3, skippedGreen: 0, deferred: 0 },
+    core: { selected: 55, executed: 53, skippedGreen: 2, deferred: 0 },
+  };
+  const report = buildSweepReport([railResult("A")], {
+    ...RAIL_META,
+    taskGateRailProof: railProof,
+  });
+  assert.deepEqual(report.taskGateRailProof, railProof);
+
+  // Exercise the exact write→read path: JSON.stringify (as tests/run-all.ts
+  // writes the private receipt) then JSON.parse (as scripts/gate.ts reads it
+  // back), and confirm the reader's own predicate accepts the shape.
+  const roundTripped = JSON.parse(JSON.stringify(report)) as { taskGateRailProof?: unknown };
+  assert.ok(isRailProof(roundTripped.taskGateRailProof), "round-tripped rail proof must satisfy isRailProof");
+});
+
+test("missing rail proof: buildSweepReport omits the field (undefined) when meta does not supply it, and isRailProof rejects the resulting receipt", () => {
+  const report = buildSweepReport([railResult("A")], RAIL_META);
+  assert.equal(report.taskGateRailProof, undefined);
+
+  const roundTripped = JSON.parse(JSON.stringify(report)) as { taskGateRailProof?: unknown };
+  assert.equal("taskGateRailProof" in roundTripped, false, "JSON.stringify drops the undefined key entirely");
+  assert.equal(isRailProof(roundTripped.taskGateRailProof), false);
+});
+
+test("malformed rail proof shapes are all rejected by isRailProof", () => {
+  assert.equal(isRailProof(undefined), false);
+  assert.equal(isRailProof(null), false);
+  assert.equal(isRailProof({}), false);
+  assert.equal(isRailProof({ directAffected: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 } }), false, "missing core rail");
+  assert.equal(
+    isRailProof({
+      directAffected: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+      core: { selected: 1, executed: 1, skippedGreen: 0 /* missing deferred */ },
+    }),
+    false,
+  );
+  assert.equal(
+    isRailProof({
+      directAffected: { selected: -1, executed: 1, skippedGreen: 0, deferred: 0 },
+      core: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+    }),
+    false,
+    "negative counts are rejected",
+  );
+  assert.equal(
+    isRailProof({
+      directAffected: { selected: 1.5, executed: 1, skippedGreen: 0, deferred: 0 },
+      core: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+    }),
+    false,
+    "non-integer counts are rejected",
+  );
+  assert.equal(
+    isRailProof({
+      directAffected: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+      core: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+    }),
+    true,
+    "a fully-shaped, non-negative-integer rail proof is accepted",
+  );
 });
 
 async function main(): Promise<void> {

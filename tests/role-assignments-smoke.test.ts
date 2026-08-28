@@ -239,6 +239,20 @@ import { resolve } from "node:path";
     pageSource.includes('apiScope="universal"'),
     "member picker must use the neutral assignment API from the universal console",
   );
+  for (const marker of [
+    'data-testid="role-column-setup-section"',
+    'data-testid="role-column-readiness"',
+    'data-testid="button-recheck-role-columns"',
+    "ID, type & cardinality verified",
+    "Map field (paused)",
+    "Record owner approval",
+    "mapped client",
+  ]) {
+    assert.ok(
+      pageSource.includes(marker),
+      `Role Assignments must expose canonical ClickUp role-column setup: ${marker}`,
+    );
+  }
   console.log("  ✓ E: RoleAssignments page renders supported-role gaps and a Doer/Checker-only bulk flow");
 }
 

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "PDF parser empty/placeholder Common Issues (Task #830)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

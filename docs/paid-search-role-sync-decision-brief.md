@@ -61,7 +61,6 @@ do not create a NoBull-to-ClickUp bidirectional sync.
 | --- | --- | --- | --- | --- |
 | Doer | Primary person accountable for day-to-day Paid Search execution for the client. | `CLICKUP_DOER_FIELD_ID` (`21335dc5-98ba-470c-b8a9-944e3cfed343`) | **One person** | account_manager+ / CEO only |
 | Checker | Independent person accountable for review/quality assurance of the Doer’s Paid Search work. | `CLICKUP_CHECKER_FIELD_ID` (`0bfb4a38-47e4-4343-bb83-051a9fd40122`) | **One person** | account_manager+ / CEO only |
-| Supervisor | Escalation/management role, if the business wants one. It is **not currently a Paid Search Client List field.** | None configured | Do not display or edit until approved | N/A |
 
 The ClickUp API supports a People (`users`) field with multiple values, but the
 existing reader renders only its first value. The proposed product contract is
@@ -69,19 +68,16 @@ therefore deliberately single-person per Doer and Checker. The first release
 must refuse to edit a Client List row whose field metadata or current value is
 not exactly this shape; it must not silently discard extra assignees.
 
-### Account Manager is not Supervisor
+### Account Manager is not a third assignment role
 
-The screenshot label “Account Manager” is **not established as a Supervisor
-field**. In the current app, `account_manager` is a NoBull authorization role;
-the separate Service Desk planning work uses Supervisor for an escalation slot
-and explicitly keeps it off the ClickUp task. Neither establishes a Client List
-Supervisor field. For this feature:
+The screenshot label “Account Manager” does not establish another Client List
+assignment field. In the current app, `account_manager` is a NoBull
+authorization role, not a client assignment slot. For this feature:
 
-* do not map “Account Manager” to Supervisor;
+* do not map “Account Manager” to an inferred assignment role;
 * do not add an inferred third field;
 * use “Doer” in the product until an owner approves a different label; and
-* block a Supervisor column until the owner supplies its business meaning,
-  ClickUp field ID, cardinality, and edit policy.
+* keep the supported assignment contract limited to Doer and Checker.
 
 ### Required owner approvals before implementation
 
@@ -404,7 +400,7 @@ is a fresh, audited, CEO-authorized ClickUp write with a fresh snapshot.
   field IDs, parent parsing, cache/liveness/stale semantics, and display-only
   People extraction.
 * `server/services/adsOs/config.ts` — Client List and existing Doer/Checker
-  configuration; no Supervisor configuration.
+  configuration; no third assignment field.
 * `server/services/clickUpClient.ts` and `server/routes/clickup.ts` — generic
   field setter and per-user routes/webhook path.
 * `shared/models/clickup.ts` and `shared/models/serviceDesk.ts` — per-user

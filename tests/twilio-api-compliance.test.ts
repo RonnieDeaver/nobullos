@@ -4,7 +4,7 @@
   "scanPaths": [
     "server/routes/twilio.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // SPDX-License-Identifier: MIT

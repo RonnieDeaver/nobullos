@@ -1075,6 +1075,15 @@ export interface PeopleFieldMeta {
   type: string;
 }
 
+/** Exact list-level custom-field inventory plus observed parent-task cardinality. */
+export interface CanonicalListFieldEvidence {
+  id: string;
+  label: string;
+  type: string;
+  observedTaskCount: number;
+  observedMaxCardinality: number | null;
+}
+
 /** Evidence subtask entry (GAds or LSA CID row found under a parent). */
 export interface EvidenceSubtask {
   subtaskId: string;
@@ -1113,6 +1122,8 @@ export interface ParentEvidence {
   missingProduct: boolean;
   /** Provenance: other parents sharing the same normalized name (for duplicate detection). */
   duplicateNormNameTaskIds: string[];
+  /** Opaque ClickUp revision evidence (currently date_updated). */
+  remoteRevision: string | null;
 }
 
 export interface DirectoryEvidence {
@@ -1120,6 +1131,9 @@ export interface DirectoryEvidence {
   parents: ParentEvidence[];
   /** Norm name → task IDs with that norm name (for duplicate detection). */
   normNameToTaskIds: Record<string, string[]>;
+  /** Exact metadata from GET /list/:id/field; never matched by label for writes. */
+  fields: CanonicalListFieldEvidence[];
+  canonicalListId: string;
   fetchedAt: number;
 }
 
@@ -1176,10 +1190,14 @@ export async function fetchDirectoryEvidence(): Promise<DirectoryEvidence | null
   const token = await resolveClickUpToken();
   if (!token) return null;
   let tasks: any[];
+  let rawFields: any[];
   try {
     // Pinned to the LITERAL canonical list — never the env-overridable
     // CLICKUP_CLIENT_LIST_ID (Task #5157 fix 7).
-    tasks = await listTasksWithSubtasks(token, EVIDENCE_CANONICAL_LIST_ID);
+    [tasks, rawFields] = await Promise.all([
+      listTasksWithSubtasks(token, EVIDENCE_CANONICAL_LIST_ID),
+      listCustomFields(token, EVIDENCE_CANONICAL_LIST_ID),
+    ]);
   } catch (err: any) {
     console.error(
       `[AdsOs/ClickUp] evidence fetch failed: ${err?.message ?? err}`,
@@ -1284,6 +1302,7 @@ export async function fetchDirectoryEvidence(): Promise<DirectoryEvidence | null
         hasLsa,
         missingProduct,
         duplicateNormNameTaskIds,
+        remoteRevision: t.date_updated == null ? null : String(t.date_updated),
       });
     } catch (err: any) {
       console.warn(
@@ -1292,9 +1311,35 @@ export async function fetchDirectoryEvidence(): Promise<DirectoryEvidence | null
     }
   }
 
+  const fields: CanonicalListFieldEvidence[] = rawFields
+    .filter((field) => field?.id)
+    .map((field) => {
+      const fieldId = String(field.id);
+      let observedTaskCount = 0;
+      let observedMaxCardinality: number | null = null;
+      for (const parent of parents) {
+        const value = (parent.custom_fields ?? []).find(
+          (candidate: any) => String(candidate?.id ?? "") === fieldId,
+        )?.value;
+        if (value === null || value === undefined) continue;
+        observedTaskCount++;
+        const cardinality = Array.isArray(value) ? value.length : 1;
+        observedMaxCardinality = Math.max(observedMaxCardinality ?? 0, cardinality);
+      }
+      return {
+        id: fieldId,
+        label: String(field.name ?? ""),
+        type: String(field.type ?? ""),
+        observedTaskCount,
+        observedMaxCardinality,
+      };
+    });
+
   return {
     parents: evidenceParents,
     normNameToTaskIds,
+    fields,
+    canonicalListId: EVIDENCE_CANONICAL_LIST_ID,
     fetchedAt: Date.now(),
   };
 }

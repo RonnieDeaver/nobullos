@@ -2,7 +2,7 @@
 {
   "name": "Comms sidebar categories — CRUD, reorder, favorites toggle, pin migration, auth gates",
   "smoke": true,
-  "smokeReason": "Sidebar categories: CRUD, reorder, favorites toggle, pin migration, auth gates. DB-free, network-free. The Validate workflow runs npm run gate, and this SMOKE_FILES entry supplies the routine coverage.",
+  "smokeReason": "Sidebar categories: CRUD, reorder, favorites toggle, pin migration, auth gates. DB-free, network-free. The managed Long validation workflow runs the reviewed routine-gate profile, and this SMOKE_FILES entry supplies the routine coverage.",
   "tier": "small"
 }
 test-registration */
@@ -20,7 +20,7 @@ test-registration */
  *  - Auth gates: 401 on all endpoints without a session
  *
  * DB-free, network-free — all storage is stubbed in-memory.
- * The `.replit` `Validate` workflow runs `npm run gate`, and this SMOKE_FILES
+ * The managed Long validation workflow runs the reviewed routine-gate profile, and this SMOKE_FILES
  * entry supplies the routine coverage.
  * DB-free, fully self-contained.
  */

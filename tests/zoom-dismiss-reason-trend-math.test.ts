@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Zoom dismiss-reason trend math",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

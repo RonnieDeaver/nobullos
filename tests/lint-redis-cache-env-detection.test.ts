@@ -2,8 +2,9 @@
 {
   "name": "Redis cache env-detection lint guard (Task #3340)",
   "smoke": true,
-  "smokeReason": "Task #3340: redisCache.ts env-namespace detection drift guard. The Jul 20 incident: ENV_KEY was derived from the nonexistent REPL_DEPLOYMENT var (always falsy in both envs), so dev and prod shared nobull:dev:* on the shared Upstash instance. First assertion group exercises the lint on the exact bug fixture; B1 runs scripts/lint-redis-cache-env-detection.ts on the REAL redisCache.ts. Task #3379 added a repo-wide pass (Group C / runRepoLint): no file under server/ except the allow-listed canonical helper may inline process.env.REPLIT_DEPLOYMENT / REPL_DEPLOYMENT. The Validate workflow runs npm run gate, including this SMOKE_FILES coverage. Fast, DB-free, deterministic.",
-  "tier": "medium"
+  "smokeReason": "Task #3340: redisCache.ts env-namespace detection drift guard. The Jul 20 incident: ENV_KEY was derived from the nonexistent REPL_DEPLOYMENT var (always falsy in both envs), so dev and prod shared nobull:dev:* on the shared Upstash instance. First assertion group exercises the lint on the exact bug fixture; B1 runs scripts/lint-redis-cache-env-detection.ts on the REAL redisCache.ts. Task #3379 added a repo-wide pass (Group C / runRepoLint): no file under server/ except the allow-listed canonical helper may inline process.env.REPLIT_DEPLOYMENT / REPL_DEPLOYMENT. The managed Long validation workflow runs the reviewed routine-gate profile, including this SMOKE_FILES coverage. Fast, DB-free, deterministic.",
+  "tier": "medium",
+  "tierReason": "Scans cache environment usage and validates detection against fixture source trees."
 }
 test-registration */
 // Task #3340 — Drift guard: redisCache.ts env-namespace detection.

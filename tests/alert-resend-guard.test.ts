@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Alert resend guard",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

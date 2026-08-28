@@ -11,7 +11,8 @@
   "extraEnv": {
     "TSX_TSCONFIG_PATH": "./tsconfig.tests.json"
   },
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Renders client-profile criteria access states and verifies interactive authorization behavior."
 }
 test-registration */
 /**

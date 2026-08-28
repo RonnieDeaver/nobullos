@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Front auto closure close dedupe only (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

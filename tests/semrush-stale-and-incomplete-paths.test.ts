@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "SEMrush stale + incomplete-inventory paths",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

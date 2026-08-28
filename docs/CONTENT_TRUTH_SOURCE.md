@@ -43,7 +43,7 @@
 ## 3. Team Members
 
 The shared `TEAM_ROSTER` is the canonical source for homepage and About-page
-order, photos, names, and roles. These 18 records are verified against the
+order, photos, names, and roles. These 20 records are verified against the
 owner-approved homepage roster; neither page maintains a second copy.
 
 | Name | Role | Photo | Status |
@@ -53,17 +53,19 @@ owner-approved homepage roster; neither page maintains a second copy.
 | Brett Barney | Head of Accounts | `brett2.jpg` | VERIFIED |
 | Jeff Mangle | Head of Sales | `jeff.jpg` | VERIFIED |
 | Janno Perez | Head of Paid Search | `janno2.jpg` | VERIFIED |
-| Cam Duhart | Sr. Intake Engineer | `cam.jpg` | VERIFIED |
+| Cam Duhart | Sr. Intake Engineer | `cam-2026.jpg` | VERIFIED |
 | Jake Davis | Sr. Marketing Engineer | `jake2.jpg` | VERIFIED |
-| Cat McManus | Executive Assistant | `cat2.jpg` | VERIFIED |
 | Jason Robbins | Marketing Engineer | `jason.jpg` | VERIFIED |
-| Priyanka Lakha | Onboarding Engineer | `priyanka.jpg` | VERIFIED |
-| Juan Antoniazzi | Paid Search Expert | `juan.jpg` | VERIFIED |
-| Santiago Sanchez | Paid Search Expert | `santiago.jpg` | VERIFIED |
+| Priyanka Lakha | Onboarding Engineer | `priyanka-2026.jpg` | VERIFIED |
+| Cat McManus | Executive Assistant | `cat2.jpg` | VERIFIED |
+| Juan Antoniazzi | Senior Paid Search Expert | `juan.jpg` | VERIFIED |
+| Santiago Sanchez | Senior Paid Search Expert | `santiago.jpg` | VERIFIED |
+| Devin Petersen | Senior Paid Search Expert | `devin-2026.jpg` | VERIFIED |
+| Kreston Nathras | Senior Paid Search Expert | `kreston.jpg` | VERIFIED |
 | Kaylie Dietrichsen | Paid Search Expert | `kaylie.jpg` | VERIFIED |
-| Devin Petersen | Paid Search Expert | `devin.jpg` | VERIFIED |
+| Inno Mdletshe | Paid Search Expert | `inno.jpg` | VERIFIED |
 | Jordan Scrimgeour | Google Business Profile Expert | `jordan.jpg` | VERIFIED |
-| Liri Abdullahu | Intake Expert | `liri.jpg` | VERIFIED |
+| Liri Abdullahu | Intake Engineer | `liri-abdullahu-2026.jpg` | VERIFIED |
 | Cleo Ortega | Virtual Assistant | `cleo.jpg` | VERIFIED |
 | Lotis Florida | Virtual Assistant | `lotis.jpg` | VERIFIED |
 
@@ -83,7 +85,7 @@ owner-approved homepage roster; neither page maintains a second copy.
 - "trilingual… native English and native German… Spanish… lived in Mexico" — NEEDS CLIENT CONFIRMATION
 
 The three biographies above are the only approved biography copy on the About
-page. No biography or personal claim is on file for the other 15 members.
+page. No biography or personal claim is on file for the other 17 members.
 
 ---
 
@@ -219,9 +221,14 @@ Homepage band thumbnails live in `website/public/nobull-redesign/testimonials/` 
 
 ## 7. "As Seen On" Logos
 
-5 media/organization logos at `assets/uploads/2023/12/01.png` through `05.png`. No alt text, captions, or filenames identify the organizations.
+Five protected media/organization-logo assets render in the homepage credibility
+rail. The asset order must remain intact, but no individual organization name,
+caption, or permission claim is published: the images are deliberately emitted
+with empty alt text and `aria-hidden="true"` until the client confirms each
+identity and its publication permission.
 
-**Status: UNVERIFIED** — cannot confirm identities from filenames alone. Operator must provide:
+**Status: UNVERIFIED / OPAQUE** — do not infer identities from filenames,
+asset appearance, or historical copies. Operator must provide:
 - The name of each organization
 - Permission or publication evidence for each "As Seen On" use
 - Updated logo files if any have rebranded
@@ -232,10 +239,10 @@ Homepage band thumbnails live in `website/public/nobull-redesign/testimonials/` 
 
 | Claim | Status | Source |
 |---|---|---|
-| Book title: *Revenue Engineering for Law Firms* | VERIFIED | Amazon listing exists at `B0DPXYCGKK` |
-| Author: Ronnie Deaver | VERIFIED | Amazon listing |
-| Available on Amazon (eBook + Paperback) | VERIFIED | URL resolves |
-| Available on Audible | VERIFIED | URL resolves at `B0DRWC53C9` |
+| Book title: *Revenue Engineering for Law Firms* | VERIFIED | Current site/book source |
+| Author: Ronnie Deaver | VERIFIED | Current site/book source |
+| Current-edition Amazon destination | NEEDS CLIENT CONFIRMATION / NOT PUBLISHED | A historical listing exists, but no client-confirmed current-edition product page is on file. Homepage and excerpt render Amazon `Coming Soon!` as a non-link. |
+| Current-edition Audible destination | NEEDS CLIENT CONFIRMATION / NOT PUBLISHED | A historical listing exists, but no client-confirmed current-edition product page is on file. Homepage and excerpt render Audible `Coming Soon!` as a non-link. |
 | Book cover image (`2025/01/Engineering-Book-cover.png`) | VERIFIED | Asset exists in `website/public/assets/uploads/2025/01/` |
 | Exact cover PNG (`public/assets/book/law-firm-revenue-engine-cover.png`) | VERIFIED | SHA256 `fc0dd6…` per `docs/ASSET_MANIFEST.md` |
 
@@ -278,7 +285,7 @@ heading is exactly `Practice Areas Served`.
 The header links directly to `/about/#practice-areas-served` at every
 generated page depth. There is no live dropdown and no standalone
 practice-area or services route. The same About page also renders the exact
-18-person `TEAM_ROSTER` recorded in §3.
+20-person `TEAM_ROSTER` recorded in §3.
 
 **Status: VERIFIED** (consistent across both sources)
 
@@ -366,7 +373,7 @@ Facts about the High Impact Revenue Session itself, usable in booking CTAs and r
 | The High Impact Revenue Session is free | VERIFIED | Owner confirmed directly in session, 2026-08-07 (operator-provided). Renders in the home closing-band sub-line. |
 | The session is taken by NoBull's Head of Sales | VERIFIED | Owner confirmed directly in session, 2026-08-07. Home closing-band sub-line ("with our Head of Sales"). |
 | The session reviews the firm's real numbers — leads, consults, signed cases, lead→consult and consult→case rates | VERIFIED | Owner confirmed directly in session, 2026-08-07. The closing sub-line renders the shortened list (leads, consults, signed cases). |
-| The session produces a plan tailored to the firm's revenue goals | VERIFIED | Owner confirmed "growth goals" 2026-08-07; rewording to "revenue goals" approved Task #4124, 2026-08-09. Live homepage hero note: "A free working session to build the plan for making your revenue goals a reality." |
+| The session produces a plan tailored to the firm's revenue goals | VERIFIED | Owner confirmed "growth goals" 2026-08-07; rewording to "revenue goals" approved Task #4124, 2026-08-09. The former homepage hero note was retired by Task #5269; the verified fact remains available to booking surfaces. |
 | Session duration | NEEDS CLIENT CONFIRMATION | Not provided as of 2026-08-07 — no duration claim may be published until the operator supplies one. |
 
 ---

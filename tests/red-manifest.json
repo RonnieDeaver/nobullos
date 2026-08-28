@@ -1,23 +1,9 @@
 {
   "schemaVersion": 2,
   "fingerprintAlgo": "fp-v1",
-  "publishedAt": "2026-08-24T07:33:08.517Z",
-  "commit": "e33f00027da499d2cdf0bc6dbc4f91f2adcde0fd",
-  "entries": {
-    "tests/lint-smoke-gate-regression.test.ts": {
-      "failureSignature": "exit 1",
-      "fingerprint": "23b53500835c3ab5d7713e08384b371fd7dbe77d224b0b16dc74288fd201d624",
-      "firstRedAt": "2026-08-24T07:33:08.517Z",
-      "lastRedAt": "2026-08-24T07:33:08.517Z",
-      "culprit": null
-    }
-  },
-  "lints": {
-    "lint-smoke-gate-regression": {
-      "failureSignature": "exit 1",
-      "firstRedAt": "2026-08-20T20:08:41.785Z",
-      "lastRedAt": "2026-08-24T07:33:08.517Z"
-    }
-  },
-  "lastPartialUpdateAt": "2026-08-24T21:19:19.312Z"
+  "publishedAt": "2026-08-27T18:22:45.162Z",
+  "commit": "c7d431c3b1f8251ffa831ffa7876e46c133fb7ec",
+  "entries": {},
+  "lints": {},
+  "lastPartialUpdateAt": "2026-08-28T00:08:57.261Z"
 }

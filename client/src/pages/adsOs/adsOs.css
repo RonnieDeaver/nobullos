@@ -188,6 +188,18 @@
   .ads-os .cat-fill { transition: none !important; }
 }
 
+/* Account Alerts panel on the Hygiene Audit report (Task #5332) — read-only,
+   sourced from the same store the dashboard's ⚠ badge reads. */
+.ads-os .account-alerts-panel { text-align: left; padding: 16px 20px; margin-bottom: 16px; }
+.ads-os .account-alerts-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.ads-os .account-alerts-head h3 { margin: 0; font-size: 15px; color: var(--brand); }
+.ads-os .account-alerts-head .muted { font-size: 12.5px; line-height: 1.4; }
+.ads-os .account-alerts-panel .dash-alerts { padding: 0; }
+.ads-os .account-alerts-empty { font-size: 13px; }
+.ads-os .account-alerts-stale {
+  margin-top: 10px; font-size: 12px; color: var(--muted-ink); font-weight: 600;
+}
+
 .ads-os .banner { border-radius: var(--radius); padding: 12px 16px; margin: 0 0 12px; font-size: 14px; }
 .ads-os .banner-red { background: var(--today); color: var(--bad-ink); border: 1px solid var(--bad-border); }
 .ads-os .banner-amber { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-border); }

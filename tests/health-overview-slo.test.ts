@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Health overview & SLO regression (Task #861)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

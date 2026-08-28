@@ -630,6 +630,10 @@ console.log("\n── 5. Single-writer pin + kill-switch gates quarantine publis
   const killSwitchIdx = src.indexOf(QUARANTINE_KILL_SWITCH_ENV);
   const firstSaveIdx = callPositions[0] ?? src.length;
   check("kill-switch reference precedes saveQuarantineLedger in run-all.ts", killSwitchIdx < firstSaveIdx);
+  check(
+    "non-blocking quarantine verdict tells executors to address the established recurring-failure item",
+    src.includes("next action: address the established recurring-failure item"),
+  );
 }
 
 // ---------------------------------------------------------------------------

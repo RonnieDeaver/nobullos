@@ -1,7 +1,7 @@
 /**
  * Task #5156 — ClickUp Role Projection lane: durable schema.
  *
- * Three tables:
+ * Four tables:
  *
  *   cu_role_projection_destinations
  *     Environment-scoped department+responsibility → ClickUp target mapping
@@ -13,6 +13,10 @@
  *     Stable client→target evidence: exact ClickUp task or list ID,
  *     owning-list evidence (resolved list ID), duplicate provenance JSON.
  *     Unique per (client_id, destination_id).
+ *
+ *   cu_client_list_mappings
+ *     Role-independent canonical Client List identity. One row per NoBull
+ *     client and one row per canonical ClickUp parent task.
  *
  *   cu_role_projection_commands
  *     Durable projection commands: desired NoBull userId + revision,
@@ -69,6 +73,17 @@ export const CU_ROLE_PROJECTION_STATUSES = [
 ] as const;
 export type CuRoleProjectionStatus = (typeof CU_ROLE_PROJECTION_STATUSES)[number];
 
+// ─── Canonical Client List mapping state ──────────────────────────────────────
+
+export const CU_CLIENT_LIST_SYNC_STATES = [
+  "pending_review",
+  "verified",
+  "conflict",
+  "stale",
+  "disabled",
+] as const;
+export type CuClientListSyncState = (typeof CU_CLIENT_LIST_SYNC_STATES)[number];
+
 // ─── Error codes ───────────────────────────────────────────────────────────────
 
 /** Canonical error codes stored in last_error_code. */
@@ -109,6 +124,10 @@ export const cuRoleProjectionDestinations = pgTable(
     targetId: varchar("target_id"),
     // ClickUp People custom-field UUID on the target entity.
     peopleFieldId: varchar("people_field_id").notNull(),
+    // Operator-reviewed field metadata from a fresh ClickUp read. The label is
+    // descriptive only, not a lookup alias: runtime writes address field IDs.
+    peopleFieldLabel: varchar("people_field_label", { length: 255 }),
+    peopleFieldType: varchar("people_field_type", { length: 64 }),
     // Maximum persons in this field (always 1 for role projection; enforced by code).
     maxPeople: integer("max_people").notNull().default(1),
     // "sandbox" | "production"
@@ -146,6 +165,94 @@ export type InsertCuRoleProjectionDestination = z.infer<
   typeof insertCuRoleProjectionDestinationSchema
 >;
 export type CuRoleProjectionDestination = typeof cuRoleProjectionDestinations.$inferSelect;
+
+// ─── Canonical Client List mappings ───────────────────────────────────────────
+// Stable role-independent client identity. Normalized names may suggest an
+// adoption candidate in preflight, but are never persisted as write addresses.
+
+export const cuClientListMappings = pgTable(
+  "cu_client_list_mappings",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id").notNull(),
+    listId: varchar("list_id").notNull(),
+    taskId: varchar("task_id").notNull(),
+    remoteTaskName: text("remote_task_name"),
+    remoteRevision: varchar("remote_revision", { length: 255 }),
+    // Last values written/verified by NoBull. Live differences are direct
+    // vendor drift and require review rather than an automatic overwrite.
+    ownedName: text("owned_name"),
+    ownedArchived: boolean("owned_archived"),
+    provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`),
+    syncState: varchar("sync_state").notNull().default("pending_review"),
+    conflictEvidence: jsonb("conflict_evidence"),
+    // Set only by a fresh canonical-list enumeration that returned taskId.
+    ownershipVerifiedAt: timestamp("ownership_verified_at").notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    oneTaskPerClient: uniqueIndex("cu_client_list_mapping_client_uniq").on(t.clientId),
+    oneClientPerTask: uniqueIndex("cu_client_list_mapping_task_uniq").on(t.listId, t.taskId),
+    taskIdx: index("cu_client_list_mapping_task_idx").on(t.taskId),
+    listIdx: index("cu_client_list_mapping_list_idx").on(t.listId),
+    stateUpdatedIdx: index("cu_client_list_mapping_state_updated_idx").on(
+      t.syncState,
+      t.updatedAt,
+    ),
+  }),
+);
+
+export const insertCuClientListMappingSchema = createInsertSchema(
+  cuClientListMappings,
+).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCuClientListMapping = z.infer<typeof insertCuClientListMappingSchema>;
+export type CuClientListMapping = typeof cuClientListMappings.$inferSelect;
+
+// ─── Canonical Client List lifecycle commands ────────────────────────────────
+
+export const CU_CLIENT_MIRROR_STATUSES = [
+  "pending",
+  "ambiguous",
+  "synced",
+  "blocked",
+  "drift",
+  "failed",
+] as const;
+export type CuClientMirrorStatus = (typeof CU_CLIENT_MIRROR_STATUSES)[number];
+
+export const cuClientMirrorCommands = pgTable(
+  "cu_client_mirror_commands",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id").notNull(),
+    desiredName: text("desired_name").notNull(),
+    desiredArchived: boolean("desired_archived").notNull().default(false),
+    mergedIntoClientId: varchar("merged_into_client_id"),
+    revision: varchar("revision", { length: 64 }).notNull(),
+    status: varchar("status").notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    nextAttemptAt: timestamp("next_attempt_at"),
+    leaseOwner: varchar("lease_owner"),
+    leaseToken: varchar("lease_token"),
+    leaseExpiresAt: timestamp("lease_expires_at"),
+    lastErrorCode: varchar("last_error_code", { length: 64 }),
+    lastError: text("last_error"),
+    terminalAt: timestamp("terminal_at"),
+    verifiedAt: timestamp("verified_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    oneCommandPerClient: uniqueIndex("cu_client_mirror_command_client_uniq").on(t.clientId),
+    drainIdx: index("cu_client_mirror_command_drain_idx").on(t.status, t.nextAttemptAt),
+    leaseIdx: index("cu_client_mirror_command_lease_idx").on(t.leaseExpiresAt),
+  }),
+);
+
+export type CuClientMirrorCommand = typeof cuClientMirrorCommands.$inferSelect;
 
 // ─── Client targets ────────────────────────────────────────────────────────────
 // Stable client→target evidence. One row per (client_id, destination_id).
@@ -263,3 +370,70 @@ export const insertCuRoleProjectionCommandSchema = createInsertSchema(
 ).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCuRoleProjectionCommand = z.infer<typeof insertCuRoleProjectionCommandSchema>;
 export type CuRoleProjectionCommand = typeof cuRoleProjectionCommands.$inferSelect;
+
+// ─── Bidirectional revision contract + immutable transition evidence ──────────
+
+export const cuRoleSyncContracts = pgTable(
+  "cu_role_sync_contracts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id").notNull(),
+    destinationId: varchar("destination_id").notNull(),
+    localRevision: integer("local_revision").notNull().default(0),
+    vendorRevision: varchar("vendor_revision"),
+    lastOutboundRevision: varchar("last_outbound_revision"),
+    lastObservedClickupUserIds: jsonb("last_observed_clickup_user_ids"),
+    conflictState: varchar("conflict_state").notNull().default("none"),
+    conflictEvidence: jsonb("conflict_evidence"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqueClientDestination: uniqueIndex("cu_role_sync_contract_uniq").on(
+      t.clientId,
+      t.destinationId,
+    ),
+    conflictIdx: index("cu_role_sync_contract_conflict_idx").on(t.conflictState),
+  }),
+);
+
+export const cuRoleSyncTransitionEvidence = pgTable(
+  "cu_role_sync_transition_evidence",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    receiptId: varchar("receipt_id"),
+    commandId: varchar("command_id"),
+    clientId: varchar("client_id").notNull(),
+    destinationId: varchar("destination_id"),
+    departmentId: varchar("department_id"),
+    responsibility: varchar("responsibility"),
+    actorType: varchar("actor_type").notNull(),
+    actorId: varchar("actor_id"),
+    source: varchar("source").notNull(),
+    beforeAssignment: jsonb("before_assignment"),
+    afterAssignment: jsonb("after_assignment"),
+    localRevision: integer("local_revision").notNull(),
+    vendorRevision: varchar("vendor_revision"),
+    outcome: varchar("outcome").notNull(),
+    details: jsonb("details"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    receiptDestinationUniq: uniqueIndex("cu_role_sync_evidence_receipt_dest_uniq").on(
+      t.receiptId,
+      t.destinationId,
+    ),
+    clientCreatedIdx: index("cu_role_sync_evidence_client_created_idx").on(
+      t.clientId,
+      t.createdAt,
+    ),
+    destinationCreatedIdx: index("cu_role_sync_evidence_dest_created_idx").on(
+      t.destinationId,
+      t.createdAt,
+    ),
+  }),
+);
+
+export type CuRoleSyncContract = typeof cuRoleSyncContracts.$inferSelect;
+export type CuRoleSyncTransitionEvidence =
+  typeof cuRoleSyncTransitionEvidence.$inferSelect;

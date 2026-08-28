@@ -208,8 +208,14 @@ async function run(): Promise<void> {
       assert.deepEqual(body.job.videoTasks, VALID_VIDEO_TASKS, "videoTasks echo verbatim");
       assert.deepEqual(
         body.candidate,
-        { id: CAND_VALID, name: `${TAG}-cand`, stage: "invited" },
-        "candidate summary keeps its existing contract",
+        {
+          id: CAND_VALID,
+          name: `${TAG}-cand`,
+          stage: "invited",
+          screeningCompletedAt: null,
+          videoCompletedAt: null,
+        },
+        "candidate summary exposes server-confirmed completion state",
       );
     }
 
@@ -243,6 +249,15 @@ async function run(): Promise<void> {
       assert.equal(body.isTimed, true, "legacy is_timed flag still marks the submission timed");
       assert.equal(body.timeLimitSec, 30, "legacy item's time limit still propagates");
       assert.equal(body.questionLayer, "role_behavior", "item layer still propagates");
+
+      const portalRes = await fetch(`${baseUrl}/api/ats/portal/${TOKEN_VALID}`);
+      assert.equal(portalRes.status, 200, "portal remains readable after an answer is submitted");
+      const portalBody = (await portalRes.json()) as any;
+      assert.equal(
+        portalBody.candidate.screeningCompletedAt,
+        null,
+        "answer submission alone does not claim that screening is complete",
+      );
     }
 
     // ── Portal submit on a malformed assessment container: 200 + warning ─
@@ -287,6 +302,14 @@ async function run(): Promise<void> {
       const check = await db.execute(sql`SELECT stage, screening_completed_at FROM ats_candidates WHERE id = ${CAND_MALFORMED}`);
       assert.equal((check.rows[0] as any).stage, "screening", "stage transition is persisted");
       assert.ok((check.rows[0] as any).screening_completed_at, "screening completion timestamp is persisted");
+
+      const portalRes = await fetch(`${baseUrl}/api/ats/portal/${TOKEN_MALFORMED}`);
+      assert.equal(portalRes.status, 200, "completed portal remains readable");
+      const portalBody = (await portalRes.json()) as any;
+      assert.ok(
+        portalBody.candidate.screeningCompletedAt,
+        "portal read returns the server-confirmed screening completion timestamp",
+      );
     }
 
     // ── Final decision GET: legacy decision_json echoes verbatim ─────────

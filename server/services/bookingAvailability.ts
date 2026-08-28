@@ -315,6 +315,127 @@ export async function computeAvailableSlots(
 }
 
 /**
+ * Task #5296 — Onboarding pool availability & assignment (stage 2 of the
+ * New Client Onboarding epic).
+ *
+ * A single onboarding-pool candidate: their identity plus their OWN real
+ * booking page (working-hour rules, buffers, timezone). Deliberately reuses
+ * whatever page each roster member already has (or lazily gets via
+ * `ensureBookingPage`) rather than inventing a second "onboarding
+ * schedule" concept — "who is free" for onboarding is exactly "who is
+ * free on their regular calendar", the same signal single-AM availability
+ * already trusts.
+ */
+export interface PoolCandidate {
+  userId: string;
+  page: BookingPage;
+}
+
+export interface PoolAvailableSlot {
+  startUtc: Date;
+  endUtc: Date;
+  /** Every candidate userId free for this exact slot (candidate order preserved). */
+  availableUserIds: string[];
+}
+
+export interface ComputePoolAvailabilityOptions extends ComputeAvailabilityOptions {
+  /**
+   * Slot length applied uniformly to every candidate. An onboarding call
+   * has one fixed length regardless of who ends up hosting it — this
+   * deliberately overrides each candidate's own `page.durationMinutes`,
+   * which reflects THEIR personal client-meeting length and has nothing
+   * to do with onboarding calls.
+   */
+  durationMinutes: number;
+  /** Buffer overrides applied uniformly; default to each candidate's own page buffers when omitted. */
+  bufferBeforeMinutes?: number;
+  bufferAfterMinutes?: number;
+}
+
+export interface PoolAvailabilityResult {
+  slots: PoolAvailableSlot[];
+  /**
+   * Candidates whose calendar could not be verified for this window — a
+   * fail-closed EXCLUSION from `slots`, never proof they're busy (see
+   * `CalendarBusyUnavailableError`). One candidate's calendar outage must
+   * not take down the whole pool's availability view, but it must also
+   * never silently promote them to "available" — so they're dropped from
+   * the union and reported here so callers can surface the gap.
+   */
+  unresolvedCandidates: Array<{
+    userId: string;
+    transient: boolean;
+    reason: string | null;
+  }>;
+}
+
+/**
+ * Compute available slots across a POOL of candidate users (Task #5296),
+ * generalizing `computeAvailableSlots`'s single-AM contract to N people.
+ * Reuses the exact same per-person calendar-busy/meeting-conflict engine
+ * (one `computeAvailableSlots` call per candidate, run in parallel) and
+ * unions the results by exact slot start time — a slot is available for
+ * the pool the moment at least one candidate is free at that instant, and
+ * `availableUserIds` lists every candidate free then so resolution rules
+ * (default-first, etc.) can be applied at the exact chosen time.
+ */
+export async function computeAvailableSlotsForPool(
+  candidates: PoolCandidate[],
+  options: ComputePoolAvailabilityOptions,
+): Promise<PoolAvailabilityResult> {
+  if (candidates.length === 0) return { slots: [], unresolvedCandidates: [] };
+
+  const { durationMinutes, bufferBeforeMinutes, bufferAfterMinutes, ...rest } = options;
+
+  const settled = await Promise.all(
+    candidates.map(async (c) => {
+      const effectivePage: BookingPage = {
+        ...c.page,
+        durationMinutes,
+        bufferBeforeMinutes: bufferBeforeMinutes ?? c.page.bufferBeforeMinutes,
+        bufferAfterMinutes: bufferAfterMinutes ?? c.page.bufferAfterMinutes,
+      };
+      try {
+        const slots = await computeAvailableSlots(effectivePage, rest);
+        return { userId: c.userId, slots, error: null as CalendarBusyUnavailableError | null };
+      } catch (err) {
+        if (err instanceof CalendarBusyUnavailableError) {
+          return { userId: c.userId, slots: [] as AvailableSlot[], error: err };
+        }
+        throw err;
+      }
+    }),
+  );
+
+  const byStart = new Map<number, PoolAvailableSlot>();
+  const unresolvedCandidates: PoolAvailabilityResult["unresolvedCandidates"] = [];
+  for (const { userId, slots, error } of settled) {
+    if (error) {
+      unresolvedCandidates.push({ userId, transient: error.transient, reason: error.reason });
+      continue;
+    }
+    for (const slot of slots) {
+      const key = slot.startUtc.getTime();
+      const existing = byStart.get(key);
+      if (existing) {
+        existing.availableUserIds.push(userId);
+      } else {
+        byStart.set(key, {
+          startUtc: slot.startUtc,
+          endUtc: slot.endUtc,
+          availableUserIds: [userId],
+        });
+      }
+    }
+  }
+
+  const slots = Array.from(byStart.values()).sort(
+    (a, b) => a.startUtc.getTime() - b.startUtc.getTime(),
+  );
+  return { slots, unresolvedCandidates };
+}
+
+/**
  * Thrown when the AM has an actively-connected Google Calendar credential
  * but the free/busy lookup fails (network error, Google 5xx, token
  * refresh race, etc.). This MUST be treated as fail-closed by callers

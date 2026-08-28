@@ -146,7 +146,7 @@ export async function computeBudgetPacing(customerId: string): Promise<PacingSum
        campaign_budget.amount_micros,
        metrics.cost_micros
      FROM campaign
-     WHERE campaign.status = 'ENABLED'
+     WHERE campaign.status != 'REMOVED'
        AND campaign.advertising_channel_type != 'LOCAL_SERVICES'
        AND ${dateFilter}`,
   );
@@ -274,7 +274,7 @@ export async function fetchLsaDashboard(customerId: string): Promise<LsaDashboar
        metrics.cost_micros,
        metrics.conversions
      FROM campaign
-     WHERE campaign.status = 'ENABLED'
+     WHERE campaign.status != 'REMOVED'
        AND campaign.advertising_channel_type = 'LOCAL_SERVICES'
        AND ${dateFilter}`,
   );

@@ -130,9 +130,28 @@ export function initEngineStory(): void {
 
     window.addEventListener("hashchange", settleFragmentStage);
     settleFragmentStage();
+    // A direct #system arrival can create the trigger while the funnel is
+    // already inside its range. ScrollTrigger's initial refresh usually
+    // catches this, but a short viewport plus a late native fragment layout
+    // can settle one frame later. Re-check once after layout without taking
+    // ownership of scrolling.
+    const syncInitialRange = () => {
+      trigger.refresh();
+      if (trigger.isActive) focusNearestStage();
+      else reset();
+    };
+    // Native initial-fragment positioning is allowed to complete after the
+    // deferred homepage bundle's first frame. A second frame observes that
+    // browser-owned position without changing it.
+    let initialSyncFrame = window.requestAnimationFrame(() => {
+      initialSyncFrame = window.requestAnimationFrame(syncInitialRange);
+    });
+    window.addEventListener("load", syncInitialRange, { once: true });
 
     return () => {
       window.removeEventListener("hashchange", settleFragmentStage);
+      window.removeEventListener("load", syncInitialRange);
+      window.cancelAnimationFrame(initialSyncFrame);
       trigger.kill();
       gsap.killTweensOf(stages);
       gsap.set(stages, { clearProps: "--fn-veil,--fn-lume" });

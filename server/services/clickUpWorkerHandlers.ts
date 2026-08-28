@@ -20,6 +20,8 @@ import { getAccessToken } from "./clickUpIntegration";
 import * as cu from "./clickUpClient";
 import { workerLog } from "./workerLogger";
 import { resolveChecklistStepAssignees } from "./sdChecklistAssignees";
+import { notifyByType } from "./notifications/dispatcher";
+import { applyInboundClickUpRoleChanges } from "./clickUpRoleInboundSync";
 
 export async function handleClickUpHierarchyBackfill(job: WorkQueueJob): Promise<void> {
   const payload = (job.payload ?? {}) as { workspaceId?: string; userId?: string };
@@ -189,6 +191,49 @@ async function fetchAllTasksForList(token: string, listId: string): Promise<any[
   return allTasks;
 }
 
+export function buildClickUpTaskMirrorValues(
+  task: any,
+  workspaceId: string,
+  spaceId: string,
+  folderId: string | null,
+  listId: string,
+  now = new Date(),
+): Record<string, unknown> {
+  return {
+    id: String(task.id),
+    listId,
+    folderId,
+    spaceId,
+    workspaceId,
+    parentId: task.parent ? String(task.parent) : null,
+    name: task.name ?? "",
+    description: task.description ?? null,
+    status: task.status?.status ?? null,
+    statusColor: task.status?.color ?? null,
+    statusType: task.status?.type ?? null,
+    orderIndex: task.orderindex != null ? Number(task.orderindex) : null,
+    dateCreated: task.date_created ?? null,
+    dateUpdated: task.date_updated ?? null,
+    dateDone: task.date_done ?? null,
+    dueDate: task.due_date ?? null,
+    startDate: task.start_date ?? null,
+    priority: task.priority?.id != null ? Number(task.priority.id) : null,
+    priorityName: task.priority?.priority ?? null,
+    timeEstimate: task.time_estimate ?? null,
+    timeSpent: task.time_spent ?? null,
+    creator: task.creator ?? null,
+    assignees: task.assignees ?? null,
+    watchers: task.watchers ?? null,
+    tags: task.tags ?? null,
+    customFields: task.custom_fields ?? null,
+    customType: task.custom_type ?? null,
+    url: task.url ?? null,
+    archived: !!task.archived,
+    syncedAt: now,
+    updatedAt: now,
+  };
+}
+
 async function upsertTask(
   task: any,
   workspaceId: string,
@@ -198,57 +243,20 @@ async function upsertTask(
 ): Promise<void> {
   await withDbAttribution("clickup:backfill:upsertTask", async () => {
     const db = getDb();
+    const values = buildClickUpTaskMirrorValues(
+      task,
+      workspaceId,
+      spaceId,
+      folderId,
+      listId,
+    );
+    const { id: _id, ...mutableValues } = values;
     await db
       .insert(clickupTasks)
-      .values({
-        id: String(task.id),
-        listId,
-        folderId: folderId,
-        spaceId,
-        workspaceId,
-        parentId: task.parent ? String(task.parent) : null,
-        name: task.name ?? "",
-        description: task.description ?? null,
-        status: task.status?.status ?? null,
-        statusColor: task.status?.color ?? null,
-        statusType: task.status?.type ?? null,
-        orderIndex: task.orderindex != null ? Number(task.orderindex) : null,
-        dateCreated: task.date_created ?? null,
-        dateUpdated: task.date_updated ?? null,
-        dateDone: task.date_done ?? null,
-        dueDate: task.due_date ?? null,
-        startDate: task.start_date ?? null,
-        priority: task.priority?.id != null ? Number(task.priority.id) : null,
-        priorityName: task.priority?.priority ?? null,
-        timeEstimate: task.time_estimate ?? null,
-        timeSpent: task.time_spent ?? null,
-        creator: task.creator ?? null,
-        assignees: task.assignees ?? null,
-        watchers: task.watchers ?? null,
-        tags: task.tags ?? null,
-        customFields: task.custom_fields ?? null,
-        url: task.url ?? null,
-        archived: !!task.archived,
-        syncedAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .values(values as any)
       .onConflictDoUpdate({
         target: clickupTasks.id,
-        set: {
-          name: task.name ?? "",
-          status: task.status?.status ?? null,
-          statusColor: task.status?.color ?? null,
-          statusType: task.status?.type ?? null,
-          priority: task.priority?.id != null ? Number(task.priority.id) : null,
-          priorityName: task.priority?.priority ?? null,
-          dueDate: task.due_date ?? null,
-          assignees: task.assignees ?? null,
-          timeSpent: task.time_spent ?? null,
-          dateUpdated: task.date_updated ?? null,
-          archived: !!task.archived,
-          syncedAt: new Date(),
-          updatedAt: new Date(),
-        },
+        set: mutableValues as any,
       });
   });
 }
@@ -385,51 +393,184 @@ export async function handleClickUpSubtreeRefresh(job: WorkQueueJob): Promise<vo
   } as any);
 }
 
+interface ClickUpTaskApplyDeps {
+  getAccessToken: typeof getAccessToken;
+  getTask: typeof cu.getTask;
+  notifyTerminal: typeof notifyByType;
+}
+
+const defaultClickUpTaskApplyDeps: ClickUpTaskApplyDeps = {
+  getAccessToken,
+  getTask: cu.getTask,
+  notifyTerminal: notifyByType,
+};
+let clickUpTaskApplyDeps = defaultClickUpTaskApplyDeps;
+
+export function __test_setClickUpTaskApplyDeps(
+  deps: Partial<ClickUpTaskApplyDeps> | null,
+): void {
+  clickUpTaskApplyDeps = deps
+    ? { ...defaultClickUpTaskApplyDeps, ...deps }
+    : defaultClickUpTaskApplyDeps;
+}
+
+class ClickUpTaskApplyError extends Error {
+  constructor(public readonly code: string) {
+    super(code);
+    this.name = "ClickUpTaskApplyError";
+  }
+}
+
+function safeClickUpTaskFetchError(err: unknown): ClickUpTaskApplyError {
+  const message = err instanceof Error ? err.message : String(err);
+  const status = message.match(/failed \((\d{3})\)/)?.[1];
+  return new ClickUpTaskApplyError(
+    status ? `clickup_task_fetch_http_${status}` : "clickup_task_fetch_failed",
+  );
+}
+
+async function notifyTerminalClickUpTaskApplyFailure(
+  job: WorkQueueJob,
+  payload: {
+    taskId?: string;
+    event?: string;
+    receiptId?: string;
+    scope?: string;
+  },
+  safeError: ClickUpTaskApplyError,
+): Promise<void> {
+  const isCanonical =
+    payload.scope === "canonical_client_list" && !!payload.receiptId;
+  const isFinalAttempt = (job.attemptCount ?? 0) + 1 >= job.maxAttempts;
+  if (!isCanonical || !isFinalAttempt) return;
+  try {
+    await clickUpTaskApplyDeps.notifyTerminal(
+      "integration.clickup.webhook_event_terminal",
+      {
+        text:
+          `A canonical ClickUp task event exhausted retries for task ${payload.taskId ?? "unknown"}. ` +
+          "Review the ClickUp task-apply dead-letter queue.",
+      },
+      {
+        dedupeKey: payload.receiptId!,
+        triggerSource: "scheduled",
+        mirrorDeepLink:
+          "/admin/integrations?tab=work-queue&queue=clickup_task_apply",
+        failureType: safeError.code,
+        metadata: {
+          queueName: "clickup_task_apply",
+          receiptId: payload.receiptId,
+          eventType: payload.event ?? null,
+        },
+      },
+    );
+  } catch {
+    workerLog({
+      event: "job_failed",
+      worker: "clickup_task_apply",
+      taskId: payload.taskId,
+      detail: "terminal notification failed",
+    });
+  }
+}
+
 export async function handleClickUpTaskApply(job: WorkQueueJob): Promise<void> {
-  const payload = (job.payload ?? {}) as { taskId?: string; event?: string; userId?: string };
+  const payload = (job.payload ?? {}) as {
+    taskId?: string;
+    event?: string;
+    userId?: string;
+    receiptId?: string;
+    scope?: string;
+    actorClickupUserId?: string | null;
+    changedFieldIds?: string[];
+  };
   const { taskId } = payload;
-  if (!taskId) {
-    workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "missing taskId" });
-    return;
+  try {
+    if (!taskId) {
+      if (payload.scope === "canonical_client_list") {
+        throw new ClickUpTaskApplyError("clickup_task_identity_missing");
+      }
+      workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "missing taskId" });
+      return;
+    }
+
+    const existingRow = await withDbAttribution("clickup:taskApply:read", async () => {
+      const db = getDb();
+      const [r] = await db
+        .select({ listId: clickupTasks.listId, spaceId: clickupTasks.spaceId, workspaceId: clickupTasks.workspaceId })
+        .from(clickupTasks)
+        .where(eq(clickupTasks.id, taskId))
+        .limit(1);
+      return r;
+    });
+
+    const userId = payload.userId;
+    if (!userId) {
+      if (payload.scope === "canonical_client_list") {
+        throw new ClickUpTaskApplyError("clickup_service_identity_missing");
+      }
+      workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "no userId in payload" });
+      return;
+    }
+
+    let token: string | null;
+    try {
+      token = await clickUpTaskApplyDeps.getAccessToken(userId);
+    } catch {
+      throw new ClickUpTaskApplyError("clickup_service_identity_lookup_failed");
+    }
+    if (!token) {
+      throw new ClickUpTaskApplyError("clickup_service_identity_unavailable");
+    }
+
+    let task: any;
+    try {
+      task = await clickUpTaskApplyDeps.getTask(token, taskId);
+    } catch (err) {
+      throw safeClickUpTaskFetchError(err);
+    }
+
+    const listId = task.list?.id ? String(task.list.id) : existingRow?.listId ?? "";
+    const spaceId = task.space?.id ? String(task.space.id) : existingRow?.spaceId ?? "";
+    const wsId = task.team_id ? String(task.team_id) : existingRow?.workspaceId ?? "";
+
+    try {
+      await upsertTask(task, wsId, spaceId, task.folder?.id ? String(task.folder.id) : null, listId);
+    } catch {
+      throw new ClickUpTaskApplyError("clickup_task_mirror_write_failed");
+    }
+
+    if (
+      payload.scope === "canonical_client_list" &&
+      payload.receiptId
+    ) {
+      await applyInboundClickUpRoleChanges(
+        {
+          receiptId: payload.receiptId,
+          taskId,
+          actorClickupUserId: payload.actorClickupUserId ?? null,
+          changedFieldIds: Array.isArray(payload.changedFieldIds)
+            ? payload.changedFieldIds.map(String)
+            : [],
+          eventType: payload.event ?? "taskUpdated",
+        },
+        task,
+      );
+    }
+
+    await tryCompleteSdTicketMapping(task, listId, {
+      throwOnError: payload.scope === "canonical_client_list",
+    });
+
+    workerLog({ event: "job_completed", worker: "clickup_task_apply", taskId });
+  } catch (err) {
+    const safeError =
+      err instanceof ClickUpTaskApplyError
+        ? err
+        : new ClickUpTaskApplyError("clickup_task_apply_failed");
+    await notifyTerminalClickUpTaskApplyFailure(job, payload, safeError);
+    throw safeError;
   }
-
-  const existingRow = await withDbAttribution("clickup:taskApply:read", async () => {
-    const db = getDb();
-    const [r] = await db
-      .select({ listId: clickupTasks.listId, spaceId: clickupTasks.spaceId, workspaceId: clickupTasks.workspaceId })
-      .from(clickupTasks)
-      .where(eq(clickupTasks.id, taskId))
-      .limit(1);
-    return r;
-  });
-
-  const userId = payload.userId;
-  if (!userId) {
-    workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "no userId in payload" });
-    return;
-  }
-
-  const token = await getAccessToken(userId);
-  if (!token) {
-    workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "user not connected" });
-    return;
-  }
-
-  const task = await cu.getTask(token, taskId).catch(() => null);
-  if (!task) {
-    workerLog({ event: "no_op", worker: "clickup_task_apply", detail: "task not found in ClickUp", taskId });
-    return;
-  }
-
-  const listId = task.list?.id ? String(task.list.id) : existingRow?.listId ?? "";
-  const spaceId = task.space?.id ? String(task.space.id) : existingRow?.spaceId ?? "";
-  const wsId = task.team_id ? String(task.team_id) : existingRow?.workspaceId ?? "";
-
-  await upsertTask(task, wsId, spaceId, task.folder?.id ? String(task.folder.id) : null, listId);
-
-  void tryCompleteSdTicketMapping(task, listId);
-
-  workerLog({ event: "job_completed", worker: "clickup_task_apply", taskId });
 }
 
 // ─── Service-desk post-apply mapping ─────────────────────────────────────────
@@ -438,7 +579,11 @@ export async function handleClickUpTaskApply(job: WorkQueueJob): Promise<void> {
 // the requester user ID resolved from the requester email custom field.
 // Only fills NULL fields — never overwrites values set by manual admin edits.
 
-export async function tryCompleteSdTicketMapping(task: any, resolvedListId: string): Promise<void> {
+export async function tryCompleteSdTicketMapping(
+  task: any,
+  resolvedListId: string,
+  options: { throwOnError?: boolean } = {},
+): Promise<void> {
   try {
     const config = await withDbAttribution("clickup:taskApply:sdConfig", async () => {
       const db = getDb();
@@ -770,11 +915,14 @@ export async function tryCompleteSdTicketMapping(task: any, resolvedListId: stri
       deptResolved: !!resolvedDeptId,
     });
   } catch (err: any) {
+    if (options.throwOnError) {
+      throw new ClickUpTaskApplyError("clickup_task_post_apply_failed");
+    }
     workerLog({
       event: "sd_ticket_mapping_error",
       worker: "clickup_task_apply",
       taskId: task.id,
-      error: err?.message,
+      error: "clickup_task_post_apply_failed",
     });
   }
 }
@@ -959,6 +1107,7 @@ export async function handleClickUpWebhookHealthCheck(job: WorkQueueJob): Promis
               userId: webhook.userId,
               endpoint: webhook.endpoint,
               events: webhook.events,
+              locationType: webhook.locationType,
               locationId: webhook.locationId,
             },
           } as any);
@@ -1000,7 +1149,7 @@ export async function handleClickUpWebhookHealthCheck(job: WorkQueueJob): Promis
 
 /**
  * Deletes a degraded ClickUp webhook and recreates it with the same config.
- * Payload: { webhookId, workspaceId, userId, endpoint, events, locationId? }
+ * Payload: { webhookId, workspaceId, userId, endpoint, events, locationType?, locationId? }
  */
 export async function handleClickUpWebhookRepair(job: WorkQueueJob): Promise<void> {
   const payload = (job.payload ?? {}) as {
@@ -1009,6 +1158,7 @@ export async function handleClickUpWebhookRepair(job: WorkQueueJob): Promise<voi
     userId?: string;
     endpoint?: string;
     events?: any;
+    locationType?: "space" | "folder" | "list" | null;
     locationId?: string | null;
   };
   const { webhookId, workspaceId, userId, endpoint } = payload;
@@ -1041,7 +1191,11 @@ export async function handleClickUpWebhookRepair(job: WorkQueueJob): Promise<voi
   let newHook: any;
   try {
     const events = Array.isArray(payload.events) ? (payload.events as string[]) : ["*"];
-    newHook = await cu.createWebhook(token, workspaceId, endpoint, events, payload.locationId ?? undefined);
+    const location =
+      payload.locationType && payload.locationId
+        ? { type: payload.locationType, id: payload.locationId }
+        : undefined;
+    newHook = await cu.createWebhook(token, workspaceId, endpoint, events, location);
   } catch (err: any) {
     workerLog({ event: "create_failed", worker: "clickup_webhook_repair", webhookId, error: err?.message });
     await withDbAttribution("clickup:webhookRepair:markFailed", async () => {
@@ -1066,6 +1220,7 @@ export async function handleClickUpWebhookRepair(job: WorkQueueJob): Promise<voi
       userId,
       endpoint,
       events: Array.isArray(payload.events) ? payload.events : ["*"],
+      locationType: payload.locationType ?? null,
       locationId: payload.locationId ?? null,
       secret: newSecret,
       health: { status: "active", fail_count: 0 },

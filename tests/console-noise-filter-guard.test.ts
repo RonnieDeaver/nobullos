@@ -3,7 +3,7 @@
   "name": "Rendered-test console-noise filter guard (Task #2827)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2827: the rendered-test console-noise filter guard. Task #2823's shared filter (tests/client/console-noise-filter.mjs) drops the two known-benign jsdom SVG warning shapes from every rendered test run \u2014 a broadened regex or a non-SVG allow-list entry would silently swallow REAL React warnings (missing keys, act() violations, wrong tags), which is invisible by definition. This test asserts the benign shapes ARE dropped, real warnings still print, patterns stay anchored, install is idempotent, and every allow-listed tag is SVG-only. Fast, DB-free, deterministic; the Validate workflow's npm run gate includes this SMOKE_FILES coverage.",
+  "smokeReason": "Task #2827: the rendered-test console-noise filter guard. Task #2823's shared filter (tests/client/console-noise-filter.mjs) drops the two known-benign jsdom SVG warning shapes from every rendered test run \u2014 a broadened regex or a non-SVG allow-list entry would silently swallow REAL React warnings (missing keys, act() violations, wrong tags), which is invisible by definition. This test asserts the benign shapes ARE dropped, real warnings still print, patterns stay anchored, install is idempotent, and every allow-listed tag is SVG-only. Fast, DB-free, deterministic; the managed Long validation workflow runs the reviewed routine-gate profile, including this SMOKE_FILES coverage.",
   "scanPaths": [
     "tests/client/console-noise-filter.mjs"
   ],

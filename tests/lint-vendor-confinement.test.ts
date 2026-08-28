@@ -20,7 +20,7 @@ test-registration */
  *      and require() forms — and does NOT false-positive on prefixed
  *      package names or relative paths.
  *   5. Wiring lockstep: gate.ts LINT_CHECKS registers it and the drift guard
- *      defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  *   6. Host-mode vendors (Task #4193, Front/Zoom): host detection matches
  *      code strings (incl. subdomains/paths), ignores comments and
  *      look-alike domains; net-new host caller ⇒ fail; stale entry ⇒ fail;
@@ -658,8 +658,8 @@ assert(
   "gate.ts LINT_CHECKS registers lint-vendor-confinement",
 );
 assert(
-  /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(drift),
-  "VALIDATION_WORKFLOW uses command npm run gate",
+  /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(drift),
+  "LONG_VALIDATION_WORKFLOW uses the exact managed Long validation command",
 );
 
 console.log(`\nlint-vendor-confinement guard: ${passed} passed, ${failed} failed`);

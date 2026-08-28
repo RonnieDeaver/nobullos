@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Zoom alert preview modes",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -180,4 +180,30 @@ function getSpan(): HTMLElement | null {
   await unmount();
 }
 
+// ── 7. rate = 94.7 → rounds to 95 → green ("g"), matches PERF-01 verdict ────
+{
+  await mount(makeRow(94.7));
+  const span = getSpan();
+  ok(!!span, "94.7: span renders");
+  ok(span!.classList.contains("dash-pill"), "94.7: has dash-pill class");
+  eq(span!.textContent, "95%", "94.7: displays rounded 95%");
+  ok(span!.classList.contains("g"), "94.7: rounds to 95 → class is 'g' (green)");
+  ok(!span!.classList.contains("w"), "94.7: not 'w'");
+  ok(!span!.classList.contains("b"), "94.7: not 'b'");
+  await unmount();
+}
+
+// ── 8. rate = 79.6 → rounds to 80 → amber ("w"), not red ────────────────────
+{
+  await mount(makeRow(79.6));
+  const span = getSpan();
+  ok(!!span, "79.6: span renders");
+  ok(span!.classList.contains("dash-pill"), "79.6: has dash-pill class");
+  eq(span!.textContent, "80%", "79.6: displays rounded 80%");
+  ok(span!.classList.contains("w"), "79.6: rounds to 80 → class is 'w' (amber), not red");
+  ok(!span!.classList.contains("b"), "79.6: not 'b'");
+  ok(!span!.classList.contains("g"), "79.6: not 'g'");
+  await unmount();
+}
+
 console.log(`\n✓ All ${passed} assertions passed.`);

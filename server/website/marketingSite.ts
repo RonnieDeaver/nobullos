@@ -142,13 +142,16 @@ interface SitemapPage {
   path: string;
   title: string;
   priority: string;
+  /** Omitted when no reliable content-modification date is known for this
+      page — never fabricated from the current date (website/generate.ts). */
+  lastmod?: string;
 }
 
 function buildSitemapXml(origin: string, pages: SitemapPage[]): string {
   const urls = pages
     .map(
       (p) =>
-        `  <url><loc>${origin}/${p.path}</loc><priority>${p.priority}</priority></url>`,
+        `  <url><loc>${origin}/${p.path}</loc>${p.lastmod ? `<lastmod>${p.lastmod}</lastmod>` : ""}<priority>${p.priority}</priority></url>`,
     )
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;

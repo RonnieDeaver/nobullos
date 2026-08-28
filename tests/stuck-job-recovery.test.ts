@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Stuck-job recovery: max-processing window + heartbeat ceiling (Task #1056)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

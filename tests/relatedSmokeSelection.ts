@@ -33,14 +33,13 @@
  *      lockfile, tsconfig*, .replit, harness scripts (gate.ts, the gate
  *      lint worker, lint-*, predeploy.sh, post-merge.sh — NOT all of
  *      scripts/, Task #3789), tests/run-all.ts, tests/helpers/, this
- *      selector, core db bootstrap, test-runner deps) widen to the FULL
- *      set: they can affect any test without appearing in any import
- *      closure.
+ *      selector, core db bootstrap, test-runner deps) defer broad coverage to
+ *      central integrity: they can affect any test without appearing in any
+ *      import closure.
  *   5. Every failure of the machinery — git unavailable, base ref invalid,
- *      esbuild trace error, unparseable file — falls OPEN to the full set,
- *      never silently to zero. An EMPTY changed set also falls open to full:
- *      a gate run on a task always has changes, so "nothing changed" means
- *      base detection failed, and core-only on zero information is unsafe.
+ *      esbuild trace error, unparseable file — produces an explicit deferred
+ *      outcome, never silently zero coverage or an automatic full-suite run.
+ *      The bounded result keeps directly identifiable tests and the core set.
  *   6. A non-empty changed set that reaches no smoke test still runs the
  *      always-run CORE subset (repo-scanning lint-guard tests + explicitly
  *      listed cross-cutting invariants, which read source via fs and are
@@ -52,10 +51,11 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import * as esbuild from "esbuild";
+import ts from "typescript";
 
 export interface SmokeTestEntry {
   file: string;
@@ -107,10 +107,19 @@ export interface SelectionDeps {
   /** Task #4560: hard budget for the import trace (same stall protection as
    * the Task #4547 blast-radius expansion). Defaults to
    * SMOKE_RELATED_TRACE_TIMEOUT_MS or 120s. On timeout the selection falls
-   * open to the FULL set with an honest fullReason. */
+   * produce a deferred result with an honest deferredReason. */
   traceTimeoutMs?: number;
   /** Injectable tracer seam (tests exercise the timeout path with it). */
   traceFn?: typeof traceImportClosures;
+  /**
+   * The deliberately closed set of generated artifacts whose generator
+   * inputs and guard suites can be attributed precisely. Tests may inject a
+   * fixture contract; production uses DEFAULT_ARTIFACT_OWNERSHIP.
+   */
+  artifactOwnership?: ArtifactOwnershipContract[];
+  /** Executes the real freshness proof for a matched artifact owner. Fixture
+   * tests inject a repo-local equivalent; production uses the named lint. */
+  artifactFreshnessVerifier?: ArtifactFreshnessVerifier;
 }
 
 export interface SelectedTest {
@@ -121,9 +130,13 @@ export interface SelectedTest {
 export interface SelectionManifest {
   schemaVersion: 1;
   generatedAt: string;
-  /** "related" = run manifest.selected only; "full" = run the whole universe. */
-  mode: "related" | "full";
-  /** Why the selection fell open to the full set (mode === "full" only). */
+  /** "related" = trusted narrow proof; "deferred" = bounded proof plus central debt. */
+  mode: "related" | "deferred";
+  /** Why broad coverage was deferred (mode === "deferred" only). */
+  deferredReason: string | null;
+  /** The existing post-merge/nightly/weekly lane owns deferred broad coverage. */
+  deferredOwner: "post-merge/nightly/weekly" | null;
+  /** Legacy alias for deferredReason retained for old report readers. */
   fullReason: string | null;
   /** Human description of the git diff base used for the changed set. */
   baseDescription: string | null;
@@ -134,6 +147,111 @@ export interface SelectionManifest {
   selected: SelectedTest[];
   notes: string[];
 }
+
+export interface ArtifactPathRule {
+  kind: "exact" | "prefix";
+  path: string;
+}
+
+/**
+ * Explicit ownership contract for a generated artifact family.
+ *
+ * This is intentionally more verbose than a filename convention. An artifact
+ * is trusted only when its outputs, generator, freshness guard, and named
+ * guard suites all exist and the source files still mention the relationship.
+ * Unknown generated-looking files therefore never become precise by accident.
+ */
+export interface ArtifactOwnershipContract {
+  id: string;
+  artifactPaths: readonly string[];
+  generatorPaths: readonly string[];
+  inputPaths: readonly ArtifactPathRule[];
+  freshnessGuardPaths: readonly string[];
+  guardSuites: readonly string[];
+  /** Explicit upstream artifact families whose outputs this generator consumes. */
+  dependsOnOwners?: readonly string[];
+}
+
+export interface ArtifactOwnershipVerification {
+  ok: boolean;
+  evidence: string[];
+  problems: string[];
+}
+
+export type ArtifactFreshnessVerifier = (
+  owner: ArtifactOwnershipContract,
+  repoRoot: string,
+) => Promise<ArtifactOwnershipVerification> | ArtifactOwnershipVerification;
+
+/**
+ * The only generated-artifact families currently admitted to precise
+ * related-smoke selection. Keep this list closed: adding another family
+ * requires a generator, freshness guard, and named guard-suite coverage.
+ */
+export const DEFAULT_ARTIFACT_OWNERSHIP: readonly ArtifactOwnershipContract[] = [
+  {
+    id: "route-inventory",
+    artifactPaths: ["tests/route-inventory.json", "tests/route-inventory-report.md"],
+    generatorPaths: ["scripts/regen-route-inventory.mjs", "tests/route-inventory.ts"],
+    inputPaths: [
+      { kind: "exact", path: "server/routes.ts" },
+      { kind: "prefix", path: "server/routes/" },
+    ],
+    freshnessGuardPaths: ["scripts/lint-route-inventory-freshness.ts"],
+    guardSuites: [
+      "tests/lint-route-inventory-freshness.test.ts",
+      "tests/post-merge-route-inventory-refresh.test.ts",
+    ],
+  },
+  {
+    id: "endpoint-contract-table",
+    artifactPaths: [
+      "audits/D-endpoint-contract-table.md",
+      "audits/D-endpoint-contract-table.json",
+    ],
+    generatorPaths: [
+      "scripts/generate-endpoint-contract-table.mjs",
+      "scripts/contract-table-classifiers.mjs",
+    ],
+    inputPaths: [
+      { kind: "exact", path: "tests/route-inventory.json" },
+      { kind: "exact", path: "scripts/generate-endpoint-contract-table.mjs" },
+      { kind: "exact", path: "scripts/contract-table-classifiers.mjs" },
+      // The endpoint generator scans these filesystem trees for callers and
+      // route handlers; they must remain explicit ownership inputs rather
+      // than relying on import tracing.
+      { kind: "prefix", path: "client/src/" },
+      { kind: "prefix", path: "scripts/" },
+      { kind: "prefix", path: "tests/" },
+      { kind: "prefix", path: "server/services/" },
+      { kind: "exact", path: "server/routes.ts" },
+      { kind: "prefix", path: "server/routes/" },
+    ],
+    freshnessGuardPaths: ["scripts/lint-contract-table-freshness.ts"],
+    guardSuites: [
+      "tests/lint-contract-table-freshness.test.ts",
+      "tests/post-merge-generated-artifact-refresh.test.ts",
+    ],
+    dependsOnOwners: ["route-inventory"],
+  },
+  {
+    id: "test-portfolio-baseline",
+    artifactPaths: ["audits/governance/test-portfolio-baseline.json"],
+    generatorPaths: [
+      "scripts/generate-test-portfolio-baseline.ts",
+      "scripts/governanceInventoryLib.ts",
+    ],
+    // The portfolio guard's declared scanPaths covers the complete tests tree.
+    // These exact files are the non-import generator inputs whose change must
+    // also verify the generated inventory.
+    inputPaths: [
+      { kind: "exact", path: "tests/testRegistry.ts" },
+      { kind: "exact", path: "scripts/governanceInventoryLib.ts" },
+    ],
+    freshnessGuardPaths: ["scripts/generate-test-portfolio-baseline.ts"],
+    guardSuites: ["tests/governance-test-portfolio-baseline.test.ts"],
+  },
+];
 
 /**
  * Paths whose change can affect any test without appearing in any import
@@ -156,12 +274,19 @@ export const DEFAULT_GLOBAL_TRIGGERS: GlobalTrigger[] = [
   // tracing, and lint scripts' own guard tests are core rules anyway.
   { kind: "exact", path: "scripts/gate.ts", why: "the gate runner itself changed" },
   { kind: "exact", path: "scripts/gate-lint-worker.mjs", why: "the gate's lint worker bootstrap changed" },
+  { kind: "exact", path: "scripts/taskGatePolicy.ts", why: "task-gate disposition policy changed" },
+  { kind: "exact", path: "scripts/taskGateEvidence.ts", why: "task-gate evidence contract changed" },
+  { kind: "exact", path: "scripts/report-task-gate-evidence.ts", why: "task-gate evidence report changed" },
+  { kind: "exact", path: "scripts/gateLintAttribution.ts", why: "gate attribution policy changed" },
+  { kind: "exact", path: "scripts/regen-gate-duration-budget.ts", why: "gate duration budget policy changed" },
   { kind: "prefix", path: "scripts/lint-", why: "lint scripts/baselines define what the gate checks" },
   { kind: "exact", path: "scripts/predeploy.sh", why: "the deploy gate script changed" },
   { kind: "exact", path: "scripts/post-merge.sh", why: "the post-merge setup script changed" },
   { kind: "exact", path: "scripts/post-merge-canary.ts", why: "the post-merge canary runner changed (Task #4501)" },
   { kind: "exact", path: "tests/run-all.ts", why: "the test runner itself changed" },
   { kind: "exact", path: "tests/relatedSmokeSelection.ts", why: "the selection engine itself changed" },
+  { kind: "exact", path: "tests/durationBudget.ts", why: "duration-budget selection policy changed" },
+  { kind: "exact", path: "tests/redManifest.ts", why: "gate red-attribution policy changed" },
   // Task #3791: the fingerprint/green-skip engine decides which suites
   // EXECUTE at all; treat it like the runner itself.
   { kind: "exact", path: "tests/suiteFingerprint.ts", why: "the incremental green-skip fingerprint engine changed" },
@@ -173,6 +298,7 @@ export const DEFAULT_GLOBAL_TRIGGERS: GlobalTrigger[] = [
   { kind: "exact", path: "server/db.ts", why: "core db bootstrap affects every DB-backed test" },
   { kind: "exact", path: "server/devMigrations.ts", why: "dev-migration bootstrap affects every DB-backed test" },
   { kind: "exact", path: "server/services/regressionSweep.ts", why: "test-run reporting dependency of the runner" },
+  { kind: "exact", path: "server/services/regressionSweepScheduler.ts", why: "central integrity scheduler changed" },
   // Task #5028: a quarantine-policy change rewires which suites block the gate.
   { kind: "exact", path: "tests/flakeQuarantine.ts", why: "auto-quarantine state machine — a runner-behavior module (Task #5028)" },
 ];
@@ -596,10 +722,456 @@ export function coreReason(file: string, rules: CoreRule[]): string | null {
   return null;
 }
 
+function artifactPathRuleHit(file: string, rule: ArtifactPathRule): boolean {
+  return rule.kind === "exact" ? file === rule.path : file.startsWith(rule.path);
+}
+
+function isGeneratedArtifactCandidate(file: string): boolean {
+  // This is detection only, never trust. The explicit ownership records above
+  // are the sole path to precision; anything else in these artifact-heavy
+  // trees falls open so a newly introduced output cannot be skipped.
+  if (!file.startsWith("tests/") && !file.startsWith("audits/")) return false;
+  if (!/\.(json|md)$/.test(file) || /\.test\.tsx?$/.test(file)) return false;
+  return true;
+}
+
+/**
+ * A report can be a deliberately authored test input rather than a generated
+ * artifact. Keep that exception precise: the registration must name the exact
+ * file and the selected guard's source must also name it. A directory
+ * scanPath, or a registration-only claim, never bypasses generated-artifact
+ * ownership verification.
+ */
+function hasExactNodeFsRead(source: string, file: string): boolean {
+  const parsed = ts.createSourceFile("evidence-reader.ts", source, ts.ScriptTarget.Latest, true);
+  const importsReadFileSync = parsed.statements.some(
+    (statement) =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === "node:fs" &&
+      statement.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some(
+        (element) => element.name.text === "readFileSync" && (element.propertyName?.text ?? "readFileSync") === "readFileSync",
+      ),
+  );
+  if (!importsReadFileSync) return false;
+
+  let readsExactFile = false;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "readFileSync"
+    ) {
+      const target = node.arguments[0];
+      if (
+        target &&
+        (
+          (ts.isStringLiteral(target) && target.text === file) ||
+          (ts.isCallExpression(target) &&
+            ts.isIdentifier(target.expression) &&
+            target.expression.text === "join" &&
+            target.arguments.some((argument) => ts.isStringLiteral(argument) && argument.text === file))
+        )
+      ) {
+        readsExactFile = true;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return readsExactFile;
+}
+function exactAuthoredEvidenceReaders(
+  file: string,
+  tests: readonly SmokeTestEntry[],
+  repoRoot: string,
+): string[] {
+  const normalizedFile = normalizeRepoPath(file);
+  const readers: string[] = [];
+  for (const test of tests) {
+    if (!test.scanPaths?.some((scanPath) => normalizeRepoPath(scanPath) === normalizedFile)) continue;
+    try {
+      const source = readFileSync(resolve(repoRoot, normalizeRepoPath(test.file)), "utf8");
+      if (hasExactNodeFsRead(source, normalizedFile)) readers.push(normalizeRepoPath(test.file));
+    } catch {
+      // Missing guard source is handled by import tracing; it cannot earn the
+      // authored-evidence exception here.
+    }
+  }
+  return readers;
+}
+function uniqueNormalizedPaths(paths: readonly string[]): string[] {
+  return [...new Set(paths.map(normalizeRepoPath))];
+}
+
+/**
+ * Verify the closed ownership contract against the current repository and
+ * test universe. This deliberately checks source references instead of
+ * accepting a self-declared exception: a renamed generator, removed freshness
+ * lint, missing output, or unregistered guard suite all force full smoke.
+ */
+export function verifyArtifactOwnershipContract(
+  owner: ArtifactOwnershipContract,
+  repoRoot: string,
+  tests: readonly SmokeTestEntry[] = [],
+): ArtifactOwnershipVerification {
+  const evidence: string[] = [];
+  const problems: string[] = [];
+  const fail = (problem: string): void => {
+    problems.push(problem);
+  };
+  const validRelPath = (p: string, allowTrailingSlash = false): boolean =>
+    p.length > 0 &&
+    !p.startsWith("/") &&
+    !p.startsWith("./") &&
+    !p.split("/").includes("..") &&
+    (allowTrailingSlash || !p.endsWith("/"));
+  const readRepoFile = (rel: string): string | null => {
+    if (!validRelPath(rel) || !existsSync(resolve(repoRoot, rel))) return null;
+    try {
+      return readFileSync(resolve(repoRoot, rel), "utf8");
+    } catch {
+      return null;
+    }
+  };
+
+  if (!owner.id.trim()) fail("ownership record has an empty id");
+  const outputs = uniqueNormalizedPaths(owner.artifactPaths);
+  if (outputs.length === 0 || outputs.length !== owner.artifactPaths.length) {
+    fail("ownership record has no unique artifact paths");
+  }
+  const generators = uniqueNormalizedPaths(owner.generatorPaths);
+  const freshnessGuards = uniqueNormalizedPaths(owner.freshnessGuardPaths);
+  const guardSuites = uniqueNormalizedPaths(owner.guardSuites);
+  if (generators.length === 0) fail("ownership record has no generator paths");
+  if (freshnessGuards.length === 0) fail("ownership record has no freshness guard paths");
+  if (guardSuites.length === 0) fail("ownership record has no named guard suites");
+  if (owner.inputPaths.length === 0) fail("ownership record has no generator inputs");
+
+  for (const p of outputs) {
+    if (!validRelPath(p)) fail(`invalid artifact path "${p}"`);
+    const source = readRepoFile(p);
+    if (source === null) {
+      fail(`artifact "${p}" is missing or unreadable`);
+      continue;
+    }
+    if (p.endsWith(".json")) {
+      try {
+        JSON.parse(source);
+      } catch {
+        fail(`artifact "${p}" is malformed JSON`);
+      }
+    } else if (source.trim() === "") {
+      fail(`artifact "${p}" is empty`);
+    }
+  }
+
+  for (const p of generators) {
+    const source = readRepoFile(p);
+    if (source === null) {
+      fail(`generator "${p}" is missing or unreadable`);
+    } else {
+      evidence.push(`generator ${p}`);
+    }
+  }
+  const primaryGenerator = generators[0] ? readRepoFile(generators[0]) : null;
+  if (primaryGenerator !== null && outputs.some((output) => !primaryGenerator.includes(output))) {
+    fail(`primary generator "${generators[0]}" does not reference every owned artifact output`);
+  }
+
+  for (const p of freshnessGuards) {
+    const source = readRepoFile(p);
+    if (source === null) {
+      fail(`freshness guard "${p}" is missing or unreadable`);
+      continue;
+    }
+    if (!outputs.every((output) => source.includes(output))) {
+      fail(`freshness guard "${p}" does not reference every owned artifact output`);
+    }
+    evidence.push(`freshness guard ${p}`);
+  }
+
+  const availableSuites = new Set(tests.map((t) => normalizeRepoPath(t.file)));
+  for (const suite of guardSuites) {
+    if (tests.length > 0 && !availableSuites.has(suite)) {
+      fail(`guard suite "${suite}" is not in the smoke universe`);
+    }
+    if (readRepoFile(suite) === null) fail(`guard suite "${suite}" is missing or unreadable`);
+    else evidence.push(`guard suite ${suite}`);
+  }
+
+  const seenInputs = new Set<string>();
+  for (const input of owner.inputPaths) {
+    const p = normalizeRepoPath(input.path);
+    if (
+      !validRelPath(p, input.kind === "prefix") ||
+      (input.kind !== "exact" && input.kind !== "prefix")
+    ) {
+      fail(`invalid generator input rule "${input.kind}:${input.path}"`);
+      continue;
+    }
+    const key = `${input.kind}:${p}`;
+    if (seenInputs.has(key)) fail(`duplicate generator input rule "${key}"`);
+    seenInputs.add(key);
+    if (input.kind === "exact" && readRepoFile(p) === null) {
+      fail(`generator input "${p}" is missing or unreadable`);
+    } else if (input.kind === "prefix" && !existsSync(resolve(repoRoot, p))) {
+      fail(`generator input prefix "${p}" is missing`);
+    }
+  }
+
+  if (problems.length === 0) {
+    evidence.unshift(`verified ownership contract ${owner.id}`);
+  }
+  return { ok: problems.length === 0, evidence, problems };
+}
+
+/**
+ * Run the actual, family-specific freshness guard before accepting an artifact
+ * change as precise. Structural ownership evidence is not enough: valid JSON
+ * can still be stale. This only runs for a matched owner and therefore does
+ * not add work to ordinary related selections.
+ */
+export async function verifyArtifactFreshness(
+  owner: ArtifactOwnershipContract,
+  repoRoot: string,
+): Promise<ArtifactOwnershipVerification> {
+  if (resolve(repoRoot) !== resolve(process.cwd())) {
+    return {
+      ok: false,
+      evidence: [],
+      problems: [`cannot run ${owner.id} freshness guard outside the current repository root`],
+    };
+  }
+  try {
+    if (owner.id === "route-inventory") {
+      const { runLint } = await import("../scripts/lint-route-inventory-freshness");
+      const result = runLint();
+      return {
+        ok: result.ok,
+        evidence: result.ok
+          ? [`freshness verified by scripts/lint-route-inventory-freshness.ts (${result.freshCount} routes)`]
+          : [],
+        problems: result.problems,
+      };
+    }
+    if (owner.id === "endpoint-contract-table") {
+      const { runLint } = await import("../scripts/lint-contract-table-freshness");
+      const result = runLint();
+      return {
+        ok: result.ok,
+        evidence: result.ok
+          ? [`freshness verified by scripts/lint-contract-table-freshness.ts (${result.inventoryCount} routes)`]
+          : [],
+        problems: result.problems,
+      };
+    }
+    if (owner.id === "test-portfolio-baseline") {
+      const [{ generate, ARTIFACT_PATH }, { checkArtifact }] = await Promise.all([
+        import("../scripts/generate-test-portfolio-baseline"),
+        import("../scripts/governanceInventoryLib"),
+      ]);
+      const result = checkArtifact(ARTIFACT_PATH, generate());
+      return {
+        ok: result.ok,
+        evidence: result.ok
+          ? ["freshness verified by scripts/generate-test-portfolio-baseline.ts --check"]
+          : [],
+        problems: result.problems,
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      evidence: [],
+      problems: [`freshness guard crashed: ${error instanceof Error ? error.message : String(error)}`],
+    };
+  }
+  return {
+    ok: false,
+    evidence: [],
+    problems: [`no runtime freshness verifier is registered for ${owner.id}`],
+  };
+}
+
+function ownershipSetProblems(owners: readonly ArtifactOwnershipContract[]): string[] {
+  const problems: string[] = [];
+  const ids = new Set<string>();
+  const outputs = new Map<string, string>();
+  const guards = new Map<string, string>();
+  for (const owner of owners) {
+    if (ids.has(owner.id)) problems.push(`duplicate ownership id "${owner.id}"`);
+    ids.add(owner.id);
+    for (const output of owner.artifactPaths.map(normalizeRepoPath)) {
+      const prior = outputs.get(output);
+      if (prior) problems.push(`artifact "${output}" is owned by both ${prior} and ${owner.id}`);
+      outputs.set(output, owner.id);
+    }
+    for (const suite of owner.guardSuites.map(normalizeRepoPath)) {
+      const prior = guards.get(suite);
+      if (prior) problems.push(`guard suite "${suite}" is claimed by both ${prior} and ${owner.id}`);
+      guards.set(suite, owner.id);
+    }
+  }
+  for (const owner of owners) {
+    for (const dependency of owner.dependsOnOwners ?? []) {
+      if (!ids.has(dependency) || dependency === owner.id) {
+        problems.push(`owner ${owner.id} declares an unknown or self dependency "${dependency}"`);
+      }
+    }
+  }
+  const byId = new Map(owners.map((owner) => [owner.id, owner] as const));
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (id: string): void => {
+    if (visiting.has(id)) {
+      problems.push(`ownership dependency cycle includes "${id}"`);
+      return;
+    }
+    if (visited.has(id)) return;
+    visiting.add(id);
+    for (const dependency of byId.get(id)?.dependsOnOwners ?? []) {
+      if (byId.has(dependency)) visit(dependency);
+    }
+    visiting.delete(id);
+    visited.add(id);
+  };
+  for (const owner of owners) visit(owner.id);
+  return problems;
+}
+
+function artifactOutputHit(file: string, owner: ArtifactOwnershipContract): string | null {
+  return owner.artifactPaths
+    .map(normalizeRepoPath)
+    .find((output) => file === output || file.startsWith(output + "/")) ?? null;
+}
+
+function artifactInputHit(file: string, owner: ArtifactOwnershipContract): ArtifactPathRule | null {
+  return owner.inputPaths.find((input) =>
+    artifactPathRuleHit(file, { ...input, path: normalizeRepoPath(input.path) }),
+  ) ?? null;
+}
+
+function matchedOwnershipIsUnambiguous(
+  matches: readonly ArtifactOwnershipContract[],
+  file: string,
+): string | null {
+  if (matches.length <= 1) return null;
+  const outputOwners = matches.filter((owner) => artifactOutputHit(file, owner) !== null);
+  if (outputOwners.length === 0) {
+    // A source path may be read by an upstream generator and by a dependent
+    // generator directly. That overlap is precise only when all matched
+    // non-root owners explicitly name the single upstream root.
+    const roots = matches.filter(
+      (owner) => !matches.some((candidate) => owner.dependsOnOwners?.includes(candidate.id)),
+    );
+    if (
+      roots.length === 1 &&
+      matches.every(
+        (owner) =>
+          owner.id === roots[0].id || owner.dependsOnOwners?.includes(roots[0].id),
+      )
+    ) {
+      return null;
+    }
+    return `ownership ambiguity: ${file} matches ${matches.map((owner) => owner.id).join(", ")}`;
+  }
+  if (outputOwners.length !== 1) {
+    return `ownership ambiguity: ${file} matches ${matches.map((owner) => owner.id).join(", ")}`;
+  }
+  const outputOwner = outputOwners[0];
+  for (const owner of matches) {
+    if (owner.id === outputOwner.id) continue;
+    const isInputOnly =
+      artifactOutputHit(file, owner) === null && artifactInputHit(file, owner) !== null;
+    if (!isInputOnly || !owner.dependsOnOwners?.includes(outputOwner.id)) {
+      return `ownership ambiguity: ${file} matches ${matches.map((candidate) => candidate.id).join(", ")}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns every declared non-import input for an ownership guard suite.
+ * Incremental-green fingerprints use this to ensure a regenerated artifact
+ * guard cannot be skipped after its generator, source tree, or output moves.
+ * Any invalid contract deliberately makes the caller execute the suite.
+ */
+export function generatedArtifactOwnershipInputsForSuite(
+  suiteFile: string,
+  repoRoot: string,
+  owners: readonly ArtifactOwnershipContract[] = DEFAULT_ARTIFACT_OWNERSHIP,
+): { ok: true; inputs: string[]; families: string[] } | { ok: false; error: string } {
+  const normalizedSuite = normalizeRepoPath(suiteFile);
+  const directOwningFamilies = owners.filter((owner) =>
+    owner.guardSuites.map(normalizeRepoPath).includes(normalizedSuite),
+  );
+  if (directOwningFamilies.length === 0) return { ok: true, inputs: [], families: [] };
+
+  const problems = ownershipSetProblems(owners);
+  const universe = owners.flatMap((owner) => owner.guardSuites).map((file) => ({ file }));
+  for (const owner of owners) {
+    const verification = verifyArtifactOwnershipContract(owner, repoRoot, universe);
+    problems.push(...verification.problems.map((problem) => `${owner.id}: ${problem}`));
+  }
+  if (problems.length > 0) {
+    return { ok: false, error: `generated artifact ownership invalid: ${[...new Set(problems)].join("; ")}` };
+  }
+
+  const files = new Set<string>();
+  const owningFamilies = new Map(directOwningFamilies.map((owner) => [owner.id, owner] as const));
+  const byId = new Map(owners.map((owner) => [owner.id, owner] as const));
+  const addDependencies = (owner: ArtifactOwnershipContract): void => {
+    for (const dependency of owner.dependsOnOwners ?? []) {
+      const upstream = byId.get(dependency);
+      if (upstream && !owningFamilies.has(upstream.id)) {
+        owningFamilies.set(upstream.id, upstream);
+        addDependencies(upstream);
+      }
+    }
+  };
+  for (const owner of directOwningFamilies) addDependencies(owner);
+  const addTree = (path: string): void => {
+    const rel = normalizeRepoPath(path).replace(/\/$/, "");
+    let stats;
+    try {
+      stats = statSync(resolve(repoRoot, rel));
+    } catch {
+      throw new Error(`missing declared ownership input: ${rel}`);
+    }
+    if (stats.isFile()) {
+      files.add(rel);
+      return;
+    }
+    for (const name of readdirSync(resolve(repoRoot, rel)).sort()) addTree(`${rel}/${name}`);
+  };
+  try {
+    for (const owner of owningFamilies.values()) {
+      for (const path of owner.artifactPaths) addTree(path);
+      for (const path of owner.generatorPaths) addTree(path);
+      for (const path of owner.freshnessGuardPaths) addTree(path);
+      for (const input of owner.inputPaths) addTree(input.path);
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: `could not enumerate generated artifact ownership inputs: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  return {
+    ok: true,
+    inputs: [...files].sort(),
+    families: [...owningFamilies.keys()].sort(),
+  };
+}
+
 /**
  * Main entry: compute the related subset of `tests` for the current change
- * set. Never throws — every internal failure returns mode:"full" with a
- * reason, so callers can filter only on mode:"related".
+ * set. Never throws — every internal failure returns mode:"deferred" with a
+ * reason, so callers keep the bounded result without launching the full
+ * universe.
  */
 export async function selectRelatedSmokeTests(
   tests: SmokeTestEntry[],
@@ -611,7 +1183,10 @@ export async function selectRelatedSmokeTests(
   const triggers = deps.globalTriggers ?? DEFAULT_GLOBAL_TRIGGERS;
   const coreRules = deps.coreRules ?? DEFAULT_CORE_RULES;
 
-  const base: Omit<SelectionManifest, "mode" | "fullReason" | "selected" | "selectedCount" | "skippedCount"> = {
+  const base: Omit<
+    SelectionManifest,
+    "mode" | "deferredReason" | "deferredOwner" | "fullReason" | "selected" | "selectedCount" | "skippedCount"
+  > = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
     baseDescription: null,
@@ -620,25 +1195,42 @@ export async function selectRelatedSmokeTests(
     notes: [],
   };
 
-  const full = (reason: string): SelectionManifest => ({
-    ...base,
-    mode: "full",
-    fullReason: reason,
-    selected: [],
-    selectedCount: tests.length,
-    skippedCount: 0,
-  });
+  let deferredReason: string | null = null;
+  const markDeferred = (reason: string): void => {
+    if (deferredReason === null) deferredReason = reason;
+  };
+  const deferred = (reason: string, changedFiles = base.changedFiles): SelectionManifest => {
+    const changed = new Set(changedFiles.map(normalizeRepoPath));
+    const selected = tests
+      .filter((test) => changed.has(normalizeRepoPath(test.file)) || coreReason(test.file, coreRules) !== null)
+      .map((test) => ({
+        file: test.file,
+        reason: changed.has(normalizeRepoPath(test.file))
+          ? "directly changed test (selection deferred)"
+          : `always-run core: ${coreReason(test.file, coreRules)}`,
+      }));
+    return {
+      ...base,
+      mode: "deferred",
+      deferredReason: reason,
+      deferredOwner: "post-merge/nightly/weekly",
+      fullReason: reason,
+      selected,
+      selectedCount: selected.length,
+      skippedCount: tests.length - selected.length,
+    };
+  };
 
   try {
     const changed = computeChangedFiles(runGit, env);
     base.baseDescription = changed.baseDescription || null;
     if (!changed.ok) {
-      return full(`changed-file detection failed (${changed.error ?? "unknown git error"})`);
+      return deferred(`changed-file detection failed (${changed.error ?? "unknown git error"})`);
     }
     base.changedFiles = changed.files;
 
     if (changed.files.length === 0) {
-      return full(
+      return deferred(
         "empty changed-file set — a gate run on a task always has changes, so base detection likely failed; refusing to narrow on zero information",
       );
     }
@@ -646,8 +1238,96 @@ export async function selectRelatedSmokeTests(
     for (const f of changed.files) {
       const trig = matchGlobalTrigger(f, triggers);
       if (trig) {
-        return full(`global trigger: ${f} (${trig.why})`);
+        markDeferred(`global trigger: ${f} (${trig.why})`);
       }
+    }
+    // A global trigger invalidates import-closure precision. Keep directly
+    // changed tests and core guards, then transfer broad verification to the
+    // existing central lane instead of tracing arbitrary dependents.
+    if (deferredReason !== null) return deferred(deferredReason, changed.files);
+
+    const artifactOwners = deps.artifactOwnership ?? [...DEFAULT_ARTIFACT_OWNERSHIP];
+    const contractProblems = ownershipSetProblems(artifactOwners);
+    const ownerMatches = new Map<
+      string,
+      {
+        owner: ArtifactOwnershipContract;
+        output: string | null;
+        input: ArtifactPathRule | null;
+        inheritedFrom: string | null;
+      }
+    >();
+    for (const f of changed.files) {
+      const matches = artifactOwners.filter(
+        (owner) => artifactOutputHit(f, owner) !== null || artifactInputHit(f, owner) !== null,
+      );
+      const authoredEvidenceReaders = exactAuthoredEvidenceReaders(f, tests, repoRoot);
+      if (matches.length === 0 && isGeneratedArtifactCandidate(f) && authoredEvidenceReaders.length === 0) {
+        markDeferred(`unknown generated artifact: ${f} is outside the verified ownership contract`);
+      }
+      if (authoredEvidenceReaders.length > 0) {
+        base.notes.push(
+          `VERIFIED authored evidence reader: ${f} → ${authoredEvidenceReaders.join(", ")}`,
+        );
+      }
+      if (matches.length > 0 && contractProblems.length > 0) {
+        markDeferred(`artifact ownership contract is ambiguous: ${contractProblems.slice(0, 4).join("; ")}`);
+      }
+      const ambiguity = matchedOwnershipIsUnambiguous(matches, f);
+      if (ambiguity) {
+        markDeferred(ambiguity);
+        continue;
+      }
+      for (const owner of matches) {
+        const prior = ownerMatches.get(owner.id);
+        ownerMatches.set(owner.id, {
+          owner,
+          output: prior?.output ?? artifactOutputHit(f, owner),
+          input: prior?.input ?? artifactInputHit(f, owner),
+          inheritedFrom: prior?.inheritedFrom ?? null,
+        });
+      }
+    }
+    // An explicit dependency means the downstream generator consumes the
+    // upstream artifact. Any source/output change affecting that upstream
+    // owner must therefore also verify and select the dependent guard family.
+    const ownersById = new Map(artifactOwners.map((owner) => [owner.id, owner] as const));
+    const pendingOwners = [...ownerMatches.keys()];
+    while (pendingOwners.length > 0) {
+      const upstreamId = pendingOwners.pop()!;
+      for (const candidate of artifactOwners) {
+        if (!candidate.dependsOnOwners?.includes(upstreamId) || ownerMatches.has(candidate.id)) continue;
+        if (!ownersById.has(upstreamId)) {
+          markDeferred(`artifact ownership dependency "${upstreamId}" is unknown`);
+          continue;
+        }
+        ownerMatches.set(candidate.id, {
+          owner: candidate,
+          output: null,
+          input: null,
+          inheritedFrom: upstreamId,
+        });
+        pendingOwners.push(candidate.id);
+      }
+    }
+    const ownershipEvidence = new Map<string, string[]>();
+    const freshnessVerifier = deps.artifactFreshnessVerifier ?? verifyArtifactFreshness;
+    for (const { owner } of ownerMatches.values()) {
+      const verification = verifyArtifactOwnershipContract(owner, repoRoot, tests);
+      if (!verification.ok) {
+        markDeferred(
+          `artifact ownership verification failed for ${owner.id}: ${verification.problems.slice(0, 4).join("; ")}`,
+        );
+        continue;
+      }
+      const freshness = await freshnessVerifier(owner, repoRoot);
+      if (!freshness.ok) {
+        markDeferred(
+          `artifact freshness verification failed for ${owner.id}: ${freshness.problems.slice(0, 4).join("; ")}`,
+        );
+        continue;
+      }
+      ownershipEvidence.set(owner.id, [...verification.evidence, ...freshness.evidence]);
     }
 
     // One shared trace pass over every test file + its setup/hook files.
@@ -670,12 +1350,13 @@ export async function selectRelatedSmokeTests(
       { timeoutMs: traceTimeoutMs, traceFn: deps.traceFn },
     );
     if (timedOut || !trace) {
-      return full(
-        `import trace timed out after ${Math.round(traceTimeoutMs / 1000)}s — falling open to the FULL smoke set`,
+      return deferred(
+        `import trace timed out after ${Math.round(traceTimeoutMs / 1000)}s`,
+        changed.files,
       );
     }
     if (!trace.ok) {
-      return full(trace.error ?? "import trace failed");
+      return deferred(trace.error ?? "import trace failed", changed.files);
     }
 
     // Changed test-infrastructure files under tests/ that are NOT test files
@@ -686,9 +1367,17 @@ export async function selectRelatedSmokeTests(
     for (const closure of trace.closures.values()) {
       for (const f of closure) reachable.add(f);
     }
+    const verifiedGeneratedOutputs = new Set(
+      [...ownerMatches.values()].flatMap(({ owner }) => owner.artifactPaths.map(normalizeRepoPath)),
+    );
     for (const f of changed.files) {
-      if (f.startsWith("tests/") && !/\.test\.tsx?$/.test(f) && !reachable.has(f)) {
-        return full(`unattributable test-infrastructure change: ${f} is not reachable by import tracing`);
+      if (
+        f.startsWith("tests/") &&
+        !/\.test\.tsx?$/.test(f) &&
+        !reachable.has(f) &&
+        !verifiedGeneratedOutputs.has(f)
+      ) {
+        markDeferred(`unattributable test-infrastructure change: ${f} is not reachable by import tracing`);
       }
     }
 
@@ -732,6 +1421,30 @@ export async function selectRelatedSmokeTests(
       }
     }
 
+    // A verified generated-artifact owner is also a precise dependency edge:
+    // changing an output selects its freshness/refresh guards, while changing
+    // a generator input selects the same guards without broadening to all
+    // smoke tests. The closure and scan-path decisions above remain intact.
+    for (const { owner, output, input, inheritedFrom } of ownerMatches.values()) {
+      const changedDependency = output
+        ? `generated output ${output}`
+        : input
+          ? `generator input ${input.path}`
+          : `upstream ownership ${inheritedFrom ?? "changed path"}`;
+      for (const suite of owner.guardSuites) {
+        if (selectedFiles.has(suite)) continue;
+        selected.push({
+          file: suite,
+          reason: `verified ownership ${owner.id}: ${changedDependency}; ${owner.freshnessGuardPaths.join(", ")}`,
+        });
+        selectedFiles.add(suite);
+      }
+      base.notes.push(
+        `VERIFIED artifact ownership: ${owner.id} (${changedDependency}); ` +
+          `evidence: ${ownershipEvidence.get(owner.id)?.join(", ") || owner.generatorPaths.join(", ")}`,
+      );
+    }
+
     const relatedHitCount = selected.length;
 
     for (const t of tests) {
@@ -757,23 +1470,30 @@ export async function selectRelatedSmokeTests(
 
     return {
       ...base,
-      mode: "related",
-      fullReason: null,
+      mode: deferredReason ? "deferred" : "related",
+      deferredReason,
+      deferredOwner: deferredReason ? "post-merge/nightly/weekly" : null,
+      fullReason: deferredReason,
       selected,
       selectedCount: selected.length,
       skippedCount: tests.length - selected.length,
     };
   } catch (err) {
-    return full(`unexpected selection error: ${err instanceof Error ? err.message : String(err)}`);
+    return deferred(`unexpected selection error: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 export function formatSelectionSummary(manifest: SelectionManifest): string[] {
   const lines: string[] = [];
-  if (manifest.mode === "full") {
+  if (manifest.mode === "deferred") {
     lines.push(
-      `[related-smoke] falling open to FULL smoke set (${manifest.universeCount} test(s)) — ${manifest.fullReason}`,
+      `[related-smoke] DEFERRED to ${manifest.deferredOwner ?? "central-integrity"} — ` +
+        `bounded selection ${manifest.selectedCount} of ${manifest.universeCount}; ` +
+        `${manifest.deferredReason ?? "selection uncertainty"} (NOT verified by this run)`,
     );
+    for (const s of manifest.selected) {
+      lines.push(`[related-smoke]   + ${s.file} — ${s.reason}`);
+    }
   } else {
     lines.push(
       `[related-smoke] selected ${manifest.selectedCount} of ${manifest.universeCount} smoke test(s) ` +

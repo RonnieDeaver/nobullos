@@ -19,7 +19,12 @@ export function useAuth() {
   // sentinel (NOT an error, NOT null) so AuthGate can route to /not-approved
   // instead of looping between the app and /sign-in.
   type NotApprovedSentinel = { __notApproved: true; email: string | null };
-  type AuthProbeResult = User | NotApprovedSentinel | null;
+  // Mirrors the not-approved sentinel: a soft-deleted (revoked) user's
+  // session is still Clerk-valid, so this must route to /access-revoked
+  // instead of falling through to a generic "not authenticated" /sign-in
+  // loop (Task #5330).
+  type RevokedSentinel = { __revoked: true };
+  type AuthProbeResult = User | NotApprovedSentinel | RevokedSentinel | null;
 
   // Fetch the local DB user record (has role, permissions, etc.) once Clerk
   // has validated the session. Disabled on public paths (no auth needed) and
@@ -29,8 +34,15 @@ export function useAuth() {
     queryFn: async () => {
       const response = await fetch("/api/auth/user", {
         credentials: "include",
+        headers: { Accept: "application/json" },
       });
-      if (response.status === 401) return null;
+      if (response.status === 401) {
+        const body = await response.json().catch(() => null);
+        if (body?.code === "account_revoked") {
+          return { __revoked: true } satisfies RevokedSentinel;
+        }
+        return null;
+      }
       if (response.status === 403) {
         const body = await response.json().catch(() => null);
         if (body?.code === "account_not_approved") {
@@ -73,7 +85,14 @@ export function useAuth() {
     data && typeof data === "object" && "__notApproved" in data
       ? (data as NotApprovedSentinel)
       : null;
-  const user = notApprovedSentinel ? null : ((data as User | null | undefined) ?? null);
+  const revokedSentinel =
+    data && typeof data === "object" && "__revoked" in data
+      ? (data as RevokedSentinel)
+      : null;
+  const user =
+    notApprovedSentinel || revokedSentinel
+      ? null
+      : ((data as User | null | undefined) ?? null);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -96,6 +115,10 @@ export function useAuth() {
     // to /not-approved (public) so it can never loop back to /sign-in.
     notApproved: !!isSignedIn && !!notApprovedSentinel,
     notApprovedEmail: notApprovedSentinel?.email ?? null,
+    // True when the local users row is soft-deleted (deletedAt set) while
+    // Clerk's session is still valid. AuthGate routes this to the public
+    // /access-revoked page instead of /sign-in (Task #5330).
+    revoked: !!isSignedIn && !!revokedSentinel,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
   };

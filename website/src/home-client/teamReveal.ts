@@ -4,7 +4,7 @@
 // on the owner's verdict: it didn't look good. No wall mode exists for
 // any visitor anymore — the team band never scrolls or drifts.
 //
-// The served band is the complete static presentation — ONE 18-card
+// The served band is the complete static presentation — ONE 20-card
 // grid, the full roster in the owner's directive order (Ronnie → Oliver
 // → Brett → Jeff → Janno → Cam, then the rest in prior relative order)
 // — and that markup IS the no-JS experience (site animation contract:
@@ -12,7 +12,7 @@
 // module stamps data-team-collapsed="1" on the section — home.css keys
 // EVERY card-hiding rule off that attribute, a JS-set state marker,
 // never viewport width alone — so the grid opens on its first two rows
-// per breakpoint (12 / 4 / 2 cards at the grid's own 6 / 2 / 1-column
+// per breakpoint (12 / 6 / 4 / 2 cards at the grid's own 6 / 3 / 2 / 1-column
 // splits; the boundaries live beside the column rules they mirror) and
 // appends the Meet the Full Team disclosure button below the grid.
 //
@@ -29,7 +29,7 @@
 //
 // The collapse applies to reduced-motion visitors too — it is layout,
 // not motion (their expand simply doesn't animate). Visitors without
-// JS never get the attribute or the button: they see all 18 cards.
+// JS never get the attribute or the button: they see all 20 cards.
 
 /** Visible label — the one string this treatment adds (recorded in
     docs/website-copy-changelog.md, Task #5011); home.css uppercases it

@@ -2,7 +2,7 @@
 {
   "name": "Settings token-cache deny-list lint guard (Task #3108)",
   "smoke": true,
-  "smokeReason": "Task #3108: deny-list lint guard — the first assertion runs the real server/ tree to catch any token-bearing key name added without a corresponding deny-list entry. The Validate workflow runs npm run gate, including this SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
+  "smokeReason": "Task #3108: deny-list lint guard — the first assertion runs the real server/ tree to catch any token-bearing key name added without a corresponding deny-list entry. The managed Long validation workflow runs the reviewed routine-gate profile, including this SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */

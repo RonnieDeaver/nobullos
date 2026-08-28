@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Notify user pool routing (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #1729 Phase 2.3 — Unit test for the notifyUser pool-routing

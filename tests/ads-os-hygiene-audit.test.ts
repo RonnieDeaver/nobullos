@@ -307,17 +307,24 @@ function chk(id: string, status: StatusT, over: Partial<CheckResultT> = {}): Che
   assert.equal(under.status, Status.BAD);
   assert.match(under.recommendation, /Underspending/);
 
-  // PERF-01: answer rate (green ≥ threshold, default 95)
+  // PERF-01: answer rate (green when the ROUNDED % ≥ threshold, default 95)
   assert.equal(lsa.checkAnswerRate({ rate: null, connected: 0, calls: 0 }).status, Status.NA);
   assert.equal(
     lsa.checkAnswerRate({ rate: LSA_ANSWER_RATE_GOOD, connected: 19, calls: 20 }).status,
     Status.GOOD
   );
+  const nearThresholdAnswer = lsa.checkAnswerRate({ rate: 94.7, connected: 36, calls: 38 });
+  assert.equal(
+    nearThresholdAnswer.status,
+    Status.GOOD,
+    "94.7% rounds to 95% → matches the 95% threshold, should pass"
+  );
+  assert.match(nearThresholdAnswer.value, /^95% answered/);
   const lowAnswer = lsa.checkAnswerRate({ rate: LSA_ANSWER_RATE_GOOD - 5, connected: 18, calls: 20 });
   assert.equal(lowAnswer.status, Status.OKAY);
   assert.match(lowAnswer.recommendation, new RegExp(`below ${Math.round(LSA_ANSWER_RATE_GOOD)}%`));
 
-  // PERF-02: charged ÷ total leads (green strictly > threshold, default 80)
+  // PERF-02: charged ÷ total leads (green when the ROUNDED % ≥ threshold, default 80)
   type Lead = import("../server/services/adsOs/lsaHygieneEngine").LeadRow;
   const leads = (charged: number, total: number): Lead[] =>
     Array.from({ length: total }, (_, i) => ({
@@ -329,8 +336,15 @@ function chk(id: string, status: StatusT, over: Partial<CheckResultT> = {}): Che
   assert.equal(lsa.checkLeadQuality([], 0, "USD").status, Status.OKAY, "no leads → advisory");
   assert.equal(lsa.checkLeadQuality(leads(9, 10), 900, "USD").status, Status.GOOD, "90% > 80%");
   const atThreshold = lsa.checkLeadQuality(leads(8, 10), 800, "USD");
-  assert.equal(atThreshold.status, Status.OKAY, `exactly ${LSA_LEAD_QUALITY_GOOD}% is NOT green (strict >)`);
+  assert.equal(atThreshold.status, Status.GOOD, `exactly ${LSA_LEAD_QUALITY_GOOD}% matches the threshold → passes`);
   assert.match(atThreshold.value, /80% billable \(8 charged of 10 leads\) · CPL 100 USD/);
+  const nearThresholdLeads = lsa.checkLeadQuality(leads(83, 104), 8300, "USD");
+  assert.equal(
+    nearThresholdLeads.status,
+    Status.GOOD,
+    "83/104 = 79.8% rounds to 80% → matches the 80% threshold, should pass"
+  );
+  assert.match(nearThresholdLeads.value, /^80% billable/);
 
   // LSA gates: only critical-impact failing checks trip; OKAY never does
   const verCrit = lsa.checkVerification([art({ status: "FAILED" })]);

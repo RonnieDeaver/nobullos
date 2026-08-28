@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Booking page uniqueness (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

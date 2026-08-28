@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,7 @@ interface SalesEvaluationResponse {
 
 export default function McuChecker() {
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [practiceArea, setPracticeArea] = useState("");
   const [addressesText, setAddressesText] = useState("");
   const [results, setResults] = useState<EvaluationResult[] | null>(null);
@@ -61,6 +63,13 @@ export default function McuChecker() {
     },
     onSuccess: (data) => {
       setResults(data.results);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Evaluation failed",
+        description: error.message || "Could not check capacity for these addresses. Try again.",
+        variant: "destructive",
+      });
     },
   });
 

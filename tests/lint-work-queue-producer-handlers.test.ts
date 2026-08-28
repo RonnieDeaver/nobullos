@@ -3,7 +3,7 @@
   "name": "lint-work-queue-producer-handlers guard (Task #2833)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2833: producer-without-handler guard. Task #2637 deleted the retroactive_reprocess handler while three producers stayed live — ~50k jobs/week failed silently at dequeue for months (#2824), because the startup assert only warns and the required-handlers smoke test covers only the hardcoded startup list. This test's first assertion runs the lint over the REAL server/ tree, so ANY enqueue site referencing a queue with no registered handler fails the routine gate. The Validate workflow runs npm run gate, including this lint and SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
+  "smokeReason": "Task #2833: producer-without-handler guard. Task #2637 deleted the retroactive_reprocess handler while three producers stayed live — ~50k jobs/week failed silently at dequeue for months (#2824), because the startup assert only warns and the required-handlers smoke test covers only the hardcoded startup list. This test's first assertion runs the lint over the REAL server/ tree, so ANY enqueue site referencing a queue with no registered handler fails the routine gate. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint and SMOKE_FILES coverage. Fast, DB-free, deterministic (static source scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -17,7 +17,7 @@ test-registration */
  * queue NOT on that list still fails silently at dequeue ("No handler
  * registered", ~50k jobs/week for months).
  *
- * The `.replit` `Validate` workflow runs `npm run gate`, including this lint;
+ * The managed Long validation workflow runs the reviewed routine-gate profile, including this lint;
  * this test adds the real-tree and fixture coverage:
  *
  *  1. FIRST assertion runs runLint() against the REAL server/ tree — any

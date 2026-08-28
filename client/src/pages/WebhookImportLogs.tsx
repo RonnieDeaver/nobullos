@@ -11,10 +11,14 @@ import type { WebhookImportLog } from "@shared/schema";
 export default function WebhookImportLogs() {
   const { user, isLoading: authLoading } = useAuth();
 
-  const { data: logs = [], isLoading } = useQuery<WebhookImportLog[]>({
+  const { data, isLoading } = useQuery<WebhookImportLog[]>({
     queryKey: ["/api/webhook-import-logs"],
     refetchInterval: 10000,
   });
+  // The endpoint hard-caps at the 200 most recent rows (server/routes/reports.ts),
+  // so treat a non-array response defensively and never claim this is "total".
+  const logs = Array.isArray(data) ? data : [];
+  const logsCapped = logs.length >= 200;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -105,7 +109,8 @@ export default function WebhookImportLogs() {
               Import Attempts
             </CardTitle>
             <CardDescription>
-              Track automated report imports via webhook ({logs.length} total)
+              Track automated report imports via webhook (
+              {logsCapped ? `showing latest ${logs.length}` : `${logs.length} total`})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -161,10 +166,10 @@ export default function WebhookImportLogs() {
                           {log.durationMs ? `${(log.durationMs / 1000).toFixed(1)}s` : "-"}
                         </td>
                         <td className="text-center py-2 px-2" data-testid={`text-sections-${log.id}`}>
-                          {log.sectionsCreated ? (
+                          {Array.isArray(log.sectionsCreated) ? (
                             <div className="flex items-center justify-center gap-1">
                               <FileText className="w-3 h-3 text-green-500" />
-                              <span className="text-xs">{(log.sectionsCreated as string[]).length}</span>
+                              <span className="text-xs">{log.sectionsCreated.length}</span>
                             </div>
                           ) : "-"}
                         </td>

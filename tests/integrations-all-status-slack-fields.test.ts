@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Integrations all status slack fields (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

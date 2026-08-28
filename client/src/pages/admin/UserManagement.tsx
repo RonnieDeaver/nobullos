@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { UserManagementSkeleton } from "@/components/ui/skeleton-loaders";
 import { OsTable, type OsTableColumn } from "@/components/ui/os-table";
 import {
@@ -495,6 +495,40 @@ function UserRoleEditor({
   const isRevenueEngineer = selectedFns.includes("revenue_engineer");
   const facet = getUserFacet(selectedFns);
 
+  const dirtyNow =
+    JSON.stringify([...selectedFns].sort()) !== JSON.stringify([...initialFns].sort()) ||
+    authority !== initialAuth;
+
+  // This editor is keyed by row (not remounted) across refetches, so a
+  // server-side change to functions/authority made outside a pending local
+  // edit (e.g. a save elsewhere, or a backfill) needs to resync the local
+  // draft — otherwise it keeps showing stale values with a falsely-clean
+  // (or falsely-dirty) Save button.
+  //
+  // The resync decision must NOT compare the local draft against the just-
+  // arrived props (that's `dirtyNow`, freshly recomputed every render): once
+  // new props land, `initialFns`/`initialAuth` already reflect them, so a
+  // genuinely untouched draft (still equal to the PREVIOUS server snapshot)
+  // would spuriously look "dirty" against the new props and the resync would
+  // be skipped forever. Instead, track the last server snapshot the draft
+  // was reconciled against in a ref, and only treat the draft as a real
+  // unsaved edit when it diverges from THAT snapshot.
+  const prevServerFnsRef = useRef<UserFunction[]>(initialFns);
+  const prevServerAuthRef = useRef<UserAuthorityLevel>(initialAuth);
+  useEffect(() => {
+    const draftMatchesPriorServerState =
+      JSON.stringify([...selectedFns].sort()) ===
+        JSON.stringify([...prevServerFnsRef.current].sort()) &&
+      authority === prevServerAuthRef.current;
+    if (draftMatchesPriorServerState) {
+      setSelectedFns(initialFns);
+      setAuthority(initialAuth);
+    }
+    prevServerFnsRef.current = initialFns;
+    prevServerAuthRef.current = initialAuth;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [u.id, initialFns, initialAuth]);
+
   function toggleFunction(fn: UserFunction) {
     setSelectedFns((prev) => {
       const has = prev.includes(fn);
@@ -508,9 +542,7 @@ function UserRoleEditor({
     });
   }
 
-  const dirty =
-    JSON.stringify([...selectedFns].sort()) !== JSON.stringify([...initialFns].sort()) ||
-    authority !== initialAuth;
+  const dirty = dirtyNow;
 
   return (
     <div className="flex flex-col gap-2 min-w-0 sm:min-w-[280px]" data-testid={`role-editor-${u.id}`}>
@@ -682,11 +714,11 @@ export default function UserManagement() {
   const users = pagedUsers?.data;
   const usersTotal = pagedUsers?.total ?? 0;
 
-  const { data: permissiveMode } = useQuery<PermissiveModeStatus>({
+  const { data: permissiveMode, isError: permissiveModeError } = useQuery<PermissiveModeStatus>({
     queryKey: ["/api/admin/role-permissions/status"],
     queryFn: async () => {
       const res = await fetch("/api/admin/role-permissions/status", { credentials: "include" });
-      if (!res.ok) return { permissive: true, effectiveAccessLabel: "All Functions + Team-Lead-Level Permissions" };
+      if (!res.ok) throw new Error("Failed to fetch role-permissions status");
       return res.json();
     },
     enabled: !!user && (user.role === "team_lead" || user.role === "ceo"),
@@ -704,14 +736,18 @@ export default function UserManagement() {
 
   const dismissBannerMutation = useMutation({
     mutationFn: async () => {
-      await fetch("/api/admin/role-backfill-banner/dismiss", {
+      const res = await fetch("/api/admin/role-backfill-banner/dismiss", {
         method: "POST",
         credentials: "include",
       });
+      if (!res.ok) throw new Error("Failed to dismiss banner");
     },
     onSuccess: () => {
       setBannerDismissed(true);
       void queryClient.invalidateQueries({ queryKey: ["/api/admin/role-backfill-banner"] }); // fire-and-forget: cache refresh only
+    },
+    onError: () => {
+      toast({ title: "Failed to dismiss banner", description: "Try again.", variant: "destructive" });
     },
   });
 
@@ -750,7 +786,7 @@ export default function UserManagement() {
     };
     hasImpact: boolean;
   };
-  const { data: deleteImpactResponse, isFetching: deleteImpactLoading } = useQuery<{ impact: DeleteImpact }>({
+  const { data: deleteImpactResponse, isFetching: deleteImpactLoading, isError: deleteImpactError } = useQuery<{ impact: DeleteImpact }>({
     queryKey: ["/api/users", deleteTarget?.id, "delete-impact"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${deleteTarget!.id}/delete-impact`, {
@@ -1386,9 +1422,17 @@ export default function UserManagement() {
   }
 
   const showBanner = bannerStatus && !bannerStatus.dismissed && !bannerDismissed;
-  const permLabel = permissiveMode?.permissive === false ? "Strict" : "Permissive";
-  const effectiveLabel =
-    permissiveMode?.effectiveAccessLabel ?? "All Functions + Team-Lead-Level Permissions";
+  // An operational failure fetching this status is not evidence of a
+  // permissive mode — misreporting it that way would be misleading in an
+  // admin permissions UI. Show "Unknown" instead of assuming either state.
+  const permLabel = permissiveModeError
+    ? "Unknown"
+    : permissiveMode?.permissive === false
+      ? "Strict"
+      : "Permissive";
+  const effectiveLabel = permissiveModeError
+    ? "Couldn't load — try refreshing"
+    : permissiveMode?.effectiveAccessLabel ?? "All Functions + Team-Lead-Level Permissions";
 
   // Task #4348 — OsTable column set for the paged user table. Deliberately a
   // plain const (NOT useMemo): this sits below the loading early-returns, so
@@ -2207,6 +2251,15 @@ export default function UserManagement() {
                       data-testid="text-delete-impact-loading"
                     >
                       Checking active assignments…
+                    </p>
+                  )}
+                  {deleteImpactError && (
+                    <p
+                      className="text-xs text-destructive"
+                      data-testid="text-delete-impact-error"
+                    >
+                      Couldn't check this user's active assignments — proceeding will
+                      re-prompt if the server finds any.
                     </p>
                   )}
                   {deleteImpact && deleteImpact.hasImpact && (

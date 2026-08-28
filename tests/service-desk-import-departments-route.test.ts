@@ -40,8 +40,8 @@ test-registration */
  * Uses pinGetDbForCrossAsync so Express handlers outside the sandbox ALS scope
  * read the cloned tables, not live public.*.
  * ClickUp API calls are stubbed via sd-import-departments-loader.mjs, which
- * redirects clickUpClient to sd-import-departments-cu-stub.mjs (reads
- * globalThis.__sdImportDeptCu*Fields) and clickUpIntegration to
+ * redirects clickUpClient to the shared vendor-stubs/clickup-stub.mjs (Task
+ * #5313; reads globalThis.__sdImportDeptCu*Fields) and clickUpIntegration to
  * sd-import-departments-token-stub.mjs (always returns a token for CEO_ID).
  *
  * Registered in run-all.ts with:
@@ -101,6 +101,18 @@ async function listen(app: express.Express): Promise<{ server: Server; baseUrl: 
 
 async function postImport(baseUrl: string): Promise<{ status: number; body: any }> {
   const r = await fetch(`${baseUrl}/api/service-desk/setup/import-departments`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const text = await r.text();
+  let parsed: any;
+  try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+  return { status: r.status, body: parsed };
+}
+
+async function postImportRequestTypes(baseUrl: string): Promise<{ status: number; body: any }> {
+  const r = await fetch(`${baseUrl}/api/service-desk/setup/import-request-types`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({}),
@@ -405,6 +417,59 @@ async function main(): Promise<void> {
         const deptCountAfter = (await db.execute(sql`SELECT COUNT(*)::int AS n FROM sd_departments`)).rows[0].n;
         assert.equal(deptCountAfter, deptCountBefore, "refresh endpoint must not create departments");
         console.log("  ✓ J: refresh-option-names renames dept + request type, preserves mappings, no new rows");
+
+        // ── (K) Stale request-type mappings are restored for explicit remap ──
+        await db.execute(sql`
+          UPDATE sd_list_mapping
+          SET request_type_option_ids =
+            request_type_option_ids || '{"opt-stale-5236": "Deleted Request Type"}'::jsonb
+          WHERE clickup_list_id = ${LIST_ID}
+        `);
+        (globalThis as any).__sdImportDeptCuFields = [
+          {
+            id: RT_FIELD_ID,
+            type_config: {
+              options: [
+                { id: "opt-rt-3616", name: "SEO Deep Audit", orderindex: 0 },
+                { id: "opt-stale-5236", name: "Deleted Request Type", orderindex: 1 },
+              ],
+            },
+          },
+        ];
+
+        const staleRtResp = await postImportRequestTypes(baseUrl);
+        assert.equal(staleRtResp.status, 200, `stale request-type import must return 200 (got ${staleRtResp.status})`);
+        assert.equal(staleRtResp.body.createdCount, 1, "stale request-type option must recreate one backing row");
+        assert.equal(staleRtResp.body.alreadyMappedCount, 1, "valid request-type mapping remains already mapped");
+        assert.equal(staleRtResp.body.staleRecoveredCount, 1, "stale mapping must be reported as restored");
+        assert.equal(staleRtResp.body.needsDepartmentRemapCount, 1, "restored request type must require an explicit department remap");
+
+        const restoredRtRows = await db.execute(sql`
+          SELECT name, department_id, active
+          FROM sd_request_types
+          WHERE name = 'Deleted Request Type'
+        `);
+        assert.equal(restoredRtRows.rows.length, 1, "deleted request type must be restored exactly once");
+        assert.equal(restoredRtRows.rows[0].department_id, null, "stale request type must not guess a replacement department");
+        assert.equal(restoredRtRows.rows[0].active, true, "restored request type must be active");
+
+        const staleRtMapRows = await db.execute(sql`
+          SELECT request_type_option_ids
+          FROM sd_list_mapping
+          WHERE clickup_list_id = ${LIST_ID}
+          LIMIT 1
+        `);
+        assert.equal(
+          (staleRtMapRows.rows[0].request_type_option_ids as Record<string, string>)["opt-stale-5236"],
+          "Deleted Request Type",
+          "restored request type must retain the ClickUp option binding",
+        );
+
+        const staleRtSecondResp = await postImportRequestTypes(baseUrl);
+        assert.equal(staleRtSecondResp.body.createdCount, 0, "repeat import must not duplicate the restored request type");
+        assert.equal(staleRtSecondResp.body.staleRecoveredCount, 0, "repeat import must report no remaining stale mapping");
+        assert.equal(staleRtSecondResp.body.alreadyMappedCount, 2, "repeat import treats both backed mappings as valid");
+        console.log("  ✓ K: stale request-type mapping is restored unassigned, surfaced, and idempotent");
 
         // Unbind the RT field again so later sections behave as before.
         await db.execute(sql`

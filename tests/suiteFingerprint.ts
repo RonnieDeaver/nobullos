@@ -85,6 +85,7 @@ import {
   DEFAULT_CORE_RULES,
   coreReason,
   extraNodeArgsEntryFiles,
+  generatedArtifactOwnershipInputsForSuite,
   traceImportClosures,
   traceImportClosuresWithBudget,
   type CoreRule,
@@ -944,6 +945,19 @@ export async function computeSuiteFingerprints(
           suite.scanPaths && suite.scanPaths.length > 0
             ? { scanPaths: computeScanPathsParts(suite.scanPaths, repoRoot, cache) }
             : {};
+        const ownershipInputs = generatedArtifactOwnershipInputsForSuite(suite.file, repoRoot);
+        if (!ownershipInputs.ok) {
+          throw new Error(ownershipInputs.error);
+        }
+        const ownershipExtra =
+          ownershipInputs.inputs.length > 0
+            ? {
+                generatedArtifactOwnership: {
+                  families: ownershipInputs.families,
+                  inputs: ownershipInputs.inputs.map((rel) => [rel, hashFile(resolve(repoRoot, rel), cache)]),
+                },
+              }
+            : {};
         fingerprint = sha256(
           JSON.stringify({
             algo: FINGERPRINT_ALGO_VERSION,
@@ -959,6 +973,7 @@ export async function computeSuiteFingerprints(
             },
             closure: closureParts,
             ...scanExtra,
+            ...ownershipExtra,
           }),
         );
       } catch (err) {

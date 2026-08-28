@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Integrations all status front fields (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -3,6 +3,9 @@
   "name": "CEO prod action: delete legacy Google Drive SA key (Task #4107)",
   "regression": true,
   "sweepOnlyReason": "Task #4107 — imports prodActionsRegistry and storage (warms DB pools); fetch-stubbed for GCP IAM + Google OAuth token exchange; DB reads are idempotent (google_service_account_key setting already absent in dev). Consistent with the prod-actions-zoom-s2s-cutover pattern.",
+  "scanPaths": [
+    "GOOGLE_DRIVE.md"
+  ],
   "tier": "small"
 }
 test-registration */
@@ -24,6 +27,7 @@ test-registration */
 process.env.NODE_ENV = process.env.NODE_ENV || "test";
 
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import express from "express";
 import http, { type Server } from "http";
 import type { AddressInfo } from "node:net";
@@ -36,11 +40,18 @@ import {
   PROD_ACTIONS,
   applyOneProdAction,
 } from "../server/services/prodActionsRegistry";
+import type { ProdAction } from "../server/services/prodActionsRegistry";
+import { __resetManualLeverAppliesForCrossInstanceTest } from "../server/services/prodActions/engine";
 import { registerProdActionsRoutes } from "../server/routes/prodActions";
 import { __resetDriveClosureProbeMemoForTest } from "../server/services/prodActions/platformOpsActions";
 import { ensureProdActionRunsTable } from "../server/storage/prodActionRuns";
 import { runWithWorkerDb, getDb } from "../server/db";
 import { sql } from "drizzle-orm";
+import {
+  getSystemSettingFresh,
+  setSystemSetting,
+  deleteSystemSetting,
+} from "../server/storage/settingsStorage";
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -130,7 +141,10 @@ function installFetchStub(ctrl: FetchControl) {
             { status: 403 },
           );
         }
-        return new Response("", { status: ctrl.iamDeleteStatus });
+        return new Response(
+          ctrl.iamDeleteStatus === 204 ? null : "",
+          { status: ctrl.iamDeleteStatus },
+        );
       }
     }
 
@@ -247,17 +261,33 @@ async function testStatusFullyClosedRetires(): Promise<void> {
   }
 }
 
-// B1. apply() — success path: precheck passes, IAM DELETE 200, DB clear, postcheck passes.
-async function testApplySuccess(): Promise<void> {
-  installFetchStub({ iamGetStatus: 200, iamDeleteStatus: 200 });
+async function withRecoverySetting<T>(fn: () => Promise<T>): Promise<T> {
+  await setSystemSetting("google_service_account_key", "recovery-fixture", undefined);
   try {
-    const r = await findAction().apply("ceo-user");
-    assert.equal(r.state, "applied", `Expected applied, got: ${r.detail}`);
-    assert.match(r.detail ?? "", /deleted from Google Cloud IAM/i, "IAM deletion confirmed");
-    assert.match(r.detail ?? "", /Sheets lane.*verified/i, "Sheets post-check confirmed");
-    assert.match(r.detail ?? "", /B-008/i, "B-008 closure mentioned");
-    assert.equal(iamDeleteCalls, 1, "exactly one IAM DELETE");
-    assert.ok(oauthCalls >= 2, "at least precheck + postcheck token calls");
+    return await fn();
+  } finally {
+    await deleteSystemSetting("google_service_account_key");
+  }
+}
+
+// B1. apply() — success path: precheck passes, IAM DELETE 200, IAM GET
+// verifies 404, DB clear is verified, and postcheck passes.
+async function testApplySuccess(): Promise<void> {
+  installFetchStub({ iamGetStatus: 404, iamDeleteStatus: 200 });
+  try {
+    await withRecoverySetting(async () => {
+      const r = await findAction().apply("ceo-user");
+      assert.equal(r.state, "applied", `Expected applied, got: ${r.detail}`);
+      assert.match(r.detail ?? "", /IAM GET verified 404/i, "IAM absence verified");
+      assert.match(r.detail ?? "", /google_service_account_key verified absent/i, "DB cleanup verified");
+      assert.match(r.detail ?? "", /Sheets lane.*verified/i, "Sheets post-check confirmed");
+      assert.match(r.detail ?? "", /B-008 fully closed/i, "verified closure mentioned");
+      assert.equal(iamDeleteCalls, 1, "exactly one IAM DELETE");
+      assert.equal(iamGetCalls, 1, "exactly one follow-up IAM GET");
+      assert.ok(oauthCalls >= 3, "precheck + IAM + postcheck token calls");
+      const setting = await getSystemSettingFresh("google_service_account_key");
+      assert.equal(setting, undefined, "recovery setting is cleared only on verified success");
+    });
   } finally {
     restoreFetch();
   }
@@ -277,36 +307,79 @@ async function testApplyPrecheckFails(): Promise<void> {
   }
 }
 
-// B3. apply() — GCP DELETE returns 403 → error, DB not cleared.
+// B3. apply() — GCP DELETE returns 403 → blocked with least-privilege
+// remediation, and the recovery setting remains intact.
 async function testApplyGcp403(): Promise<void> {
   installFetchStub({ iamGetStatus: 200, iamDeleteStatus: 403 });
   try {
-    const r = await findAction().apply("ceo-user");
-    assert.equal(r.state, "error", `Expected error on 403, got: ${r.state}`);
-    assert.match(r.detail ?? "", /403 Forbidden/i, "403 surfaced in detail");
-    assert.match(r.detail ?? "", /Google Cloud Console/i, "manual fallback instructions present");
-    assert.equal(iamDeleteCalls, 1, "one DELETE attempt made");
+    await withRecoverySetting(async () => {
+      const r = await findAction().apply("ceo-user");
+      assert.equal(r.state, "blocked", `Expected blocked on 403, got: ${r.state}`);
+      assert.match(r.detail ?? "", /403 Forbidden/i, "403 surfaced in detail");
+      assert.match(r.detail ?? "", /custom role/i, "custom least-privilege role named");
+      assert.match(r.detail ?? "", /iam\.serviceAccountKeys\.delete/i, "delete permission named");
+      assert.match(r.detail ?? "", /iam\.serviceAccountKeys\.get/i, "verification permission named");
+      assert.doesNotMatch(
+        r.detail ?? "",
+        /roles\/iam\.serviceAccountKeyAdmin/,
+        "unsafe predefined key-admin role is never recommended",
+      );
+      assert.match(
+        r.detail ?? "",
+        /Do not grant key-create permission/i,
+        "remediation explicitly forbids credential creation",
+      );
+      assert.match(
+        r.detail ?? "",
+        /Revoke the resource-scoped custom grant after the lever verifies closure/i,
+        "runtime remediation requires revoking the temporary grant",
+      );
+      assert.match(r.detail ?? "", /Google Cloud Console/i, "manual fallback instructions present");
+      assert.match(r.detail ?? "", /B-008 remains OPEN/i, "does not claim closure");
+      assert.equal(iamDeleteCalls, 1, "one DELETE attempt made");
+      assert.equal(iamGetCalls, 0, "no verification GET after denied DELETE");
+      assert.equal(
+        (await getSystemSettingFresh("google_service_account_key"))?.value,
+        "recovery-fixture",
+        "403 preserves the recovery setting",
+      );
+    });
+
+    const runbook = readFileSync("GOOGLE_DRIVE.md", "utf8");
+    assert.match(runbook, /resource-scoped custom role/i);
+    assert.match(runbook, /iam\.serviceAccountKeys\.delete/i);
+    assert.match(runbook, /iam\.serviceAccountKeys\.get/i);
+    assert.doesNotMatch(
+      runbook,
+      /roles\/iam\.serviceAccountKeyAdmin/,
+      "runbook must never prescribe the key-creation-capable predefined role",
+    );
+    assert.match(
+      runbook,
+      /Revoke\s+the\s+custom\s+grant\s+after\s+the\s+lever\s+verifies\s+closure/i,
+      "runbook requires revoking the temporary grant",
+    );
   } finally {
     restoreFetch();
   }
 }
 
-// B4. apply() — GCP DELETE 404 (key already gone) → applied (treats as success).
+// B4. apply() — GCP DELETE 404 and verification GET 404 → applied.
 async function testApplyGcpAlreadyGone(): Promise<void> {
   installFetchStub({ iamGetStatus: 404, iamDeleteStatus: 404 });
   try {
     const r = await findAction().apply("ceo-user");
     assert.equal(r.state, "applied", `Expected applied for 404-already-gone, got: ${r.state}: ${r.detail}`);
-    assert.match(r.detail ?? "", /already deleted/i, "already-gone phrasing present");
+    assert.match(r.detail ?? "", /already absent/i, "already-gone phrasing present");
     assert.match(r.detail ?? "", /Sheets lane.*verified/i, "Sheets post-check runs even for 404");
   } finally {
     restoreFetch();
   }
 }
 
-// B5. apply() — Sheets postcheck fails after successful GCP deletion → error.
+// B5. apply() — Sheets postcheck fails after verified GCP deletion → error.
 async function testApplyPostcheckFails(): Promise<void> {
-  installFetchStub({ iamGetStatus: 200, iamDeleteStatus: 200, postcheckFail: true });
+  installFetchStub({ iamGetStatus: 404, iamDeleteStatus: 200, postcheckFail: true });
   try {
     const r = await findAction().apply("ceo-user");
     assert.equal(r.state, "error", `Expected error when postcheck fails, got: ${r.state}`);
@@ -314,6 +387,126 @@ async function testApplyPostcheckFails(): Promise<void> {
     assert.match(r.detail ?? "", /Investigate/i, "urgency language present");
   } finally {
     restoreFetch();
+  }
+}
+
+// B6. DELETE success without a verifying 404 is ambiguous: do not clear the
+// recovery setting and do not claim B-008 closure.
+async function testApplyDeleteAcceptedButStillVisible(): Promise<void> {
+  installFetchStub({ iamGetStatus: 200, iamDeleteStatus: 204 });
+  try {
+    await withRecoverySetting(async () => {
+      const r = await findAction().apply("ceo-user");
+      assert.equal(r.state, "error", `Expected error on ambiguous deletion, got: ${r.state}`);
+      assert.match(r.detail ?? "", /Follow-up IAM verification returned HTTP 200/i);
+      assert.match(r.detail ?? "", /B-008 remains OPEN/i);
+      assert.equal(iamDeleteCalls, 1, "one DELETE attempt made");
+      assert.equal(iamGetCalls, 1, "one verification GET made");
+      assert.equal(
+        (await getSystemSettingFresh("google_service_account_key"))?.value,
+        "recovery-fixture",
+        "ambiguous deletion preserves the recovery setting",
+      );
+    });
+  } finally {
+    restoreFetch();
+  }
+}
+
+// B7. The direct manual-action executor uses both a local join and a
+// cluster-wide advisory lock. Clearing only the local map simulates a second
+// app instance: the same action is blocked by Postgres while a different
+// action still runs.
+async function testManualLeverSingleFlightIsPerAction(): Promise<void> {
+  const firstId = `test_manual_single_flight_a_${process.pid}`;
+  const secondId = `test_manual_single_flight_b_${process.pid}`;
+  let releaseFirst!: () => void;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  let firstCalls = 0;
+  let secondCalls = 0;
+  const fixture = (
+    id: string,
+    apply: () => Promise<{ state: "applied"; detail: string }>,
+  ): ProdAction => ({
+    id,
+    title: id,
+    description: "test-only manual lever",
+    change: "test-only",
+    manualLever: true,
+    convergence: { kind: "converging" },
+    status: async () => ({ state: "not-needed", detail: "test-only" }),
+    apply,
+  });
+  const first = fixture(firstId, async () => {
+    firstCalls++;
+    await firstGate;
+    return { state: "applied", detail: "first settled" };
+  });
+  const second = fixture(secondId, async () => {
+    secondCalls++;
+    return { state: "applied", detail: "second settled" };
+  });
+  (PROD_ACTIONS as ProdAction[]).push(first, second);
+  try {
+    await ensureProdActionRunsTable();
+    const p1 = applyOneProdAction(firstId, null);
+    for (let i = 0; i < 100 && firstCalls === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(firstCalls, 1, "first instance acquired the lock and entered apply");
+
+    // Simulate another Node process: it has no local promise to join but
+    // shares the same PostgreSQL advisory-lock space.
+    __resetManualLeverAppliesForCrossInstanceTest();
+    const p1Duplicate = applyOneProdAction(firstId, null);
+    const p2 = applyOneProdAction(secondId, null);
+
+    const duplicateResult = await p1Duplicate;
+    assert.equal(duplicateResult.kind, "applied", "duplicate receives a truthful result");
+    if (duplicateResult.kind === "applied") {
+      assert.equal(
+        duplicateResult.result.outcome.state,
+        "blocked",
+        "cross-instance duplicate is reported already in progress",
+      );
+      assert.match(duplicateResult.result.outcome.detail ?? "", /already firing/i);
+    }
+    assert.equal(firstCalls, 1, "same-action concurrent call is collapsed");
+    for (let i = 0; i < 100 && secondCalls === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(secondCalls, 1, "different action executes while first remains in flight");
+
+    // The hermetic suite caps workerPool at two connections. Each advisory
+    // lock pins one, so release the first before both actions perform their
+    // audit writes on a third worker connection.
+    releaseFirst();
+    const [firstResult, secondResult] = await Promise.all([p1, p2]);
+    assert.equal(firstResult.kind, "applied", "winning request settles normally");
+    assert.equal(secondResult.kind, "applied", "different lever settles independently");
+
+    const auditRows: any = await getDb().execute(sql`
+      SELECT action_id, COUNT(*)::int AS count
+      FROM prod_action_runs
+      WHERE action_id IN (${firstId}, ${secondId})
+      GROUP BY action_id
+    `);
+    const counts = new Map(
+      (auditRows as any).rows.map((row: any) => [row.action_id, Number(row.count)]),
+    );
+    assert.equal(counts.get(firstId), 1, "cross-instance duplicate does not add an audit row");
+    assert.equal(counts.get(secondId), 1, "independent action writes its own audit row");
+  } finally {
+    releaseFirst();
+    (PROD_ACTIONS as ProdAction[]).splice(
+      (PROD_ACTIONS as ProdAction[]).findIndex((action) => action.id === firstId),
+      2,
+    );
+    await getDb().execute(sql`
+      DELETE FROM prod_action_runs WHERE action_id IN (${firstId}, ${secondId})
+    `).catch(() => {});
   }
 }
 
@@ -455,6 +648,12 @@ async function main() {
 
   await testApplyPostcheckFails();
   console.log("<<< B5 ok — apply() postcheck failure after deletion → error");
+
+  await testApplyDeleteAcceptedButStillVisible();
+  console.log("<<< B6 ok — accepted DELETE without verified absence preserves recovery setting");
+
+  await testManualLeverSingleFlightIsPerAction();
+  console.log("<<< B7 ok — direct manual-lever single-flight is keyed per action");
 
   await testRouteAndCeoGate();
   console.log("<<< C ok — route: CEO gate, non-lever 400, lever press 200 + audit row");

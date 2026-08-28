@@ -33,7 +33,7 @@
  *      the repo.
  *
  * Wiring: `npm run gate` (after the clean-scratch self-clean step) and
- * scripts/predeploy.sh. The `.replit` `Validate` workflow runs that gate; the
+ * scripts/predeploy.sh. The managed Long validation workflow runs the reviewed routine-gate profile; the
  * SMOKE_FILES entry for tests/lint-worktree-hygiene.test.ts is part of the
  * enforcement.
  *

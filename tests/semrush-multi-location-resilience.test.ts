@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "SEMrush multi-location resilience",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

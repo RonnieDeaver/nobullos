@@ -90,10 +90,13 @@ import {
 import { DEFAULT_CORE_RULES } from "./relatedSmokeSelection";
 import {
   loadRedManifest,
+  computeManifestStaleness,
   publishRedManifest,
   resolveMergeWindow,
   type MergeWindow,
 } from "./redManifest";
+import { classifyTaskGateDisposition, mandatoryRailWasExecuted } from "../scripts/taskGatePolicy";
+import { isTaskControlPlanePath } from "../scripts/gate";
 
 // ---------------------------------------------------------------------------
 // Mini test runner (post-merge-canary.test.ts pattern)
@@ -397,6 +400,105 @@ test("executed/skipped summary line discloses deferral as a third disposition", 
   );
 });
 
+test("bounded task-validation matrix names every disposition and keeps fail-closed exceptions blocking", () => {
+  const base = {
+    gatePassed: true,
+    verificationComplete: true,
+    selectionTrusted: true,
+    proofStatus: "accepted-green" as const,
+    directlyAffectedUnverified: false,
+    coreGuardUnverified: false,
+    testControlPlaneChanged: false,
+    fullIntegrityVerified: false,
+    centralIntegrityDeferred: false,
+    executedAndPassed: false,
+    reusedAcceptedGreenEvidence: false,
+    deferredNotVerified: false,
+    quarantinedNonBlocking: false,
+  };
+  assert.deepEqual(classifyTaskGateDisposition({ ...base, executedAndPassed: true }), {
+    primaryDisposition: "executed-and-passed",
+    dispositions: ["executed-and-passed"],
+    blockingReasons: [],
+  });
+  assert.equal(
+    classifyTaskGateDisposition({ ...base, reusedAcceptedGreenEvidence: true }).primaryDisposition,
+    "reused-accepted-green-evidence",
+    "accepted green reuse is explicit and distinct from execution",
+  );
+  const deferred = classifyTaskGateDisposition({
+    ...base,
+    proofStatus: "stale-expired",
+    deferredNotVerified: true,
+  });
+  assert.equal(deferred.primaryDisposition, "deferred-and-not-verified");
+  assert.deepEqual(deferred.dispositions, ["deferred-and-not-verified"]);
+  assert.equal(
+    classifyTaskGateDisposition({ ...base, quarantinedNonBlocking: true }).primaryDisposition,
+    "quarantined-non-blocking",
+    "quarantine stays a named non-blocking disposition under its existing rails",
+  );
+
+  const blockingCases = [
+    ["directly affected suite", { directlyAffectedUnverified: true }],
+    ["core guard", { coreGuardUnverified: true }],
+    ["untrusted selection", { selectionTrusted: false }],
+    ["missing proof", { proofStatus: "missing" as const }],
+    ["malformed proof", { proofStatus: "malformed" as const }],
+    ["untrusted proof", { proofStatus: "untrusted" as const }],
+    ["test-control-plane change without central handoff", { testControlPlaneChanged: true }],
+    [
+      "deferred proof that is not positively stale",
+      { deferredNotVerified: true, proofStatus: "accepted-green" as const },
+    ],
+  ] as const;
+  for (const [label, overrides] of blockingCases) {
+    const result = classifyTaskGateDisposition({ ...base, ...overrides });
+    assert.equal(result.primaryDisposition, "blocking-failure", `${label} falls closed to blocking`);
+    assert.ok(result.blockingReasons.length > 0, `${label} has an explainable blocking reason`);
+  }
+  assert.equal(
+    classifyTaskGateDisposition({
+      ...base,
+      testControlPlaneChanged: true,
+      fullIntegrityVerified: true,
+      executedAndPassed: true,
+    }).primaryDisposition,
+    "executed-and-passed",
+    "an explicit full-integrity run remains valid central proof",
+  );
+  assert.equal(
+    classifyTaskGateDisposition({
+      ...base,
+      testControlPlaneChanged: true,
+      centralIntegrityDeferred: true,
+      proofStatus: "central-integrity",
+      deferredNotVerified: true,
+      executedAndPassed: true,
+    }).primaryDisposition,
+    "deferred-and-not-verified",
+    "control-plane tasks retain focused blocking rails while broad integrity is handed to the central lane",
+  );
+});
+
+test("test-control-plane detector rejects policy-owning paths but not ordinary suite edits", () => {
+  for (const path of [
+    "scripts/gate.ts",
+    "scripts/taskGatePolicy.ts",
+    "tests/run-all.ts",
+    "tests/relatedSmokeSelection.ts",
+    "tests/suiteFingerprint.ts",
+    "scripts/lint-async-correctness.ts",
+    "tests/flake-quarantine.json",
+    "tests/redManifest.ts",
+    "tests/durationBudget.ts",
+    "server/services/regressionSweepScheduler.ts",
+  ]) {
+    assert.equal(isTaskControlPlanePath(path), true, `${path} needs independent full integrity`);
+  }
+  assert.equal(isTaskControlPlanePath("tests/client/widget.test.tsx"), false);
+});
+
 test("this guard suite is in the always-run core — the deferral machinery can never defer its own guard", () => {
   assert.ok(
     DEFAULT_CORE_RULES.some(
@@ -643,6 +745,17 @@ test("resolveMergeWindow: bounded walk, newest first, task parsing, truncation, 
   }
 });
 
+test("red-manifest freshness treats future stamps as stale rather than excusing a task", () => {
+  const now = new Date("2026-08-25T12:00:00.000Z");
+  const futurePublishedAt = new Date(now.getTime() + 24 * 60 * 60 * 1_000).toISOString();
+  const status = computeManifestStaleness(
+    { publishedAt: futurePublishedAt, entries: {}, schemaVersion: 2 } as any,
+    now,
+  );
+  assert.equal(status.stale, true, "clock-skewed future evidence cannot prove upstream health");
+  assert.ok(status.ageDays !== null && status.ageDays < 0, "age stays observable for diagnosis");
+});
+
 test("publishRedManifest: culprit stamped only from an exactly-one-commit complete window, carried on same breakage", () => {
   const root = tmpRoot();
   try {
@@ -732,6 +845,49 @@ test("culprit window annotations ride into the feedback item text and the nightl
     text.includes("Culprit merge (sole commit in the window"),
     `feedback text names the sole-commit culprit (got: ${text})`,
   );
+
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 1, executed: 1, skippedGreen: 0, deferred: 0 }),
+    true,
+    "a direct/core rail is proven by a fresh execution result",
+  );
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 1, executed: 0, skippedGreen: 1, deferred: 0 }),
+    true,
+    "direct/core rails may reuse accepted, fingerprint-matched green evidence (owner-approved 2026-08-26 exception)",
+  );
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 2, executed: 1, skippedGreen: 1, deferred: 0 }),
+    true,
+    "a mix of fresh execution and reused green evidence still satisfies the rail",
+  );
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 1, executed: 0, skippedGreen: 0, deferred: 1 }),
+    false,
+    "direct/core rails cannot transfer verification debt",
+  );
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 1, executed: 0, skippedGreen: 0, deferred: 0 }),
+    false,
+    "a rail suite with neither an execution nor green-skip proof still blocks (missing/failed coverage)",
+  );
+  assert.equal(
+    mandatoryRailWasExecuted({ selected: 2, executed: 0, skippedGreen: 1, deferred: 1 }),
+    false,
+    "any deferred suite still blocks the rail even when another required suite reused green evidence",
+  );
+
+  // Real-world scenario this task fixes: re-running `npm run gate` a second
+  // time in the same session with no source changes should NOT report
+  // "a directly affected suite was not executed" purely because the second
+  // run's planner legitimately green-skipped a rail suite proven identical
+  // to the first run's passing execution.
+  const secondRunDirectAffectedRail = { selected: 3, executed: 1, skippedGreen: 2, deferred: 0 };
+  assert.equal(
+    mandatoryRailWasExecuted(secondRunDirectAffectedRail),
+    true,
+    "a same-session re-run that green-skips already-proven rail suites no longer false-blocks the gate",
+  );
   assert.ok(text.includes("#4444"), "feedback text cites the task ref");
 
   // A failing suite that is NOT a new red gets no culprit line.
@@ -795,6 +951,20 @@ test("run-all wiring: deferral block guarded (kill switch, publish arm, --file r
   assert.ok(runAll.includes("writeFullLaneDeferralRecord({"), "run-all writes the honest deferred-not-verified record");
   assert.ok(runAll.includes("!deferredSet.has(t.file)"), "deferred suites are excluded from execution");
   assert.ok(
+    runAll.includes("const directRelatedFiles = new Set<string>()"),
+    "direct rails are tracked separately from the whole selected universe",
+  );
+  assert.match(
+    runAll,
+    /const requiredDirectFiles = new Set\(\s*\[\s*\.\.\.directRelatedFiles,\s*\.\.\.expansionAddedFiles,\s*\.\.\.quarantineReAddedFiles,/,
+    "only direct, expansion, and quarantine-override rails are mandatory",
+  );
+  assert.doesNotMatch(
+    runAll,
+    /const requiredDirectFiles = new Set\(\s*onlySmoke\s*\?\s*selected/,
+    "rail-less full-universe suites retain their allowed deferred-not-verified disposition",
+  );
+  assert.ok(
     runAll.includes("deferredCount: deferredFiles.length"),
     "the wall evaluation sees the deferred count (a narrowed run never judges the wall)",
   );
@@ -829,6 +999,22 @@ test("scheduler wiring: the 6h staleness watchdog runs the duration-breach check
     sched.slice(fnIdx, fnIdx + 1200).includes("await runDurationBudgetBreachCheck();"),
     "runStalenessWatchdog awaits runDurationBudgetBreachCheck",
   );
+});
+
+test("scheduler wiring: every trigger takes the shared durable singleton lock before a sweep starts", () => {
+  const sched = readFileSync("server/services/regressionSweepScheduler.ts", "utf8");
+  const entrypoint = sched.indexOf("export async function runRegressionSweepNow(");
+  assert.ok(entrypoint >= 0, "shared cron/catch-up/manual entrypoint exists");
+  const body = sched.slice(entrypoint, entrypoint + 1800);
+  assert.ok(
+    body.includes("acquireDistributedLock(REGRESSION_SWEEP_LOCK_NAME)"),
+    "the shared entrypoint uses the existing process + cross-instance lock",
+  );
+  assert.ok(
+    body.indexOf("acquireDistributedLock(REGRESSION_SWEEP_LOCK_NAME)") < body.indexOf("await runOnce(trigger)"),
+    "lock acquisition precedes every runner spawn",
+  );
+  assert.ok(body.includes("await lock?.release()"), "the durable lock releases in finally");
 });
 
 test("regen wiring: a deferral-narrowed measurement is refused as a budget source", () => {

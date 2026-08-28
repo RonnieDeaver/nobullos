@@ -161,6 +161,109 @@ export type NoteEvent = {
 
 export type ConversationEvent = SmsEvent | CallEvent | NoteEvent;
 
+// Task #5300: a single compose action against a group thread fans out to
+// one `twilio_messages` row per recipient (one Twilio SMS each — see
+// server/routes/twilio.ts). Left alone, the timeline renders those rows as
+// N look-alike bubbles for what the user experienced as ONE "send", which
+// reads as "it sent duplicates". `groupOutboundSendEvents` below collapses
+// a contiguous run of outbound SMS events that plausibly came from the same
+// compose action into one `SmsGroupEvent` so the UI can render a single
+// bubble with a compact per-recipient status list.
+export type SmsGroupRecipient = {
+  id: string;
+  toNumber: string;
+  status: string;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  messagingServiceSid?: string | null;
+};
+
+export type SmsGroupEvent = {
+  kind: "sms-group";
+  id: string;
+  conversationId: string;
+  ts: Date;
+  direction: "outbound";
+  body: string;
+  fromNumber: string;
+  sentByUserId: string | null;
+  recipients: SmsGroupRecipient[];
+};
+
+export type DisplayTimelineEvent = ConversationEvent | SmsGroupEvent;
+
+// How long a burst of same-body outbound sends may spread out (measured
+// hop-to-hop, not end-to-end) and still be treated as one compose action.
+// `sendSms` calls for every recipient are dispatched in parallel
+// (Promise.allSettled), but each makes its own round trip to Twilio, so
+// rows can land a little staggered under load — wide enough to absorb
+// that, narrow enough that two genuinely separate sends of the same text
+// minutes apart never merge.
+const GROUP_SEND_WINDOW_MS = 20_000;
+
+export function groupOutboundSendEvents(events: ConversationEvent[]): DisplayTimelineEvent[] {
+  const out: DisplayTimelineEvent[] = [];
+  let i = 0;
+  while (i < events.length) {
+    const evt = events[i];
+    if (evt.kind !== "sms" || evt.direction !== "outbound") {
+      out.push(evt);
+      i++;
+      continue;
+    }
+
+    // Grow a run of adjacent outbound SMS events that share the exact
+    // same body + from-number and never repeat a recipient — a repeat
+    // recipient can only mean a NEW compose action re-sent the same
+    // text, not more rows from this one.
+    const run: SmsEvent[] = [evt];
+    const seenPhones = new Set<string>([evt.toNumber]);
+    let j = i + 1;
+    while (j < events.length) {
+      const next = events[j];
+      if (
+        next.kind !== "sms" ||
+        next.direction !== "outbound" ||
+        next.body !== evt.body ||
+        next.fromNumber !== evt.fromNumber ||
+        seenPhones.has(next.toNumber) ||
+        next.ts.getTime() - run[run.length - 1].ts.getTime() > GROUP_SEND_WINDOW_MS
+      ) {
+        break;
+      }
+      run.push(next);
+      seenPhones.add(next.toNumber);
+      j++;
+    }
+
+    if (run.length >= 2) {
+      out.push({
+        kind: "sms-group",
+        id: `sms-group:${run[0].id}`,
+        conversationId: run[0].conversationId,
+        ts: run[0].ts,
+        direction: "outbound",
+        body: run[0].body,
+        fromNumber: run[0].fromNumber,
+        sentByUserId: run[0].sentByUserId,
+        recipients: run.map((r) => ({
+          id: r.id,
+          toNumber: r.toNumber,
+          status: r.status,
+          errorCode: r.errorCode,
+          errorMessage: r.errorMessage,
+          messagingServiceSid: r.messagingServiceSid,
+        })),
+      });
+      i = j;
+    } else {
+      out.push(evt);
+      i++;
+    }
+  }
+  return out;
+}
+
 // Task #850: server shape for GET /api/twilio/threads/:key/notes (and the
 // bulk variant). Mirrors the storage row + the joined author display name.
 export type RawThreadNote = {
@@ -602,7 +705,7 @@ export function buildConversationTimelineEvents(
 export type TimelineGroup = {
   label: string;
   date: string;
-  events: ConversationEvent[];
+  events: DisplayTimelineEvent[];
 };
 
 // Task #2778: generic day-grouping used by both the Conversation Hub
@@ -647,7 +750,7 @@ export function groupItemsByDay<T>(
   return Array.from(groups.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function groupTimelineByDate(events: ConversationEvent[]): TimelineGroup[] {
+export function groupTimelineByDate(events: DisplayTimelineEvent[]): TimelineGroup[] {
   return groupItemsByDay(events, (e) => e.ts, { month: "long" }).map((g) => ({
     label: g.label,
     date: g.date,

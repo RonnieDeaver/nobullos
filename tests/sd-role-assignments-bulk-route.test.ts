@@ -348,6 +348,11 @@ async function main(): Promise<void> {
           "rejected Checker write must not persist a Checker holder",
         );
         activeUserId = CEO_ID;
+        // DEFAULT_DENY_DEPT_ID is per_client-scoped (like every other
+        // department this test assigns client-level roles to above), so its
+        // destination must be client_list_parent — direct_task would trip
+        // the unrelated assignment-scope guard first and mask the Checker
+        // capability rejection this assertion exists to prove.
         const deniedDestination = await req(
           baseUrl,
           "PUT",
@@ -358,8 +363,7 @@ async function main(): Promise<void> {
             environment: "sandbox",
             workspaceId: "workspace-3626",
             listId: "sandbox-list-3626",
-            targetId: "task-3626",
-            targetKind: "direct_task",
+            targetKind: "client_list_parent",
             peopleFieldId: "people-3626",
             enabled: false,
           },

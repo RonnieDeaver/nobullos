@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Twilio SMS status-callback (Task #875)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // SPDX-License-Identifier: MIT

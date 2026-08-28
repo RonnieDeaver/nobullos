@@ -559,6 +559,24 @@ test("shouldRunCatchup: eligible when lastAttemptStartedAt is null (no attempt y
   assert.equal(eligible, true);
 });
 
+test("shouldRunCatchup: corrupt or future durable timestamps defer rather than bypass cadence", () => {
+  for (const lastAttemptStartedAt of ["not-a-timestamp", "1", new Date(NOW.getTime() + 60_000).toISOString()]) {
+    const result = shouldRunCatchup(openParams({ lastAttemptStartedAt }));
+    assert.equal(result.eligible, false, `attempt=${lastAttemptStartedAt}`);
+    assert.match(result.reason, /attempt-start timestamp is invalid or in the future/);
+  }
+  for (const finishedAt of ["not-a-timestamp", "1", new Date(NOW.getTime() + 60_000).toISOString()]) {
+    const result = shouldRunCatchup(
+      openParams({ lastAttemptStartedAt: null, lastTickState: makeTickState({ finishedAt }) }),
+    );
+    assert.equal(result.eligible, false, `finished=${finishedAt}`);
+    assert.match(result.reason, /last-tick timestamp is invalid or in the future/);
+  }
+  const invalidBaseline = shouldRunCatchup(openParams({ baselineAgeDays: Number.NaN }));
+  assert.equal(invalidBaseline.eligible, false);
+  assert.match(invalidBaseline.reason, /baseline freshness is invalid/);
+});
+
 // ---------------------------------------------------------------------------
 // 9. Task #4530 S2/S3 — watchdog state round-trip with daily alertedOn field
 // ---------------------------------------------------------------------------
@@ -689,6 +707,35 @@ test("runStalenessWatchdogOnce: persists alertedOn when dispatcher returns skipp
     });
 
     assert.equal(secondCallCount, 0, "second tick same day must not call notifyFn again (daily cap)");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("runStalenessWatchdogOnce: a future baseline stamp is actionable invalid evidence", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "watchdog-future-baseline-"));
+  const baselinePath = join(dir, "green-baseline.json");
+  const watchdogStatePath = join(dir, "watchdog-state.json");
+  const now = new Date("2026-08-15T10:00:00.000Z");
+  const futurePublishedAt = new Date(now.getTime() + 60_000).toISOString();
+  let notificationText = "";
+  try {
+    writeFileSync(baselinePath, JSON.stringify({ publishedAt: futurePublishedAt }), "utf8");
+    await runStalenessWatchdogOnce({
+      now,
+      baselinePath,
+      watchdogStatePath,
+      notifyFn: async (_type, payload) => {
+        notificationText = String(payload.text);
+        return { delivered: false, status: "skipped_slack_disconnected" } as never;
+      },
+    });
+    assert.match(notificationText, /publish stamp is in the future/i);
+    assert.equal(
+      readWatchdogStalenessState(watchdogStatePath).publishedAt,
+      futurePublishedAt,
+      "invalid evidence is durably day-deduped after the actionable alert",
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

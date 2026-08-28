@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Front probe classification (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #1861 — Front probe outcome classification + cache preserve.

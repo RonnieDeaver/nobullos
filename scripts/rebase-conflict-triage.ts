@@ -709,7 +709,7 @@ export function runVerify(deps: VerifyDeps = {}): number {
   if (clean) {
     log(
       `integrity pass CLEAN (kind=${integrity.kind}, smears=0, typecheck exit 0). ` +
-        "Next: single incremental revalidation via the Validate workflow verdict.",
+        "Next: single incremental revalidation via the managed Long validation workflow verdict.",
     );
   } else {
     log(

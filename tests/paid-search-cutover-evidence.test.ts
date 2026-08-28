@@ -64,6 +64,7 @@ const CLICKUP_TASKS = {
     {
       id: "task-A",
       name: "Acme Law",
+      date_updated: "1787600000000",
       status: { status: "active" },
       custom_fields: [
         peopleField(F_DOER, "Doer", [
@@ -143,7 +144,13 @@ globalThis.fetch = (async (input: any, init?: any) => {
   }
   if (isClickUpListFieldPath(pathname)) {
     if (clickUpDown) return jsonResponse({ err: "outage" }, 503);
-    return jsonResponse(EMPTY_CLICKUP_PRACTICE_AREA_FIELDS);
+    return jsonResponse({
+      fields: [
+        ...EMPTY_CLICKUP_PRACTICE_AREA_FIELDS.fields,
+        { id: F_DOER, name: "Doer", type: "users" },
+        { id: F_CHECKER, name: "Checker", type: "users" },
+      ],
+    });
   }
   // ClickUp v2 list-task fetch: /api/v2/list/<listId>/task
   const m = pathname.match(/^\/api\/v2\/list\/([^/]+)\/task$/);
@@ -206,6 +213,14 @@ console.log("phase 1: fetchDirectoryEvidence — canonical evidence bundle");
   const ev = await directory.fetchDirectoryEvidence();
   ok(ev !== null, "evidence bundle returned (not null) on healthy fetch");
   const parents = ev!.parents;
+  ok(ev!.canonicalListId === CANONICAL_LIST_ID, "evidence names the exact canonical list ID");
+  const doerInventory = ev!.fields.find((field) => field.id === F_DOER);
+  ok(
+    doerInventory?.label === "Doer" &&
+      doerInventory.type === "users" &&
+      doerInventory.observedMaxCardinality === 2,
+    "field inventory preserves exact ID/label/type and observed cardinality",
+  );
 
   // (g) Pinned to the canonical list, and ONLY that list, was fetched.
   ok(
@@ -224,6 +239,7 @@ console.log("phase 1: fetchDirectoryEvidence — canonical evidence bundle");
 
   // (a) Stable task ID carried verbatim.
   ok(A.taskId === "task-A", "stable ClickUp task ID preserved verbatim");
+  ok(A.remoteRevision === "1787600000000", "opaque remote revision evidence is preserved");
 
   // (b) ALL raw People IDs (multi-person) + field metadata for doer & checker.
   ok(

@@ -28,7 +28,7 @@
  * scripts/lintVerdictCache.ts (see runLintCached below) — byte-identical
  * inputs reuse the last green verdict instead of paying the ~56s build.
  *
- * Wired through gate.ts LINT_CHECKS; the `.replit` `Validate` workflow runs
+ * Wired through gate.ts LINT_CHECKS; the managed Long validation workflow runs the reviewed
  * `npm run gate`. Guarded by tests/lint-bundle-budget.test.ts (fixture-only,
  * never builds).
  */
@@ -51,6 +51,7 @@ const ROOT = resolve(__dirname, "..");
 export const ENTRY_BUDGET_BYTES = 360 * 1024;
 export const INITIAL_BUDGET_BYTES = 560 * 1024;
 
+export const BUNDLE_BUILD_TIMEOUT_MS = 240_000;
 /** Libraries that must never enter the initial static closure. */
 export const HEAVY_LIBRARY_PATTERNS: ReadonlyArray<{ label: string; pattern: RegExp }> = [
   { label: "@univerjs (spreadsheet engine)", pattern: /node_modules\/@univerjs\// },
@@ -223,6 +224,9 @@ export interface BundleReport {
   chunks: BundleChunkReport[];
 }
 
+export type BundleReportParseResult =
+  | { ok: true; report: BundleReport }
+  | { ok: false; error: string };
 export interface BudgetEvaluation {
   violations: string[];
   entryBytes: number;
@@ -533,6 +537,13 @@ export function runLintCached(): { ok: boolean; message: string; fromCache?: boo
  * (avoids re-parsing the human message when persisting the verdict). */
 const lastGreenSizes = { entryBytes: 0, initialBytes: 0 };
 
+export interface BundleBuildProcessResult {
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  error?: Error | null;
+  stdout?: string | Buffer | null;
+  stderr?: string | Buffer | null;
+}
 export function runLint(): { ok: boolean; message: string } {
   const scratchDir = resolve(ROOT, ".local/scratch");
   const outDir = resolve(scratchDir, "bundle-budget-dist");
@@ -548,24 +559,41 @@ export function runLint(): { ok: boolean; message: string } {
       cwd: ROOT,
       env: { ...process.env, BUNDLE_REPORT_PATH: reportPath, NODE_ENV: "production" },
       encoding: "utf8",
-      timeout: 240_000,
+      timeout: BUNDLE_BUILD_TIMEOUT_MS,
       maxBuffer: 64 * 1024 * 1024,
     },
   );
   // The scratch build tree is only needed for the report.
   rmSync(outDir, { recursive: true, force: true });
 
-  if (build.status !== 0 || !existsSync(reportPath)) {
-    const tail = `${build.stdout ?? ""}\n${build.stderr ?? ""}`.trim().split("\n").slice(-15).join("\n");
+  const buildFailure = classifyBundleBuildFailure(build, existsSync(reportPath));
+  if (buildFailure) {
+    const tail = buildOutputTail(build);
     return {
       ok: false,
-      message:
-        `lint-bundle-budget FAILED — vite build ${build.status !== 0 ? `exited ${build.status}` : "produced no bundle report"} ` +
-        `(bundleReportPlugin in vite.config.ts must honor BUNDLE_REPORT_PATH).\n${tail}`,
+      message: formatBundleBuildFailure(buildFailure, tail),
     };
   }
 
-  const report = JSON.parse(readFileSync(reportPath, "utf8")) as BundleReport;
+  let reportText: string;
+  try {
+    reportText = readFileSync(reportPath, "utf8");
+  } catch (err) {
+    return {
+      ok: false,
+      message: formatInvalidBundleReportFailure(
+        `read failed: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    };
+  }
+  const parsedReport = parseBundleReport(reportText);
+  if (!parsedReport.ok) {
+    return {
+      ok: false,
+      message: formatInvalidBundleReportFailure(parsedReport.error),
+    };
+  }
+  const report = parsedReport.report;
   const result = evaluateBundleBudget(report);
   lastGreenSizes.entryBytes = result.entryBytes;
   lastGreenSizes.initialBytes = result.initialBytes;
@@ -609,4 +637,142 @@ const isMain =
 
 if (isMain) {
   process.exit(cliMain(process.argv.slice(2)));
+}
+
+export function formatBundleBuildFailure(
+  failure: BundleBuildFailure,
+  outputTail: string,
+): string {
+  return (
+    `lint-bundle-budget FAILED [${failure.kind}] — ${failure.summary}` +
+    (outputTail ? `\nVite output tail:\n${outputTail}` : "")
+  );
+}
+
+export type BundleBuildFailureKind =
+  | "timeout"
+  | "spawn_error"
+  | "nonzero_exit"
+  | "missing_report";
+
+export interface BundleBuildFailure {
+  kind: BundleBuildFailureKind;
+  summary: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Classify the Vite subprocess outcome before considering the bundle report.
+ * spawnSync reports a timeout as status=null + error.code=ETIMEDOUT; treating
+ * that as a generic nonzero exit produced the old misleading plugin-wiring
+ * diagnosis. Exported so the guard test can cover every class without
+ * launching a real build.
+ */
+export function classifyBundleBuildFailure(
+  build: BundleBuildProcessResult,
+  reportExists: boolean,
+  timeoutMs: number = BUNDLE_BUILD_TIMEOUT_MS,
+): BundleBuildFailure | null {
+  const errorCode = (build.error as NodeJS.ErrnoException | undefined)?.code;
+  if (errorCode === "ETIMEDOUT") {
+    return {
+      kind: "timeout",
+      summary:
+        `vite build timed out after ${(timeoutMs / 1000).toFixed(0)} seconds and was terminated. ` +
+        `This is a real build timeout (usually resource contention or sustained build growth), ` +
+        `not a bundleReportPlugin wiring failure. No retry was attempted.`,
+    };
+  }
+  if (build.error) {
+    return {
+      kind: "spawn_error",
+      summary: `vite build could not start: ${build.error.message}`,
+    };
+  }
+  if (build.status !== 0) {
+    return {
+      kind: "nonzero_exit",
+      summary:
+        build.status === null
+          ? `vite build was terminated by signal ${build.signal ?? "unknown"}`
+          : `vite build exited ${build.status}`,
+    };
+  }
+  if (!reportExists) {
+    return {
+      kind: "missing_report",
+      summary:
+        `vite build completed successfully but produced no bundle report. ` +
+        `bundleReportPlugin in vite.config.ts must honor BUNDLE_REPORT_PATH.`,
+    };
+  }
+  return null;
+}
+
+export function formatInvalidBundleReportFailure(error: string): string {
+  return (
+    `lint-bundle-budget FAILED [invalid_report] — vite build completed, but the bundle report ` +
+    `could not be read or validated: ${error}`
+  );
+}
+
+function buildOutputTail(build: BundleBuildProcessResult): string {
+  return `${build.stdout ?? ""}\n${build.stderr ?? ""}`
+    .trim()
+    .split("\n")
+    .slice(-15)
+    .join("\n");
+}
+
+/** Parse and structurally validate plugin output before budget evaluation. */
+export function parseBundleReport(raw: string): BundleReportParseResult {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch (err) {
+    return {
+      ok: false,
+      error: `invalid JSON: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  if (!isRecord(value) || !Array.isArray(value.chunks)) {
+    return { ok: false, error: "expected an object with a chunks array" };
+  }
+  for (let index = 0; index < value.chunks.length; index++) {
+    const chunk = value.chunks[index];
+    if (!isRecord(chunk)) {
+      return { ok: false, error: `chunks[${index}] must be an object` };
+    }
+    if (typeof chunk.fileName !== "string" || chunk.fileName.length === 0) {
+      return { ok: false, error: `chunks[${index}].fileName must be a non-empty string` };
+    }
+    if (typeof chunk.isEntry !== "boolean") {
+      return { ok: false, error: `chunks[${index}].isEntry must be a boolean` };
+    }
+    if (!Array.isArray(chunk.imports) || !chunk.imports.every((item) => typeof item === "string")) {
+      return { ok: false, error: `chunks[${index}].imports must be a string array` };
+    }
+    if (
+      typeof chunk.bytes !== "number" ||
+      !Number.isFinite(chunk.bytes) ||
+      chunk.bytes < 0
+    ) {
+      return { ok: false, error: `chunks[${index}].bytes must be a finite nonnegative number` };
+    }
+    if (
+      !isRecord(chunk.modules) ||
+      !Object.values(chunk.modules).every(
+        (bytes) => typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0,
+      )
+    ) {
+      return {
+        ok: false,
+        error: `chunks[${index}].modules must map module ids to finite nonnegative byte counts`,
+      };
+    }
+  }
+  return { ok: true, report: value as unknown as BundleReport };
 }

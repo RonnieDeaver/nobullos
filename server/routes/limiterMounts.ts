@@ -267,6 +267,12 @@ export const SENSITIVE_WRITE_PATHS: string[] = [
   // CEO-only Paid Search Role Cutover state mutation. The method-blind mount
   // is safe because sensitiveWriteLimiter skips GET/HEAD/OPTIONS.
   "/api/ads-os/admin/paid-search-role-cutover/state",
+  // Task #5295 — onboarding roster admin writes (team-lead-gated add/remove/
+  // active-toggle/default-swap). The sibling GET roster read is unaffected —
+  // sensitiveWriteLimiter skips GET/HEAD/OPTIONS.
+  "/api/admin/onboarding/roster",
+  "/api/admin/onboarding/roster/:id",
+  "/api/admin/onboarding/default",
 ];
 
 export const AUTH_LIMITER_PATHS: string[] = ["/api/login", "/api/callback"];

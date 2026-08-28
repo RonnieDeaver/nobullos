@@ -306,6 +306,15 @@ export default function DealsBoard() {
         description: result.error ?? "Something went wrong. Try again.",
         variant: "destructive",
       });
+    } catch {
+      // Network/aborted request: roll back the optimistic stage change and
+      // surface it — otherwise the card silently stays in the wrong column.
+      if (prev) queryClient.setQueryData([...DEALS_QUERY_KEY], prev);
+      toast({
+        title: "Couldn't move deal",
+        description: "Something went wrong. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setMoving(false);
     }

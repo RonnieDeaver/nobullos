@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Import GBP location matching",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

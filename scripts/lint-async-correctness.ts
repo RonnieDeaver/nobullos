@@ -74,10 +74,10 @@
  *
  * Enforcement wiring (Task #3817)
  * -------------------------------
- * The `.replit` `Validate` workflow runs `npm run gate`; this check is
+ * The managed Long validation workflow runs the reviewed routine-gate profile; this check is
  * registered in scripts/gate.ts LINT_CHECKS. The guard test
  * (tests/async-correctness-lint.test.ts) asserts the real tree against the
- * baseline in full-set runs (the `Validate` workflow / predeploy `npm test`)
+ * baseline in full-set runs (the managed Long validation workflow / predeploy `npm test`)
  * — it is deliberately NOT named `tests/lint-*.test.ts`, so related-smoke
  * gate runs don't pay the ~2.5 min scan twice on top of the LINT_CHECKS
  * entry that already covers them. Contributor doc: ASYNC_CORRECTNESS.md.

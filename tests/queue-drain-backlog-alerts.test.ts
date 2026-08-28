@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Queue drain backlog alerts (Task #998)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

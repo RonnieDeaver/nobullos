@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Notification config change history",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

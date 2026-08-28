@@ -3,7 +3,7 @@
   "name": "Front webhook fail-closed verification + health surfacing (audit A-003)",
   "regression": true,
   "sweepOnlyReason": "Route-level suite that mounts the full integrations router and exercises real ingestion writes against the test DB; too heavy for the routine TEST_SMOKE gate. Runs in the full suite and the nightly --regression sweep.",
-  "tier": "small"
+  "tier": "medium"
 }
 test-registration */
 /**

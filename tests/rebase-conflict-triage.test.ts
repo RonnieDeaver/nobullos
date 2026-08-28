@@ -370,8 +370,8 @@ function main(): void {
     assert(
       runbook.includes("scripts/rebase-conflict-triage.ts") &&
         runbook.includes("--verify") &&
-        runbook.includes("`Validate` workflow"),
-      "runbook covers the triage command, the integrity pass and Validate workflow revalidation",
+        runbook.includes("managed Long validation workflow"),
+      "runbook covers the triage command, the integrity pass and managed Long validation workflow revalidation",
     );
     assert(
       /quiesce/i.test(runbook) && /green-skip/i.test(runbook),

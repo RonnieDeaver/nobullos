@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "ClickUp OAuth user-id extraction — claims.sub fix, no 401 regression (Task #3104)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

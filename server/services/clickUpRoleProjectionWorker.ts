@@ -24,6 +24,7 @@ import {
   cuRoleProjectionCommands,
   cuRoleProjectionDestinations,
   cuRoleProjectionClientTargets,
+  cuClientListMappings,
   type CuRoleProjectionErrorCode,
   type WorkQueueJob,
 } from "@shared/schema";
@@ -136,19 +137,36 @@ async function defaultLoadCurrentConfig(
 
     let clientTarget: CurrentProjectionConfig["clientTarget"] = null;
     if (dest && dest.targetKind !== "direct_task") {
-      const [ct] = await db
-        .select()
-        .from(cuRoleProjectionClientTargets)
-        .where(
-          and(
-            eq(cuRoleProjectionClientTargets.clientId, cmd.clientId),
-            eq(cuRoleProjectionClientTargets.destinationId, cmd.destinationId),
-          ),
-        )
-        .limit(1);
-      clientTarget = ct
-        ? { targetId: ct.targetId, resolvedListId: ct.resolvedListId ?? null }
-        : null;
+      if (dest.listId === CANONICAL_PRODUCTION_LIST_ID) {
+        const [mapping] = await db
+          .select()
+          .from(cuClientListMappings)
+          .where(
+            and(
+              eq(cuClientListMappings.clientId, cmd.clientId),
+              eq(cuClientListMappings.listId, CANONICAL_PRODUCTION_LIST_ID),
+              eq(cuClientListMappings.syncState, "verified"),
+            ),
+          )
+          .limit(1);
+        clientTarget = mapping
+          ? { targetId: mapping.taskId, resolvedListId: mapping.listId }
+          : null;
+      } else {
+        const [ct] = await db
+          .select()
+          .from(cuRoleProjectionClientTargets)
+          .where(
+            and(
+              eq(cuRoleProjectionClientTargets.clientId, cmd.clientId),
+              eq(cuRoleProjectionClientTargets.destinationId, cmd.destinationId),
+            ),
+          )
+          .limit(1);
+        clientTarget = ct
+          ? { targetId: ct.targetId, resolvedListId: ct.resolvedListId ?? null }
+          : null;
+      }
     }
 
     return {
@@ -171,6 +189,13 @@ async function defaultLoadCurrentConfig(
       clientTarget,
     };
   });
+}
+
+/** TEST-ONLY: exercise the same current-config resolver used immediately before egress. */
+export async function __test_loadCurrentProjectionConfig(
+  cmd: ClaimedCommand,
+): Promise<CurrentProjectionConfig> {
+  return defaultLoadCurrentConfig(cmd);
 }
 
 function defaultDeps(): ProjectionWorkerDeps {
@@ -312,20 +337,92 @@ function casPredicate(cmd: ClaimedCommand) {
   return sql`id = ${cmd.id} AND lease_token = ${cmd.leaseToken} AND revision = ${cmd.revision}`;
 }
 
-async function finalizeCommandSynced(cmd: ClaimedCommand, observedIds: string[]): Promise<void> {
-  await withDbAttribution("cuRoleProjection:synced", () =>
+async function commandLeaseStillAuthorizesMutation(
+  cmd: ClaimedCommand,
+): Promise<boolean> {
+  const result = await withDbAttribution("cuRoleProjection:preMutationCas", () =>
     getDb().execute(sql`
-      UPDATE cu_role_projection_commands
-      SET status = 'synced',
-          mutation_attempts = ${cmd.mutationAttempts + 1},
-          observed_clickup_user_ids = ${JSON.stringify(observedIds)}::jsonb,
-          verified_at = now(),
-          lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL,
-          next_attempt_at = NULL, last_error = NULL, last_error_code = NULL,
-          terminal_at = NULL,
-          updated_at = now()
+      SELECT 1
+      FROM cu_role_projection_commands
       WHERE ${casPredicate(cmd)}
+        AND status IN ('pending', 'ambiguous', 'failed', 'drift')
+        AND terminal_at IS NULL
+      LIMIT 1
     `),
+  );
+  return (result.rows?.length ?? 0) === 1;
+}
+
+async function finalizeCommandSynced(
+  cmd: ClaimedCommand,
+  observedIds: string[],
+  beforeIds: string[] = observedIds,
+): Promise<void> {
+  await withDbAttribution("cuRoleProjection:synced", () =>
+    getDb().transaction(async (tx) => {
+      const updated = await tx.execute(sql`
+        UPDATE cu_role_projection_commands
+        SET status = 'synced',
+            mutation_attempts = ${cmd.mutationAttempts + 1},
+            observed_clickup_user_ids = ${JSON.stringify(observedIds)}::jsonb,
+            verified_at = now(),
+            lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL,
+            next_attempt_at = NULL, last_error = NULL, last_error_code = NULL,
+            terminal_at = NULL,
+            updated_at = now()
+        WHERE ${casPredicate(cmd)}
+      `);
+      if (((updated as any).rowCount ?? 0) === 0) return;
+      await tx.execute(sql`
+        UPDATE cu_role_sync_contracts
+        SET vendor_revision = ${`outbound:${cmd.revision}`},
+            last_observed_clickup_user_ids = ${JSON.stringify(observedIds)}::jsonb,
+            conflict_state = 'none',
+            conflict_evidence = NULL,
+            updated_at = now()
+        WHERE client_id = ${cmd.clientId}
+          AND destination_id = ${cmd.destinationId}
+          AND last_outbound_revision = ${cmd.revision}
+      `);
+      await tx.execute(sql`
+        INSERT INTO cu_role_sync_transition_evidence (
+          command_id, client_id, destination_id, department_id, responsibility,
+          actor_type, actor_id, source, before_assignment, after_assignment,
+          local_revision, vendor_revision, outcome, details
+        )
+        SELECT
+          ${cmd.id}, ${cmd.clientId}, ${cmd.destinationId},
+          destination.department_id, destination.responsibility,
+          'nobull', 'clickup_role_projection_worker', 'nobull_projection',
+          jsonb_build_object(
+            'userId', NULL,
+            'clickupUserIds', ${JSON.stringify(beforeIds)}::jsonb
+          ),
+          jsonb_build_object(
+            'userId', (${cmd.desiredUserId})::text,
+            'clickupUserId', (${cmd.desiredClickupUserId})::text
+          ),
+          COALESCE(contract.local_revision, 0),
+          contract.vendor_revision,
+          'outbound_synced',
+          jsonb_build_object(
+            'commandRevision', (${cmd.revision})::text,
+            'verifiedClickupUserIds', ${JSON.stringify(observedIds)}::jsonb
+          )
+        FROM cu_role_projection_commands command
+        JOIN cu_role_projection_destinations destination
+          ON destination.id = command.destination_id
+        LEFT JOIN cu_role_sync_contracts contract
+          ON contract.client_id = command.client_id
+         AND contract.destination_id = command.destination_id
+        WHERE command.id = ${cmd.id}
+          AND NOT EXISTS (
+            SELECT 1 FROM cu_role_sync_transition_evidence evidence
+            WHERE evidence.command_id = ${cmd.id}
+              AND evidence.outcome = 'outbound_synced'
+          )
+      `);
+    }),
   );
 }
 
@@ -786,6 +883,11 @@ export async function processOneCommand(
   }
 
   // ── Persisted kill switch re-check immediately before mutation. ──
+  // An inbound canonical edit can quarantine this exact command after claim.
+  // Re-check the lease/status CAS immediately before egress so that accepted
+  // inbound supersession or a visible race conflict stops stale queued work.
+  if (!(await commandLeaseStillAuthorizesMutation(cmd))) return;
+
   if (await deps.isKillSwitchActive()) {
     await finalizeCommandGateStop(cmd, "disabled", "Kill switch active — mutation aborted with zero egress", "config_mismatch");
     return;
@@ -900,7 +1002,7 @@ export async function processOneCommand(
   if (writeResult.action !== "noop") {
     await stampClientTargetOwnershipVerified(cmd);
   }
-  await finalizeCommandSynced(cmd, readBack.currentIds);
+  await finalizeCommandSynced(cmd, readBack.currentIds, writeResult.previousIds);
 }
 
 // ─── Single immediate attempt ─────────────────────────────────────────────────

@@ -210,16 +210,35 @@ function spawnSweepServer(port: number): ChildProcess {
   return child;
 }
 
-function killServer(child: ChildProcess | null): void {
-  if (!child?.pid) return;
+function isProcessGroupAlive(pid: number): boolean {
   try {
-    process.kill(-child.pid, "SIGTERM");
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForProcessGroupExit(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isProcessGroupAlive(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return !isProcessGroupAlive(pid);
+}
+
+async function killServer(child: ChildProcess | null): Promise<void> {
+  if (!child?.pid) return;
+  const pid = child.pid;
+  try {
+    process.kill(-pid, "SIGTERM");
   } catch {}
-  setTimeout(() => {
-    try {
-      if (child.pid) process.kill(-child.pid, "SIGKILL");
-    } catch {}
-  }, 5_000).unref();
+  if (await waitForProcessGroupExit(pid, 5_000)) return;
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {}
+  await waitForProcessGroupExit(pid, 5_000);
 }
 
 async function waitForServer(baseUrl: string, deadlineMs: number): Promise<boolean> {
@@ -614,7 +633,7 @@ async function main(): Promise<void> {
     try {
       if (browser) await browser.close();
     } catch {}
-    killServer(server);
+    await killServer(server);
     // Delete the throwaway Clerk user — NO QA litter in the shared tenant.
     await deleteClerkUser(clerkUserId);
     // Fixture cleanup matters in TEST_BASE_URL mode (a non-throwaway DB);

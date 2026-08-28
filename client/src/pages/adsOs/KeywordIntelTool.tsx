@@ -244,7 +244,11 @@ export default function KeywordIntelToolPage() {
             onClose={() => setEditing(false)}
             onSaved={() => {
               setEditing(false);
-              load(lookback, isCeo);
+              // Reload must force a fresh recompute for every role — the
+              // server's force cache-bust is intentionally open to all staff
+              // (see server/routes/adsOs.ts header comment), so whoever just
+              // saved their edit sees it reflected immediately.
+              load(lookback, true);
             }}
           />
         )}

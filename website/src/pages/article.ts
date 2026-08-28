@@ -1,8 +1,22 @@
-import { ArticleCard, PageDef, esc, titleBand, upgradeBodyImages } from "../html";
+import { ArticleCard, PageDef, SITE_ORIGIN, absoluteUpload, esc, titleBand, upgradeBodyImages } from "../html";
 
 export interface ArticleFull extends ArticleCard {
   bodyHtml: string;
   metaDesc: string;
+  /** Full-resolution image for this article's og:image/twitter:image and
+      Article JSON-LD — distinct from the small `thumb` used in listings. */
+  ogImage: string;
+}
+
+/** Article dates are authored as human strings ("Jan 4, 2024"); JSON-LD and
+    the sitemap need ISO (YYYY-MM-DD). Throws rather than silently omitting
+    the date on an unparsable value. */
+function articleDateIso(date: string): string {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`articlePage: unparsable article date "${date}"`);
+  }
+  return d.toISOString().slice(0, 10);
 }
 
 function normalizeImportedPodcastBody(base: string, bodyHtml: string): string {
@@ -40,11 +54,34 @@ function normalizeRetiredConversionLinks(base: string, bodyHtml: string): string
 
 export function articlePage(a: ArticleFull, all: ArticleCard[]): PageDef {
   const recent = all.filter((x) => x.slug !== a.slug).slice(0, 3);
+  const ogImageUrl = absoluteUpload(a.ogImage.replace(/^__UPLOADS__\//, ""));
+  const isoDate = articleDateIso(a.date);
   return {
     path: `resource/${a.slug}/`,
     title: `${a.title} - NoBull Marketing`,
     desc: a.metaDesc,
     priority: "0.5",
+    image: ogImageUrl,
+    lastmod: isoDate,
+    jsonLd: () => [
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: a.title,
+        image: [ogImageUrl],
+        datePublished: isoDate,
+        author: { "@type": "Organization", name: "NoBull Marketing", url: `${SITE_ORIGIN}/` },
+        publisher: {
+          "@type": "Organization",
+          name: "NoBull Marketing",
+          logo: {
+            "@type": "ImageObject",
+            url: `${SITE_ORIGIN}/nobull-redesign/brand/nobull-logo-full-color.svg`,
+          },
+        },
+        mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_ORIGIN}/resource/${a.slug}/` },
+      },
+    ],
     render: (r) => {
       const importedBody =
         a.cat === "Podcasts"

@@ -204,18 +204,18 @@ async function main(): Promise<void> {
   }
 
   // ── 4c. Selection-mode resolution: enforcement keys on the ACTUAL selected
-  // universe, never the requested flag. A related-selection run that falls
-  // back to the full smoke universe IS a full-smoke run; --full-smoke refuses
-  // inherited TEST_SMOKE_RELATED. ──
+  // universe, never the requested flag. A deferred selector outcome remains
+  // bounded and transfers broad work to central integrity; --full-smoke
+  // refuses inherited TEST_SMOKE_RELATED. ──
   {
-    const fallback = resolveSmokeSelection({ requestedRelated: true, fullSmokeForced: false, manifestMode: "full" });
+    const deferred = resolveSmokeSelection({ requestedRelated: true, fullSmokeForced: false, manifestMode: "deferred" });
     assert(
-      !fallback.narrowToRelated && !fallback.relatedSelectionForBudget,
-      "related request + selector fallback-to-full ⇒ budget-ENFORCED full-smoke run (relatedSelection=false)",
+      deferred.narrowToRelated && deferred.relatedSelectionForBudget,
+      "related request + deferred selector outcome stays bounded (relatedSelection=true)",
     );
     assert(
-      fallback.note !== null && /budget enforcement applies/.test(fallback.note ?? ""),
-      "fallback-to-full logs that enforcement applies",
+      deferred.note !== null && /post-merge\/nightly\/weekly/.test(deferred.note ?? ""),
+      "deferred selection names central-integrity ownership",
     );
     const narrowed = resolveSmokeSelection({ requestedRelated: true, fullSmokeForced: false, manifestMode: "related" });
     assert(
@@ -234,8 +234,8 @@ async function main(): Promise<void> {
     );
     // Wiring pin (integration-level): run-all.ts must consume the resolver
     // for BOTH the narrowing decision and the budget/report inputs — the
-    // regression this guards is requested-flag enforcement, which made
-    // fallback-to-full runs warn-only.
+    // regression this guards is requested-flag enforcement, which can turn
+    // an explicit full-smoke request into an accidentally narrowed run.
     const runAllSrc = readFileSync("tests/run-all.ts", "utf8");
     assert(
       runAllSrc.includes("resolveSmokeSelection("),

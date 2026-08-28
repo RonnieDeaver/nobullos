@@ -287,6 +287,48 @@ test("normalizeOffenseOutput: strips path prefixes, neutralizes durations/timest
   assert.notEqual(n1, extra, "a real extra offense is never normalized away");
 });
 
+test("normalizeOffenseOutput (Task #5344): lint-replit-md's drifting file-size/bullet-count overage collapses to the same signature; a genuinely different violation still splits", () => {
+  const fileSizeLines = (n: number) =>
+    `    - replit.md [(file)] file-size: file has ${n} lines > 114. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts.\n`;
+  const fileSizeChars = (n: number) =>
+    `    - replit.md [(file)] file-size: file has ${n} chars (~${Math.round(n / 4)} tokens) > 16400. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts.\n`;
+  const bulletCount = (section: string, n: number) =>
+    `    - replit.md [${section}] bullet-count: section "### ${section}" has ${n} bullets > 10. Collapse a per-task changelog chain into one durable subsystem bullet and RELOCATE detail into the owning runbook — do NOT delete durable facts.\n`;
+
+  // Two honest measurements of the SAME chronic "still over budget" offense,
+  // taken at different points while unrelated merges nudge the exact count —
+  // must normalize identically (the root cause this task fixes).
+  assert.equal(
+    identity(fileSizeLines(118)),
+    identity(fileSizeLines(131)),
+    "file-size LINES overage: differing exact counts still normalize the same",
+  );
+  assert.equal(
+    identity(fileSizeChars(16624)),
+    identity(fileSizeChars(16781)),
+    "file-size CHARS overage (incl. the derived ~tokens count) still normalizes the same",
+  );
+  assert.equal(
+    identity(bulletCount("Backend", 11)),
+    identity(bulletCount("Backend", 14)),
+    "bullet-count overage in the SAME section still normalizes the same across differing exact counts",
+  );
+
+  // A genuinely different violation must still split the signature: a
+  // different rule (lines vs chars vs bullet-count) or a different section.
+  assert.notEqual(identity(fileSizeLines(118)), identity(fileSizeChars(16624)), "lines-over vs chars-over stay distinct");
+  assert.notEqual(
+    identity(bulletCount("Backend", 11)),
+    identity(bulletCount("Core Features", 11)),
+    "a bullet-count overage in a DIFFERENT section is a different offense, never collapsed",
+  );
+  assert.notEqual(
+    identity(fileSizeLines(118)),
+    identity(bulletCount("Backend", 11)),
+    "file-size vs bullet-count are different rules, never collapsed",
+  );
+});
+
 test("offenseSignature: exit code and normalized output both split signatures", () => {
   const a = offenseSignature(1, "x\n");
   assert.equal(a, offenseSignature(1, "x\n"), "deterministic");
@@ -542,7 +584,7 @@ test("writeLintSectionIntoAttributionReport: merges into an existing report (for
   }
 });
 
-test("round-trip: the suite-side report writer carries a FRESH gate-written §lints forward and drops a STALE one", () => {
+test("round-trip: the suite-side report writer carries a FRESH gate-written §lints forward and drops a STALE one", async () => {
   const NOW = new Date("2026-08-12T06:00:00.000Z");
   const root = mkdtempSync(join(tmpdir(), "gate-lint-carry-"));
   try {
@@ -563,15 +605,15 @@ test("round-trip: the suite-side report writer carries a FRESH gate-written §li
     const freshAt = new Date(NOW.getTime() - 60 * 60 * 1000).toISOString();
     assert.ok(60 * 60 * 1000 < ATTRIBUTION_REPORT_LINTS_FRESH_MS, "fixture sits inside the freshness window");
     writeLintSectionIntoAttributionReport(lintSection(freshAt), reportPath);
-    runSuiteWriter();
+    await runSuiteWriter();
     const carried = JSON.parse(readFileSync(reportPath, "utf8")); // fs-scan-inputs-ignore -- tmpdir fixture report written by this test
     assert.equal(carried.lints?.generatedAt, freshAt, "fresh gate lint section is carried forward");
-    assert.equal(carried.schemaVersion, 4);
+    assert.equal(carried.schemaVersion, 5);
 
     // Stale (older than the window) → dropped (stale sections mislead humans).
     const staleAt = new Date(NOW.getTime() - ATTRIBUTION_REPORT_LINTS_FRESH_MS - 60_000).toISOString();
     writeLintSectionIntoAttributionReport(lintSection(staleAt), reportPath);
-    runSuiteWriter();
+    await runSuiteWriter();
     const dropped = JSON.parse(readFileSync(reportPath, "utf8")); // fs-scan-inputs-ignore -- tmpdir fixture report written by this test
     assert.equal(dropped.lints, undefined, "stale gate lint section is NOT carried forward");
   } finally {

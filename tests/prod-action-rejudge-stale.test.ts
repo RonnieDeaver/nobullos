@@ -4,7 +4,8 @@
   "regression": true,
   "sweepOnlyReason": "Task #4048: DB-heavy prod-action drain e2e (seeds clients/judgments/comms, runs the real background drain with the real generation flow under a stubbed model, ~30s); the pure prompt core gates via tests/daily-judgment-honest-prompt-pure.test.ts",
   "timeoutMs": 180000,
-  "tier": "small"
+  "tier": "small",
+  "tierReason": "The small tier is retained for the measured roughly 30-second focused production-action drain."
 }
 test-registration */
 /**

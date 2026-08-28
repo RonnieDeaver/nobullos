@@ -53,12 +53,40 @@ import {
   type FeedbackSlackRelayArgs,
   type FeedbackSlackResult,
 } from "./feedbackSlackRelay";
-import type { SweepReport, SweepTestResult } from "./regressionSweep";
+import {
+  DEFERRED_FAILURE_INTAKE_MAX_ITEMS,
+  normalizeDeferredFailureIntake,
+  parseCanonicalSweepTimestamp,
+  type DeferredFailureIntakeObservation,
+  type SweepReport,
+  type SweepTestResult,
+} from "./regressionSweep";
+import {
+  DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS,
+  DEFERRED_FAILURE_REPAIR_MAX_AGE_MS,
+  buildDeferredFailureRepairRequest,
+  enqueueDeferredFailureRepairRequest,
+  type DeferredFailureRepairRequest,
+} from "./repairDispatcher";
+
+type DeferredFailureRepairEnqueuer = typeof enqueueDeferredFailureRepairRequest;
+let deferredFailureRepairEnqueueOverride: DeferredFailureRepairEnqueuer | null = null;
+
+/** Test seam: production always uses the durable repair dispatcher enqueue. */
+export function __setDeferredFailureRepairEnqueuerForTest(
+  override: DeferredFailureRepairEnqueuer | null,
+): void {
+  deferredFailureRepairEnqueueOverride = override;
+}
 
 /** Reserved submitter id for sweep-filed rows. Never a real OIDC sub. */
 export const SWEEP_FEEDBACK_USER_ID = "system:regression-sweep";
 /** Display name shown in /admin/feedback and the Slack message. */
 export const SWEEP_FEEDBACK_USER_NAME = "Nightly Test Sweep";
+/** One system identity for the cross-lane deferred-verification owner. */
+export const DEFERRED_FAILURE_FEEDBACK_USER_ID = "system:deferred-verification";
+export const DEFERRED_FAILURE_FEEDBACK_USER_NAME = "Deferred Verification";
+const DEFERRED_FAILURE_TEXT_MAX = 12_000;
 
 export interface SweepFeedbackPlan {
   /** Hard failures with no open item yet — file one each. */
@@ -321,6 +349,389 @@ export async function resolveOpenSweepItemsForFile(
 export interface SweepFeedbackSummary {
   filed: number;
   resolved: number;
+}
+
+export interface DeferredFailureIntakePlan {
+  create: DeferredFailureIntakeObservation[];
+  update: Array<{ observation: DeferredFailureIntakeObservation; ownerId: number }>;
+  /** Explicitly kept visible in feedback; never silently discarded. */
+  unresolved: DeferredFailureIntakeObservation[];
+}
+
+/**
+ * Pick exactly one owner per stable family. Legacy per-file sweep rows count
+ * as existing owners so rollout does not create parallel repair work.
+ */
+export function planDeferredFailureIntake(
+  report: SweepReport,
+  openOwners: ReadonlyArray<{ id: number; currentPage: string }>,
+): DeferredFailureIntakePlan {
+  const seen = new Set<string>();
+  const create: DeferredFailureIntakeObservation[] = [];
+  const update: DeferredFailureIntakePlan["update"] = [];
+  const unresolved: DeferredFailureIntakeObservation[] = [];
+  for (const observation of normalizeDeferredFailureIntake(report)) {
+    if (seen.has(observation.canonicalKey)) continue;
+    seen.add(observation.canonicalKey);
+    const owner = openOwners.find(
+      (row) =>
+        row.currentPage === observation.canonicalKey ||
+        // Existing nightly repair items use the raw test file as their
+        // current_page; treat one as a legitimate canonical owner.
+        row.currentPage === observation.file,
+    );
+    if (owner) update.push({ observation, ownerId: owner.id });
+    else create.push(observation);
+    if (observation.classification === "unresolved") unresolved.push(observation);
+  }
+  return { create, update, unresolved };
+}
+
+function deferredFailureText(observation: DeferredFailureIntakeObservation): string {
+  return [
+    "Deferred verification failure intake",
+    "",
+    `Family: ${observation.canonicalKey}`,
+    `Classification: ${observation.classification}`,
+    `Evidence: ${observation.evidenceCodes.slice(0, 8).join(", ")}`,
+    "",
+    "This is a red diagnostic observation. It is not accepted green evidence,",
+    "does not auto-repair, and remains open until an operator resolves the owner.",
+  ].join("\n");
+}
+
+function deferredFailureEvidenceNote(observation: DeferredFailureIntakeObservation): string {
+  return [
+    "",
+    "[Deferred intake observation]",
+    `Classification: ${observation.classification}`,
+    `Evidence: ${observation.evidenceCodes.slice(0, 8).join(", ")}`,
+  ].join("\n");
+}
+
+async function listDeferredFailureOwners(
+  observations: readonly DeferredFailureIntakeObservation[],
+): Promise<Array<{ id: number; currentPage: string }>> {
+  const pages = [...new Set(observations.flatMap((item) => [item.canonicalKey, item.file]))].slice(
+    0,
+    DEFERRED_FAILURE_INTAKE_MAX_ITEMS * 2,
+  );
+  if (pages.length === 0) return [];
+  const { getDb, withDbAttribution } = await import("../db");
+  return withDbAttribution("deferredFailureIntake:listOwners", async () => {
+    const values = sql.join(pages.map((page) => sql`${page}`), sql`, `);
+    const res = await getDb().execute(sql`
+      SELECT id, current_page
+      FROM user_feedback
+      WHERE status = 'pending'
+        AND user_id LIKE 'system:%'
+        -- A quarantine row tracks a muting policy, not repair ownership.
+        -- Keep it visible independently rather than absorbing it here.
+        AND user_id <> ${QUARANTINE_FEEDBACK_USER_ID}
+        AND user_id <> ${SWEEP_FEEDBACK_USER_ID}
+        AND current_page IN (${values})
+      ORDER BY id ASC
+      LIMIT ${DEFERRED_FAILURE_INTAKE_MAX_ITEMS}
+    `);
+    return (res.rows ?? [])
+      .filter((row: any) => Number.isInteger(Number(row.id)) && typeof row.current_page === "string")
+      .map((row: any) => ({ id: Number(row.id), currentPage: row.current_page as string }));
+  });
+}
+
+async function appendDeferredFailureEvidence(
+  ownerId: number,
+  observation: DeferredFailureIntakeObservation,
+): Promise<void> {
+  const { getDb, withDbAttribution } = await import("../db");
+  const note = deferredFailureEvidenceNote(observation);
+  await withDbAttribution("deferredFailureIntake:appendEvidence", async () => {
+    // Preserve the initial owner description and the freshest observations,
+    // with a fixed ceiling. The note never carries raw test output.
+    await getDb().execute(sql`
+      UPDATE user_feedback
+      SET feedback_text =
+        CASE
+          WHEN length(feedback_text) > ${DEFERRED_FAILURE_TEXT_MAX - note.length}
+            THEN left(feedback_text, 4_000) || E'\n… older deferred evidence trimmed …\n' ||
+                 right(feedback_text, ${DEFERRED_FAILURE_TEXT_MAX - note.length - 4_050})
+          ELSE feedback_text
+        END || ${note}
+      WHERE id = ${ownerId} AND status = 'pending' AND user_id LIKE 'system:%'
+    `);
+  });
+}
+
+async function insertDeferredFailureOwner(
+  observation: DeferredFailureIntakeObservation,
+): Promise<number | null> {
+  const { getDb, withDbAttribution } = await import("../db");
+  await ensureDedupeIndex();
+  return withDbAttribution("deferredFailureIntake:file", async () => {
+    const res = await getDb().execute(sql`
+      INSERT INTO user_feedback (user_id, user_name, topic, feedback_text, current_page, screenshots)
+      VALUES (
+        ${DEFERRED_FAILURE_FEEDBACK_USER_ID},
+        ${DEFERRED_FAILURE_FEEDBACK_USER_NAME},
+        'BUG_REPORT',
+        ${deferredFailureText(observation)},
+        ${observation.canonicalKey},
+        '[]'
+      )
+      ON CONFLICT (user_id, current_page)
+        WHERE status = 'pending' AND user_id LIKE 'system:%' AND current_page IS NOT NULL
+        DO NOTHING
+      RETURNING id
+    `);
+    const id = (res.rows?.[0] as any)?.id;
+    return id == null ? null : Number(id);
+  });
+}
+
+export interface DeferredFailureIntakeSummary {
+  filed: number;
+  updated: number;
+  unresolved: number;
+  resolved: number;
+  repairRequests: DeferredFailureRepairRequest[];
+  repairBatch: DeferredFailureRepairBatchSummary;
+}
+
+export interface DeferredFailureRepairBatchPlan {
+  /** Fresh, authoritative, non-ambiguous families selected for handoff. */
+  queued: DeferredFailureRepairRequest[];
+  /** Ambiguous or incomplete observations remain feedback-only. */
+  manualTriage: DeferredFailureRepairRequest[];
+  /** Delayed or malformed observation times are intentionally not dispatched. */
+  stale: DeferredFailureRepairRequest[];
+  /** Fresh candidates held for the next authoritative nightly batch. */
+  capped: DeferredFailureRepairRequest[];
+}
+
+export interface DeferredFailureRepairBatchSummary {
+  queued: number;
+  existing: number;
+  manualTriage: number;
+  stale: number;
+  capped: number;
+  dispatchFailed: number;
+}
+
+/**
+ * Decide a small, deterministic daily repair batch without changing feedback
+ * ownership. The canonical key is the grouping boundary: similar observations
+ * collapse, while different signatures never do.
+ */
+export function planDeferredFailureRepairBatch(
+  requests: readonly DeferredFailureRepairRequest[],
+  options: {
+    now?: Date;
+    maxItems?: number;
+    maxAgeMs?: number;
+  } = {},
+): DeferredFailureRepairBatchPlan {
+  const now = options.now ?? new Date();
+  const maxItems = options.maxItems ?? DEFERRED_FAILURE_REPAIR_BATCH_MAX_ITEMS;
+  const maxAgeMs = options.maxAgeMs ?? DEFERRED_FAILURE_REPAIR_MAX_AGE_MS;
+  const seen = new Set<string>();
+  const candidates: DeferredFailureRepairRequest[] = [];
+  const manualTriage: DeferredFailureRepairRequest[] = [];
+  const stale: DeferredFailureRepairRequest[] = [];
+
+  for (const request of [...requests].sort((a, b) =>
+    a.canonicalKey.localeCompare(b.canonicalKey),
+  )) {
+    // A request can be present twice when a concurrent filer won the feedback
+    // insert but this pass also observed its legacy owner. One canonical family
+    // must still have one queue episode.
+    const key = request.canonicalKey;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (request.classification === "unresolved" || request.ownerFeedbackId == null) {
+      manualTriage.push(request);
+      continue;
+    }
+    const observedMs = parseCanonicalSweepTimestamp(request.observedAt);
+    if (
+      request.source !== "nightly" ||
+      observedMs === null ||
+      observedMs > now.getTime() ||
+      now.getTime() - observedMs > maxAgeMs
+    ) {
+      stale.push(request);
+      continue;
+    }
+    candidates.push(request);
+  }
+
+  return {
+    queued: candidates.slice(0, Math.max(0, maxItems)),
+    manualTriage,
+    stale,
+    capped: candidates.slice(Math.max(0, maxItems)),
+  };
+}
+
+function isAuthoritativeDeferredRecoveryReport(
+  report: SweepReport,
+  nowMs = Date.now(),
+): boolean {
+  const observedAt = parseCanonicalSweepTimestamp(report.finishedAt);
+  return (
+    report.deferredFailureSource === "nightly" &&
+    report.mode === "regression" &&
+    report.verificationComplete === true &&
+    (report.incomplete ?? 0) === 0 &&
+    observedAt !== null &&
+    observedAt <= nowMs &&
+    nowMs - observedAt <= DEFERRED_FAILURE_REPAIR_MAX_AGE_MS
+  );
+}
+
+function deferredFailureFileFromKey(key: string): string | null {
+  if (!key.startsWith("deferred-failure:")) return null;
+  const tail = key.slice("deferred-failure:".length);
+  const separator = tail.lastIndexOf(":");
+  return separator > 0 ? tail.slice(0, separator) : null;
+}
+
+/**
+ * Resolve an owner only when the nightly lane has complete accounting and
+ * actually observed that owner's file/family. Canaries, partial reports, and
+ * stale reports do not get a path to closure.
+ */
+async function resolveRecoveredDeferredFailureOwners(report: SweepReport): Promise<number> {
+  if (!isAuthoritativeDeferredRecoveryReport(report)) return 0;
+  const observedKeys = new Set(normalizeDeferredFailureIntake(report).map((item) => item.canonicalKey));
+  const recoveredFiles = new Set([
+    ...report.results
+      .filter((result) => result.outcome === "passed")
+      .map((result) => result.file),
+  ]);
+  if (recoveredFiles.size === 0) return 0;
+
+  const { getDb, withDbAttribution } = await import("../db");
+  return withDbAttribution("deferredFailureIntake:resolveRecovered", async () => {
+    const res = await getDb().execute(sql`
+      SELECT id, current_page
+      FROM user_feedback
+      WHERE status = 'pending'
+        AND (
+          user_id = ${DEFERRED_FAILURE_FEEDBACK_USER_ID}
+          OR (
+            user_id LIKE 'system:%'
+            AND user_id <> ${QUARANTINE_FEEDBACK_USER_ID}
+            AND user_id <> ${SWEEP_FEEDBACK_USER_ID}
+            AND current_page IN (${sql.join([...recoveredFiles].map((file) => sql`${file}`), sql`, `)})
+          )
+        )
+      ORDER BY id ASC
+      LIMIT ${DEFERRED_FAILURE_INTAKE_MAX_ITEMS}
+    `);
+
+    const recoverable = (res.rows ?? []).filter((row: any) => {
+      if (typeof row.current_page !== "string") return false;
+      if (observedKeys.has(row.current_page)) return false;
+      const ownerFile = deferredFailureFileFromKey(row.current_page) ?? row.current_page;
+      return recoveredFiles.has(ownerFile);
+    });
+    if (recoverable.length === 0) return 0;
+
+    const ids = sql.join(recoverable.map((row: any) => sql`${Number(row.id)}`), sql`, `);
+    await getDb().execute(sql`
+      UPDATE user_feedback
+      SET status = 'resolved',
+          feedback_text = feedback_text || E'\n\n[Auto-resolved] Authoritative nightly verification observed this failure family recovered.'
+      WHERE id IN (${ids}) AND status = 'pending'
+    `);
+    return recoverable.length;
+  });
+}
+
+/**
+ * Consolidate nightly, post-merge, and periodic deferred-lane observations
+ * through the existing feedback owner, then sends only a bounded fresh nightly
+ * batch through the repair dispatcher. It never changes sweep truth or relays
+ * raw diagnostics.
+ */
+export async function fileDeferredFailureIntake(
+  report: SweepReport,
+): Promise<DeferredFailureIntakeSummary> {
+  const observations = normalizeDeferredFailureIntake(report);
+  const owners = await listDeferredFailureOwners(observations);
+  const plan = planDeferredFailureIntake(report, owners);
+  const repairRequests: DeferredFailureRepairRequest[] = [];
+  let filed = 0;
+  let updated = 0;
+
+  for (const item of plan.update) {
+    await appendDeferredFailureEvidence(item.ownerId, item.observation);
+    updated++;
+    repairRequests.push(
+      buildDeferredFailureRepairRequest({
+        ownerFeedbackId: item.ownerId,
+        canonicalKey: item.observation.canonicalKey,
+        classification: item.observation.classification,
+        evidenceCodes: item.observation.evidenceCodes,
+        observedAt: report.finishedAt,
+        source: item.observation.source,
+      }),
+    );
+  }
+  for (const observation of plan.create) {
+    const ownerId = await insertDeferredFailureOwner(observation);
+    if (ownerId === null) continue; // concurrent filer owns it; next run updates it.
+    filed++;
+    repairRequests.push(
+      buildDeferredFailureRepairRequest({
+        ownerFeedbackId: ownerId,
+        canonicalKey: observation.canonicalKey,
+        classification: observation.classification,
+        evidenceCodes: observation.evidenceCodes,
+        observedAt: report.finishedAt,
+        source: observation.source,
+      }),
+    );
+  }
+
+  const batchPlan = planDeferredFailureRepairBatch(repairRequests);
+  let queued = 0;
+  let existing = 0;
+  let capacityCapped = 0;
+  let dispatchFailed = 0;
+  for (const request of batchPlan.queued) {
+    try {
+      const result = await (deferredFailureRepairEnqueueOverride ?? enqueueDeferredFailureRepairRequest)(
+        request,
+      );
+      if (result.inserted) queued++;
+      else if (result.capacityExhausted) capacityCapped++;
+      else existing++;
+    } catch (error) {
+      dispatchFailed++;
+      console.warn(
+        `[DeferredFailureIntake] repair handoff dispatch failed for ${request.canonicalKey}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+  const resolved = await resolveRecoveredDeferredFailureOwners(report);
+  return {
+    filed,
+    updated,
+    unresolved: plan.unresolved.length,
+    resolved,
+    repairRequests,
+    repairBatch: {
+      queued,
+      existing,
+      manualTriage: batchPlan.manualTriage.length,
+      stale: batchPlan.stale.length,
+      capped: batchPlan.capped.length + capacityCapped,
+      dispatchFailed,
+    },
+  };
 }
 
 /**

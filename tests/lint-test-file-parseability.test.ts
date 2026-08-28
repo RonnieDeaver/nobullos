@@ -25,7 +25,7 @@ test-registration */
  *   5. extraNodeArgs setup files are traced as entries: a broken setup .ts
  *      referenced only via `--import` is flagged.
  *   6. Wiring lockstep: gate.ts LINT_CHECKS registers the lint and the drift
- *      guard defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      guard defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
@@ -115,8 +115,8 @@ async function main(): Promise<void> {
     );
     const drift = readFileSync("scripts/lint-gate-workflow-drift.ts", "utf8");
     assert(
-      /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(drift),
-      "wiring: lint-gate-workflow-drift defines VALIDATION_WORKFLOW with command npm run gate",
+      /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(drift),
+      "wiring: lint-gate-workflow-drift defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
     );
   }
 

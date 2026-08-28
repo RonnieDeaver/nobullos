@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Pdf parser total leads reconcile (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #2753 — regression for the Total-Leads reliability reconciliation in

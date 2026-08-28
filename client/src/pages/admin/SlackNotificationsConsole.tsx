@@ -405,14 +405,18 @@ export default function SlackNotificationsConsole() {
               <Zap className="w-4 h-4 text-amber-600" />
               <span className="text-sm">Watcher kill switch</span>
               <Switch
-                checked={killQuery.data?.enabled ?? true}
+                checked={killQuery.isError ? false : killQuery.data?.enabled ?? true}
                 onCheckedChange={(v) => killMutation.mutate(v)}
-                disabled={killMutation.isPending}
+                disabled={killMutation.isPending || killQuery.isError}
                 aria-label="Watcher kill switch"
                 data-testid="switch-kill-switch"
               />
-              <span className="text-xs text-muted-foreground">
-                {killQuery.data?.enabled === false ? "Watchers paused" : "Watchers active"}
+              <span className="text-xs text-muted-foreground" data-testid="text-kill-switch-status">
+                {killQuery.isError
+                  ? "Status unavailable"
+                  : killQuery.data?.enabled === false
+                  ? "Watchers paused"
+                  : "Watchers active"}
               </span>
             </div>
           </CardContent>
@@ -425,6 +429,25 @@ export default function SlackNotificationsConsole() {
             <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
             Loading notifications…
           </div>
+        )}
+
+        {consoleQuery.isError && (
+          <Alert variant="destructive" data-testid="error-console">
+            <AlertCircle className="w-4 h-4" />
+            <div className="flex items-center justify-between gap-3 flex-1">
+              <span className="text-sm">
+                Failed to load notifications: {(consoleQuery.error as any)?.message || "Unknown error"}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => consoleQuery.refetch()}
+                data-testid="button-retry-console"
+              >
+                Retry
+              </Button>
+            </div>
+          </Alert>
         )}
 
         {visibleCategories.map((cat) => {

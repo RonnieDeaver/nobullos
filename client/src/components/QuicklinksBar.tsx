@@ -23,7 +23,7 @@ import {
   MessageSquare, Plug, Users, UserCog, Activity, MoreHorizontal, Hash,
   LogOut, Menu, Home, Inbox, MessageSquarePlus, ShieldCheck, FileSpreadsheet,
   ClipboardList, Radar, Signpost, Gauge, FolderOpen, Briefcase, Tags, Magnet, Megaphone, Zap, Send,
-  MapPin, Sun, Moon, Monitor, BookOpenCheck,
+  MapPin, Sun, Moon, Monitor, BookOpenCheck, PhoneCall, UserCheck,
 } from "lucide-react";
 import { useTheme, isThemePreference } from "@/lib/theme";
 
@@ -224,6 +224,11 @@ export const QUICKLINKS_MANIFEST: QuicklinkItem[] = [
   // (lib/publicPaths.ts) for signed-out sales use; this entry only governs
   // discoverability in the internal nav.
   { id: "mcu-checker", label: "MCU Checker", href: "/mcu-checker", icon: MapPin, cluster: "crm", buttonTestId: "button-mcu-checker", menuTestId: "menu-mcu-checker", prefetch: true, isVisible: ({ isCeo }) => isCeo },
+  // Task #5298 (stage 4 of the New Client Onboarding epic) — the sales
+  // intake entry point: capture a new client's info + call notes and book
+  // them immediately against the onboarding pool. Any authenticated staff
+  // member can place a sales call, matching the "add-client" gate.
+  { id: "onboarding-intake", label: "Onboarding Call", href: "/onboarding-intake", icon: PhoneCall, cluster: "crm", buttonTestId: "button-onboarding-intake", menuTestId: "menu-onboarding-intake", isVisible: () => true },
 
   // Client Management — operating live client accounts + client-facing
   // market intel (Tags and Insights are client-portfolio tools — deliberate

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Geocode failure classification (Task #2408)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

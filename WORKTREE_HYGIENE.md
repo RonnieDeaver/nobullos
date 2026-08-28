@@ -32,9 +32,9 @@ The repo **root is allow-listed for both files and directories**: any new non-do
 
 ## Enforcement (three layers)
 
-1. **`npm run gate`** (every task's final validation, all modes) runs **`clean-scratch --stale-only` first** — deleting untracked junk-pattern files and TTL/size-pruning the scratch zones — then runs **`lint-worktree-hygiene`** against the cleaned tree. Every task therefore self-cleans at validation time.
+1. **`npm run gate`** (every mode, whenever it runs) runs **`clean-scratch --stale-only` first** — deleting untracked junk-pattern files and TTL/size-pruning the scratch zones — then runs **`lint-worktree-hygiene`** against the cleaned tree. `npm run gate` is a manual, operator-triggered tool, not a required per-task step (see [TESTING.md](./TESTING.md#bounded-task-validation-policy-owner-approved)); this self-clean fires whenever an operator runs it, plus on its own nightly/weekly/post-merge-canary lanes.
 2. **`scripts/predeploy.sh`** runs the same self-clean + lint before any deploy, so the publish image stops accumulating scratch weight. Same block-banner + emergency-override convention as the other predeploy gates.
-3. **Smoke tests**: `tests/lint-worktree-hygiene.test.ts` (always-run core via the `tests/lint-*` naming rule) and `tests/clean-scratch.test.ts` guard the lint and the GC — including fixture proof that platform-managed directories survive every mode. The `.replit` `Validate` workflow runs `npm run gate`, including this lint through `scripts/gate.ts` `LINT_CHECKS`; these SMOKE_FILES entries are part of the enforcement.
+3. **Smoke tests**: `tests/lint-worktree-hygiene.test.ts` (always-run core via the `tests/lint-*` naming rule) and `tests/clean-scratch.test.ts` guard the lint and the GC — including fixture proof that platform-managed directories survive every mode. The managed `.replit` **Long validation** workflow's reviewed `routine-gate` profile includes this lint through `scripts/gate.ts` `LINT_CHECKS` whenever an operator requests it; these SMOKE_FILES entries are part of the enforcement.
 
 ## Manual cleanup
 

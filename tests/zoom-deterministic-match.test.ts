@@ -5,7 +5,7 @@
     "server/services/zoomIntegration.ts",
     "server/storage/bookingStorage.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Twilio direct-thread dedupe (Task #849)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #849 tests: direct SMS thread identity, idempotent webhook, merge.

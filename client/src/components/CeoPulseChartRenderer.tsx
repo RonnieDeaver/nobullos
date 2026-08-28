@@ -776,7 +776,18 @@ function renderBar(chart: CeoPulseChart, chartIndex: number, compact: boolean, a
   const labelFontSize = VALUE_LABEL_FONT_SIZE;
   const yAxisWidth = yAxisCategoryWidth(compact);
 
-  const truncateLabel = (label: string, maxLen = 25) => {
+  // Task #5326 — the 25-char cap below was calibrated for the non-compact
+  // 140px y-axis width (~5.6px/char at 11px), but compact mode's narrower
+  // 110px axis was truncating to the SAME 25 chars, so labels routinely
+  // rendered ~150px wide inside a 110px slot. The category axis right-
+  // aligns tick text (textAnchor="end"), so the overflow bled leftward out
+  // of the axis, out of the chart's own card, and into the page's next
+  // column over rather than clipping harmlessly — confirmed via a real
+  // published NoBull Brief ("LLM-driven traffic (many businesses)" started
+  // ~35px left of its card's own left edge). Scale the cap to the actual
+  // reserved width instead of hand-copying the non-compact constant.
+  const labelMaxLen = compact ? 18 : 25;
+  const truncateLabel = (label: string, maxLen = labelMaxLen) => {
     if (!label) return '';
     if (label.length <= maxLen) return label;
     return label.substring(0, maxLen - 2) + '...';

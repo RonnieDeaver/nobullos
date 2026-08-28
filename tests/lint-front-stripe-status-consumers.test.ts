@@ -3,7 +3,7 @@
   "name": "lint-front-stripe-status-consumers guard (Task #2831)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2831: the Front/Stripe dedicated status routes carry the Task #2811 status-unknown 503 contract but have NO client consumers yet (Hub cards read all-status). This guard's first assertion runs the lint over the REAL client/src tree, so a future console page that queries /api/integrations/front/status or /api/stripe/status without parseIntegrationStatusUnknownError (the #2820 neutral-\"Checking…\" pattern) fails the routine gate instead of shipping a false \"Not Connected\" on transient blips. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS and this SMOKE_FILES coverage. Fast, DB-free, deterministic (filesystem scan + tmpdir fixtures).",
+  "smokeReason": "Task #2831: the Front/Stripe dedicated status routes carry the Task #2811 status-unknown 503 contract but have NO client consumers yet (Hub cards read all-status). This guard's first assertion runs the lint over the REAL client/src tree, so a future console page that queries /api/integrations/front/status or /api/stripe/status without parseIntegrationStatusUnknownError (the #2820 neutral-\"Checking…\" pattern) fails the routine gate instead of shipping a false \"Not Connected\" on transient blips. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS and this SMOKE_FILES coverage. Fast, DB-free, deterministic (filesystem scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -18,8 +18,8 @@ test-registration */
  *
  * Proves:
  *   1. The REAL client/src tree is clean + the shared parser module still
- *      exports the parser (this assertion complements the routine `Validate`
- *      workflow, which runs `npm run gate`).
+ *      exports the parser (this assertion complements the managed Long validation
+ *      workflow's reviewed routine-gate profile).
  *   2. A fixture consumer of the Front status route WITHOUT the parser is
  *      flagged, with the route + file/line in the message.
  *   3. A fixture consumer of the Stripe status route WITHOUT the parser is

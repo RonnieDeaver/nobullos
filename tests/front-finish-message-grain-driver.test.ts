@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Front finish message grain driver (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

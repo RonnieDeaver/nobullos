@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Front webhook apply query budget (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Task #1787 Stage 7B — Pin the query-count budget for the optimized

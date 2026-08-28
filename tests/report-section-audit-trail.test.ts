@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Report section audit trail (Task #829)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

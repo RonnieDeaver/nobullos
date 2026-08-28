@@ -4,7 +4,8 @@
   "regression": true,
   "smoke": true,
   "smokeReason": "Task #4347 + #4500 + #4726: guards the design-token gate policy — six frozen-count ratchets (hex colors, text-[Npx], rounded-*, z-*, sub-10px chart fontSize, bg-primary+text-white pairings) that stop the client token fork from regrowing. Pins the committed baseline artifact by self-hash + frozen authoring-time ceilings (delete-and-regen laundering protection), proves each category fails on a synthetic new violation with the token remedy, proves below-baseline counts demand a regen, proves the regen script refuses per-category total increases AND per-file increases hidden by offsetting reductions (Task #4507: absorption needs git rename evidence or an audited --audited-move reason), and that the lints have no write/flag path. Fast, DB-free, tmp-fixture based.",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Builds fixture trees to verify design-contract ratchets and their failure diagnostics."
 }
 test-registration */
 /**
@@ -744,7 +745,7 @@ console.log("7b) definition migration: older-version artifact — lints refuse, 
   }
 }
 
-console.log("8) wiring lockstep: gate, Validate workflow, TASK_SELFCHECK");
+console.log("8) wiring lockstep: gate, managed Long validation workflow, TASK_SELFCHECK");
 {
   const gateSrc = readFileSync("scripts/gate.ts", "utf8");
   const driftSrc = readFileSync("scripts/lint-gate-workflow-drift.ts", "utf8");
@@ -765,8 +766,8 @@ console.log("8) wiring lockstep: gate, Validate workflow, TASK_SELFCHECK");
     assert(selfcheck.includes(`scripts/${name}.ts`), `TASK_SELFCHECK.md documents ${name}`);
   }
   assert(
-    /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(driftSrc),
-    "lint-gate-workflow-drift.ts defines VALIDATION_WORKFLOW with command npm run gate",
+    /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(driftSrc),
+    "lint-gate-workflow-drift.ts defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
   );
 }
 

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Manual reserve alerts",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

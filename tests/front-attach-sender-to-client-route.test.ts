@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Front attach sender to client route (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises the sender-to-client attachment route through request validation and persistence."
 }
 test-registration */
 /**

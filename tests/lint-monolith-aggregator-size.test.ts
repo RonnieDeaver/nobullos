@@ -3,7 +3,7 @@
   "name": "lint-monolith-aggregator-size regrowth guard (Task #3787)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #3787 + Task #4161/F13: the monolith-split regrowth guard. The fourteen split composition roots (server/index.ts, server/routes.ts, serviceDesk/comms routes, commsStorage, Comms.tsx, ClickUpModule.tsx, PublicReport.tsx, plus the 2026-08 program roots: integrations routes, prodActionsRegistry, FrontHistoricalRecoveryPanel, MatchSettings, RateLimitUsers, HealthDashboardSection) must stay thin or whole-file merge conflicts return. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (line-count fixtures + real-tree scan).",
+  "smokeReason": "Task #3787 + Task #4161/F13: the monolith-split regrowth guard. The fourteen split composition roots (server/index.ts, server/routes.ts, serviceDesk/comms routes, commsStorage, Comms.tsx, ClickUpModule.tsx, PublicReport.tsx, plus the 2026-08 program roots: integrations routes, prodActionsRegistry, FrontHistoricalRecoveryPanel, MatchSettings, RateLimitUsers, HealthDashboardSection) must stay thin or whole-file merge conflicts return. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (line-count fixtures + real-tree scan).",
   "tier": "small"
 }
 test-registration */
@@ -23,7 +23,7 @@ test-registration */
  *   4. The REAL repository's aggregators are within budget — the assertion
  *      that keeps the Task #3787 split from regressing.
  *   5. Wiring lockstep: gate.ts LINT_CHECKS registers the lint and the drift
- *      guard defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      guard defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
@@ -132,7 +132,7 @@ function fixture(): { root: string; cleanup: () => void } {
   if (!res.ok) console.error(`    ${res.message}`);
 }
 
-// 5. Wiring lockstep: gate LINT_CHECKS + Validate workflow command.
+// 5. Wiring lockstep: gate LINT_CHECKS + managed Long validation workflow command.
 {
   const gateSrc = readFileSync(new URL("../scripts/gate.ts", import.meta.url), "utf8");
   const driftSrc = readFileSync(
@@ -144,8 +144,8 @@ function fixture(): { root: string; cleanup: () => void } {
     "gate.ts LINT_CHECKS registers the lint",
   );
   assert(
-    /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(driftSrc),
-    "drift guard defines VALIDATION_WORKFLOW with command npm run gate",
+    /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(driftSrc),
+    "drift guard defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
   );
 }
 

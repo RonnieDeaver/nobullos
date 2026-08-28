@@ -3,7 +3,7 @@
   "name": "lint-website-bundle-freshness guard — fixture trees prove the marketing-bundle freshness lint passes when the committed stamp matches the generator inputs and fails naming the drifted file plus the exact regen command on edit/add/remove/missing/corrupt stamp; the real repo bundle is fresh; gate wiring stays in lockstep (PR4)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "The freshness guard stops a stale committed website/public bundle from shipping to the production lead-gen homepage. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS; this always-core lint-*-named test proves the lint and workflow wiring. Pure fs fixtures, DB-free, fast.",
+  "smokeReason": "The freshness guard stops a stale committed website/public bundle from shipping to the production lead-gen homepage. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS; this always-core lint-*-named test proves the lint and workflow wiring. Pure fs fixtures, DB-free, fast.",
   "timeoutMs": 60000,
   "tier": "small"
 }
@@ -33,7 +33,7 @@ test-registration */
  *      fires, someone edited website/src|content without regenerating.
  *   9. Wiring lockstep: the lint stays registered in scripts/gate.ts
  *      LINT_CHECKS and scripts/lint-gate-workflow-drift.ts defines
- *      `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 
 import fs from "node:fs";
@@ -188,8 +188,8 @@ async function main(): Promise<void> {
       "utf8",
     );
     assert(
-      /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(driftSrc),
-      "scripts/lint-gate-workflow-drift.ts defines VALIDATION_WORKFLOW with command npm run gate",
+      /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(driftSrc),
+      "scripts/lint-gate-workflow-drift.ts defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
     );
     const selfcheck = fs.readFileSync(path.join(REPO_ROOT, "TASK_SELFCHECK.md"), "utf8");
     assert(

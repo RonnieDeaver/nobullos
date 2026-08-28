@@ -198,6 +198,8 @@ export function kickWorkersAndCleanup(): void {
            "book_paid_delivery",
           // Task #5156 — ClickUp role projection commands drain.
           "clickup_role_projection",
+           // Task #5245 — canonical ClickUp Client List lifecycle commands.
+           "clickup_client_mirror",
         ]);
 
         try {

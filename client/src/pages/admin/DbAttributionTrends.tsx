@@ -273,7 +273,7 @@ function fmtBytes(n: number): string {
 export default function DbAttributionTrends() {
   const { user, isLoading: authLoading } = useAuth();
   const role = (user as any)?.role as string | undefined;
-  const isAdmin = role === "team_lead" || role === "admin" || role === "owner";
+  const isAdmin = role === "ceo" || role === "team_lead";
 
   const { data, isLoading, error } = useQuery<TrendsResponse>({
     queryKey: ["/api/admin/db-attribution/trends"],
@@ -299,7 +299,6 @@ export default function DbAttributionTrends() {
     );
   }
 
-  if (isLoading || !data) return <PageSkeleton />;
   if (error) {
     return (
       <div className="p-6">
@@ -312,6 +311,7 @@ export default function DbAttributionTrends() {
       </div>
     );
   }
+  if (isLoading || !data) return <PageSkeleton />;
 
   return (
     <div className="p-6 space-y-6" data-testid="page-db-attribution-trends">

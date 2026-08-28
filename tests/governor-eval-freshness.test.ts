@@ -3,12 +3,13 @@
   "name": "Governor eval-prompt freshness guard (Task #4194)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Fast (~0.2s) deterministic fs-only scan with no DB or network; guards the eval-prompt-rot bug class (task #4182's premise-mismatch waste) so it earns a routine-gate slot, and scanPaths route it into related-smoke when the evals pack or schema models churn.",
+  "smokeReason": "Fast (~0.2s) deterministic fs-only scan with no DB or network; guards the eval-prompt-rot bug class (task #4182's premise-mismatch waste) so it earns a routine-gate slot, and scanPaths route it into related-smoke when the evals pack, governing skill/schema inputs, or durable bootstrap evaluation evidence changes.",
   "scanPaths": [
     ".agents/skills/architecture-governor/evals/evals.json",
     ".agents/skills/architecture-governor/SKILL.md",
     ".agents/skills/architecture-governor/references",
-    "shared/models"
+    "shared/models",
+    "audits/architecture-governor-bootstrap-report.md"
   ],
   "tier": "small"
 }
@@ -24,7 +25,7 @@ test-registration */
  *   4. The REAL evals pack is currently fresh against the live repo tree.
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runLint, runSkillDocsLint, extractReferences, extractExpectedFileRefs, extractSkillDocFileRefs } from "../scripts/check-governor-eval-freshness";
@@ -166,11 +167,11 @@ function runOn(root: string) {
 {
   const refs = extractExpectedFileRefs(
     "requires docs/pool-epic-baseline.md evidence; does not edit green-baseline.json; bump widget.js version; " +
-      "cites server/services/regressionSweepScheduler.ts and .agents/skills/x/evals/evals.json; L2/L3 classification",
+      "cites server/services/regressionSweepScheduler.ts and .agents/skills/x/evals/evals.json; L2/L3 classification", // fs-scan-inputs-ignore -- fixture prose exercises reference extraction, not a repo read
   );
   assert(
     JSON.stringify(refs.dirPaths) ===
-      JSON.stringify(["docs/pool-epic-baseline.md", "server/services/regressionSweepScheduler.ts"]),
+      JSON.stringify(["docs/pool-epic-baseline.md", "server/services/regressionSweepScheduler.ts"]), // fs-scan-inputs-ignore -- expected fixture extraction result, not a repo read
     `dir-prefixed paths extracted exactly (got ${JSON.stringify(refs.dirPaths)})`,
   );
   assert(
@@ -195,7 +196,7 @@ function runOn(root: string) {
     mkdirSync(join(skillDir, "references"), { recursive: true });
     mkdirSync(join(root, "scripts"), { recursive: true });
     mkdirSync(join(root, "tests"), { recursive: true });
-    writeFileSync(join(root, "scripts/gate-fixture.ts"), "// fixture\n");
+    writeFileSync(join(root, "scripts/gate-fixture.ts"), "// fixture\n"); // fs-scan-inputs-ignore -- temp fixture path, not a repo read
     mkdirSync(join(skillDir, "assets"), { recursive: true });
     writeFileSync(join(skillDir, "assets/impact-review-fixture.md"), "# fixture asset\n");
     mkdirSync(join(root, "docs"), { recursive: true });
@@ -211,7 +212,7 @@ function runOn(root: string) {
     writeFileSync(join(skillDir, "references/sibling-fixture.md"), "# sibling fixture\n");
     writeFileSync(
       join(skillDir, "references/fixture-ref.md"),
-      "See server/boot/gone-init.ts and references/fixture-ref.md; bare mentions like green-baseline.json or prose stay unchecked.\n" +
+        "See server/boot/gone-init.ts and references/fixture-ref.md; bare mentions like green-baseline.json or prose stay unchecked.\n" + // fs-scan-inputs-ignore -- temp fixture content, not a repo read
         // Task #4325 — bare *.md sibling mentions ARE checked now.
         "Pair with sibling-fixture.md; gone-sibling.md was renamed away. Prose like widget.js version stays out.\n",
     );
@@ -229,10 +230,10 @@ function runOn(root: string) {
       "stale skill-relative assets/*.md ref flagged (eval-only dir scope not inherited)",
     );
     assert(
-      byRef.get("server/boot/gone-init.ts")?.endsWith("references/fixture-ref.md") === true,
+      byRef.get("server/boot/gone-init.ts")?.endsWith("references/fixture-ref.md") === true, // fs-scan-inputs-ignore -- expected temp-fixture offender, not a repo read
       "stale references/*.md ref flagged with the offending doc",
     );
-    assert(!byRef.has("scripts/gate-fixture.ts"), "existing repo-root ref not flagged");
+    assert(!byRef.has("scripts/gate-fixture.ts"), "existing repo-root ref not flagged"); // fs-scan-inputs-ignore -- expected temp-fixture lookup, not a repo read
     assert(!byRef.has("assets/impact-review-fixture.md"), "existing skill-relative assets ref not flagged");
     assert(!byRef.has("references/fixture-ref.md"), "existing skill-relative sibling-doc ref not flagged");
     // Task #4325 — bare *.md sibling mentions are checked too.
@@ -263,8 +264,19 @@ function runOn(root: string) {
 
 // ---- 5. The REAL evals pack is fresh against the live tree ----
 {
+  const bootstrapReportPath = "audits/architecture-governor-bootstrap-report.md";
+  const bootstrapReport = readFileSync(join(process.cwd(), bootstrapReportPath), "utf8");
+  assert(
+    bootstrapReport.includes("Live validation of epic-intake cases 20–22"),
+    "bootstrap report retains the epic-intake live-validation evidence",
+  );
+  assert(
+    bootstrapReport.includes("strict expected-behavior score 10/11 observed with 1 deferred"),
+    "bootstrap report retains the honest deferred case-22 score",
+  );
+
   const res = runLint();
-  assert(res.checked >= 17, `real pack has >= 17 cases (got ${res.checked})`);
+  assert(res.checked >= 22, `real pack has >= 22 cases (got ${res.checked})`);
   assert(
     res.ok,
     `real Governor evals pack is fresh (offenders: ${JSON.stringify(res.offenders)}) — refresh the prompt per audits/architecture-governor-bootstrap-report.md §9`,

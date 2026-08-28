@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Front outbound gap close unreadable alert config route (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

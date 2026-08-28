@@ -20,6 +20,7 @@
     "server/routes/clients.ts",
     "server/routes/comms",
     "server/services/clientArchive.ts",
+    "server/services/clientIntake.ts",
     "server/services/commsProvisioning.ts",
     "server/services/twilioEvents.ts",
     "server/storage/comms"
@@ -324,14 +325,17 @@ assert(
   "commsProvisioning delegates to provisionClientChannel + listActiveClientsWithoutChannel",
 );
 
-const clientRoutesSrc = readFileSync(
-  join(process.cwd(), "server/routes/clients.ts"),
+// Task #5297 extracted the client-creation core (shared by POST /api/clients
+// and the onboarding-intake endpoint) into createValidatedClient; the comms
+// channel provisioning call moved with it out of the route file.
+const clientIntakeSrc = readFileSync(
+  join(process.cwd(), "server/services/clientIntake.ts"),
   "utf-8",
 );
 
 assert(
-  clientRoutesSrc.includes("provisionClientChannel"),
-  "clients route provisions a comms channel on client creation",
+  clientIntakeSrc.includes("provisionClientChannel"),
+  "client creation provisions a comms channel (via the shared clientIntake helper)",
 );
 
 // Task #3697 moved the channel archive/restore calls out of the PATCH route

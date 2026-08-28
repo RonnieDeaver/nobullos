@@ -45,7 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Megaphone, Plus, BarChart3, ArrowUpRight } from "lucide-react";
+import { Megaphone, Plus, BarChart3, ArrowUpRight, AlertTriangle } from "lucide-react";
 import { EmptyState } from "@/components/kit/EmptyState";
 
 export interface CampaignStats {
@@ -288,6 +288,12 @@ export default function Campaigns() {
       setForm(EMPTY_FORM);
       setSubmitAttempted(false);
       void queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      // The Source report caches by its exact date-range URL; a new campaign
+      // key can change which rows it attributes, so refresh it too.
+      void queryClient.invalidateQueries({
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/attribution/report"),
+      });
     },
     onError: (err: any) => {
       toast({
@@ -351,6 +357,18 @@ export default function Campaigns() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : listQuery.isError ? (
+            <EmptyState
+              icon={<AlertTriangle />}
+              title="Couldn't load campaigns"
+              description="Something went wrong fetching this list."
+              action={
+                <Button variant="outline" size="sm" onClick={() => void listQuery.refetch()} data-testid="button-retry-campaigns">
+                  Retry
+                </Button>
+              }
+              testId="text-campaigns-error"
+            />
           ) : campaigns.length === 0 ? (
             <EmptyState
               icon={<Megaphone />}

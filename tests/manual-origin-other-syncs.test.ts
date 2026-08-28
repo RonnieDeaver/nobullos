@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Manual origin other syncs (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

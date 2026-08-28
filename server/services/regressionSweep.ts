@@ -140,6 +140,8 @@ export interface SweepReport {
    * is not applicable to regression/all modes. Optional for older reports.
    */
   relatedSelection?: boolean | null;
+  /** Broad task coverage was transferred to the central integrity lane. */
+  centralIntegrityDeferred?: boolean;
   total: number;
   passed: number;
   /** Failures NOT covered by quarantine — these make the sweep red. */
@@ -161,6 +163,15 @@ export interface SweepReport {
   verificationComplete?: boolean;
   /** Human-readable accounting diagnostics for an incomplete run. */
   verificationProblems?: string[];
+  /**
+   * Additive, aggregate rail accounting for task-gate policy. These counts
+   * prove that required direct/core suites reached an allowed terminal
+   * disposition; they deliberately omit suite identities from the gate ledger.
+   */
+  taskGateRailProof?: {
+    directAffected: TaskGateRailProof;
+    core: TaskGateRailProof;
+  };
   results: SweepTestResult[];
   hardFailedNames: string[];
   quarantinedFailedNames: string[];
@@ -246,6 +257,31 @@ export interface SweepReport {
   deferredNotVerified?: number;
   deferredFiles?: string[];
   /**
+   * Bounded attribution facts emitted by the runner for deferred-verification
+   * intake. These are observations about failures, never green evidence and
+   * never an instruction to change the report verdict.
+   */
+  deferredFailureAttribution?: Array<{
+    file: string;
+    verdict: "inherited" | "yours" | "unattributable";
+    historyKind: "none" | "flaky" | "recovered";
+    /** True only for a complete manifest/signature/fingerprint proof. */
+    provenInherited: boolean;
+    proofStatus:
+      | "proven-inherited"
+      | "proven-inherited-live-tip"
+      | "task-caused"
+      | "manifest-unavailable"
+      | "manifest-malformed"
+      | "manifest-stale"
+      | "signature-mismatch"
+      | "fingerprint-missing"
+      | "fingerprint-changed"
+      | "classification-error";
+  }>;
+  /** Identifies the observation lane without storing task or raw-output data. */
+  deferredFailureSource?: "post-merge" | "nightly" | "periodic";
+  /**
    * Task #5030 — culprit merge-window attribution for NEW nightly reds.
    * When the nightly sweep (publish-armed) records a red suite that was NOT
    * in the previous red manifest, the window of commits between the previous
@@ -266,6 +302,134 @@ export interface SweepReport {
    * Local report only; older reports legitimately omit it.
    */
   taskGatePerformance?: TaskGateRunnerPerformance;
+}
+
+export const DEFERRED_FAILURE_INTAKE_MAX_ITEMS = 50;
+
+export type DeferredFailureClassification =
+  | "task-caused"
+  | "proven-inherited"
+  | "recurring-intermittent"
+  | "unresolved";
+
+export interface DeferredFailureIntakeObservation {
+  file: string;
+  source: "post-merge" | "nightly" | "periodic";
+  classification: DeferredFailureClassification;
+  /**
+   * A deliberately small signature vocabulary. Raw output is never retained:
+   * this is only a stable grouping key for equivalent observations.
+   */
+  signature: "exit" | "hang" | "timeout" | "incomplete" | "other";
+  canonicalKey: string;
+  evidenceCodes: string[];
+}
+
+function safeDeferredFailureSignature(reason: string | null | undefined): DeferredFailureIntakeObservation["signature"] {
+  const value = String(reason ?? "").trim().toLowerCase();
+  if (/^exit\s+\d+\b/.test(value)) return "exit";
+  if (/^hang\b/.test(value)) return "hang";
+  if (/^timeout\b/.test(value)) return "timeout";
+  if (/^incomplete\b/.test(value)) return "incomplete";
+  return "other";
+}
+
+function deferredFailureKey(
+  file: string,
+  signature: DeferredFailureIntakeObservation["signature"],
+): string {
+  // current_page is the existing system-feedback unique key. Keep the
+  // diagnostic path visible, cap it defensively, and never include output,
+  // task ids, commits, user data, or fingerprints.
+  return `deferred-failure:${file.slice(0, 180)}:${signature}`;
+}
+
+/**
+ * Normalize deferred-lane failures without changing report truth. Missing,
+ * incomplete, stale/unattributable, or otherwise non-proof-complete inputs
+ * deliberately remain unresolved and carry a visible reason code.
+ */
+export function normalizeDeferredFailureIntake(
+  report: SweepReport,
+): DeferredFailureIntakeObservation[] {
+  const source = report.deferredFailureSource ?? "periodic";
+  const attribution = new Map(
+    (report.deferredFailureAttribution ?? []).map((entry) => [entry.file, entry]),
+  );
+  const verificationIncomplete =
+    report.verificationComplete === false || (report.incomplete ?? 0) > 0;
+
+  const failedResults = report.results
+    .filter((result) => result.outcome === "failed" && !result.quarantined)
+    .slice(0, DEFERRED_FAILURE_INTAKE_MAX_ITEMS)
+  const results = failedResults.length > 0
+    ? failedResults
+    : verificationIncomplete
+      ? [{
+          name: "verification accounting",
+          file: "verification-accounting",
+          outcome: "failed" as const,
+          quarantined: false,
+          attempts: 1,
+          elapsedMs: 0,
+          failureReason: "incomplete verification",
+        }]
+      : [];
+
+  return results.map((result) => {
+    const match = attribution.get(result.file);
+    const signature = safeDeferredFailureSignature(result.failureReason);
+    const evidenceCodes: string[] = [`source:${source}`, `signature:${signature}`];
+    let classification: DeferredFailureClassification;
+
+    if (verificationIncomplete) {
+      classification = "unresolved";
+      evidenceCodes.push("verification-incomplete");
+    } else if (!match) {
+      classification = "unresolved";
+      evidenceCodes.push("attribution-missing");
+    } else if (
+      match.proofStatus === "manifest-malformed" ||
+      match.proofStatus === "manifest-stale" ||
+      match.proofStatus === "fingerprint-missing" ||
+      match.proofStatus === "fingerprint-changed" ||
+      match.proofStatus === "classification-error"
+    ) {
+      classification = "unresolved";
+      evidenceCodes.push(`proof-${match.proofStatus}`);
+    } else if (match.verdict === "unattributable") {
+      classification = "unresolved";
+      evidenceCodes.push("attribution-stale-or-ambiguous");
+    } else if (match.provenInherited && match.verdict === "inherited") {
+      classification = "proven-inherited";
+      evidenceCodes.push("inherited-proof-complete");
+    } else if (match.historyKind === "flaky") {
+      classification = "recurring-intermittent";
+      evidenceCodes.push("recurring-intermittent");
+    } else if (match.verdict === "yours") {
+      classification = "task-caused";
+      evidenceCodes.push("task-attribution");
+    } else {
+      classification = "unresolved";
+      evidenceCodes.push("attribution-ambiguous");
+    }
+
+    return {
+      file: result.file,
+      source,
+      classification,
+      signature,
+      canonicalKey: deferredFailureKey(result.file, signature),
+      evidenceCodes,
+    };
+  });
+}
+
+export interface TaskGateRailProof {
+  selected: number;
+  executed: number;
+  skippedGreen: number;
+  deferred: number;
 }
 
 /** Structural twin of tests/suiteFingerprint.ts's RepeatPoisonWarning (this
@@ -291,6 +455,8 @@ export function buildSweepReport(
     mode: SweepReport["mode"];
     /** Actual smoke selection outcome; null outside smoke mode. */
     relatedSelection?: boolean | null;
+    /** Broad task coverage was transferred to central integrity. */
+    centralIntegrityDeferred?: boolean;
     /** Task #3791: suites skipped as green-on-identical-inputs (not executed). */
     skippedGreen?: number;
     skippedGreenFiles?: string[];
@@ -308,6 +474,8 @@ export function buildSweepReport(
      * (for example, duplicate or foreign lane output). */
     verificationComplete?: boolean;
     verificationProblems?: string[];
+    /** Aggregate mandatory-rail execution proof for the bounded task gate. */
+    taskGateRailProof?: SweepReport["taskGateRailProof"];
   },
 ): SweepReport {
   const hardFailedNames: string[] = [];
@@ -336,6 +504,7 @@ export function buildSweepReport(
     finishedAt: meta.finishedAt,
     mode: meta.mode,
     relatedSelection: meta.relatedSelection ?? null,
+    centralIntegrityDeferred: meta.centralIntegrityDeferred ?? false,
     total: results.length,
     passed,
     hardFailed: hardFailedNames.length,
@@ -344,6 +513,7 @@ export function buildSweepReport(
     incomplete: incompleteNames.length,
     verificationComplete: meta.verificationComplete ?? incompleteNames.length === 0,
     verificationProblems: meta.verificationProblems ?? [],
+    taskGateRailProof: meta.taskGateRailProof,
     results,
     hardFailedNames,
     quarantinedFailedNames,
@@ -507,20 +677,149 @@ export function buildSweepRunArgs(reportPath: string, fullIntegrity: boolean): s
  */
 export function parseSweepReport(raw: string): SweepReport | null {
   try {
-    const obj = JSON.parse(raw) as Partial<SweepReport>;
+    const parsed = JSON.parse(raw) as Partial<SweepReport> | null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    // #3791's incremental-skip counters are purely additive and safe to
+    // default when absent. Verification-completion proof is NOT: a report
+    // omitting `verificationComplete` never gets silently upgraded to
+    // "complete" here — that would undo the fail-closed evidence validation
+    // this parser exists to enforce. Missing/invalid completion proof falls
+    // through to the `typeof obj.verificationComplete !== "boolean"` check
+    // below and is rejected as malformed.
+    const obj = {
+      ...parsed,
+      incomplete: parsed.incomplete === undefined ? 0 : parsed.incomplete,
+      verificationProblems:
+        parsed.verificationProblems === undefined ? [] : parsed.verificationProblems,
+      incompleteNames: parsed.incompleteNames === undefined ? [] : parsed.incompleteNames,
+      skippedGreen: parsed.skippedGreen === undefined ? 0 : parsed.skippedGreen,
+      skippedGreenFiles:
+        parsed.skippedGreenFiles === undefined ? [] : parsed.skippedGreenFiles,
+    };
     if (
-      obj &&
-      typeof obj === "object" &&
-      Array.isArray(obj.results) &&
-       typeof obj.hardFailed === "number" &&
-      typeof obj.total === "number"
+      parseCanonicalSweepTimestamp(obj.startedAt) === null ||
+      parseCanonicalSweepTimestamp(obj.finishedAt) === null ||
+      parseCanonicalSweepTimestamp(obj.startedAt)! > parseCanonicalSweepTimestamp(obj.finishedAt)! ||
+      !isSweepMode(obj.mode) ||
+      !Array.isArray(obj.results) ||
+      !isNonNegativeInteger(obj.total) ||
+      !isNonNegativeInteger(obj.passed) ||
+      !isNonNegativeInteger(obj.hardFailed) ||
+      !isNonNegativeInteger(obj.quarantinedFailed) ||
+      !isNonNegativeInteger(obj.flaky) ||
+      !isNonNegativeInteger(obj.incomplete) ||
+      typeof obj.verificationComplete !== "boolean" ||
+      !isStringArray(obj.verificationProblems) ||
+      !isStringArray(obj.hardFailedNames) ||
+      !isStringArray(obj.quarantinedFailedNames) ||
+      !isStringArray(obj.flakyNames) ||
+      !isStringArray(obj.incompleteNames) ||
+      obj.results.length !== obj.total ||
+      !obj.results.every(isSweepTestResult)
     ) {
-      return obj as SweepReport;
+      return null;
     }
-    return null;
+
+    const expected = summarizeResultAccounting(obj.results);
+    const completionAccountingConsistent =
+      (obj.verificationComplete
+        ? obj.incomplete === 0 && obj.verificationProblems.length === 0
+        : obj.incomplete > 0 || obj.verificationProblems.length > 0);
+    if (
+      obj.passed !== expected.passed ||
+      obj.hardFailed !== expected.hardFailedNames.length ||
+      obj.quarantinedFailed !== expected.quarantinedFailedNames.length ||
+      obj.flaky !== expected.flakyNames.length ||
+      obj.incomplete !== expected.incompleteNames.length ||
+      !sameStringArray(obj.hardFailedNames, expected.hardFailedNames) ||
+      !sameStringArray(obj.quarantinedFailedNames, expected.quarantinedFailedNames) ||
+      !sameStringArray(obj.flakyNames, expected.flakyNames) ||
+      !sameStringArray(obj.incompleteNames, expected.incompleteNames) ||
+      !completionAccountingConsistent
+    ) {
+      return null;
+    }
+    return obj as SweepReport;
   } catch {
     return null;
   }
+}
+
+/**
+ * The runner writes Date#toISOString() timestamps. Evidence readers must not
+ * trust Date.parse alone: it accepts malformed values such as "1", which can
+ * turn corrupt durable state into apparently old/fresh proof.
+ */
+export function parseCanonicalSweepTimestamp(value: unknown): number | null {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+  ) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
+}
+
+function isSweepMode(value: unknown): value is SweepReport["mode"] {
+  return value === "regression" || value === "smoke" || value === "all";
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isSweepTestResult(value: unknown): value is SweepTestResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const result = value as Partial<SweepTestResult>;
+  return (
+    typeof result.name === "string" &&
+    result.name.length > 0 &&
+    typeof result.file === "string" &&
+    result.file.length > 0 &&
+    (result.outcome === "passed" || result.outcome === "failed" || result.outcome === "incomplete") &&
+    typeof result.quarantined === "boolean" &&
+    isNonNegativeInteger(result.attempts) &&
+    result.attempts > 0 &&
+    typeof result.elapsedMs === "number" &&
+    Number.isFinite(result.elapsedMs) &&
+    result.elapsedMs >= 0 &&
+    (result.failureReason === undefined || typeof result.failureReason === "string")
+  );
+}
+
+function summarizeResultAccounting(results: readonly SweepTestResult[]): {
+  passed: number;
+  hardFailedNames: string[];
+  quarantinedFailedNames: string[];
+  flakyNames: string[];
+  incompleteNames: string[];
+} {
+  const hardFailedNames: string[] = [];
+  const quarantinedFailedNames: string[] = [];
+  const flakyNames: string[] = [];
+  const incompleteNames: string[] = [];
+  let passed = 0;
+  for (const result of results) {
+    if (result.outcome === "passed") {
+      passed++;
+      if (result.attempts > 1) flakyNames.push(result.name);
+      continue;
+    }
+    const label = result.failureReason ? `${result.name} (${result.failureReason})` : result.name;
+    if (result.outcome === "incomplete") incompleteNames.push(label);
+    else if (result.quarantined) quarantinedFailedNames.push(label);
+    else hardFailedNames.push(label);
+  }
+  return { passed, hardFailedNames, quarantinedFailedNames, flakyNames, incompleteNames };
+}
+
+function sameStringArray(actual: readonly string[], expected: readonly string[]): boolean {
+  return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
 }
 
 

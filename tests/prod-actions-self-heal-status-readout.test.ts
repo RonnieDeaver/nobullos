@@ -2,9 +2,9 @@
 {
   "name": "Prod-actions self-heal status readout threading (Task #2126)",
   "regression": true,
-  "smoke": true,
-  "smokeReason": "Task #4096 triage of the migrated no-reason boilerplate: fast (~0.1s in the 2026-08-07 nightly sweep) and deterministic under the hermetic per-run test DB, so it earns a routine-gate slot.",
-  "tier": "small"
+  "sweepOnlyReason": "Its published green baseline measures 303215ms, making this a resource-heavy large suite that must remain in the regression sweep rather than the routine smoke gate.",
+  "tier": "large",
+  "tierReason": "Its published green baseline measures 303215ms, above the medium ceiling; the large tier records that measured execution cost."
 }
 test-registration */
 /**
@@ -36,13 +36,17 @@ test-registration */
 
 import assert from "node:assert/strict";
 
+import { closeDbPools } from "../server/db";
 import { setSystemSetting } from "../server/storage/settingsStorage";
 import {
   SETTING_ENABLED,
   SETTING_LAST_RUN,
   type ProdActionSelfHealTickResult,
 } from "../server/services/prodActionSelfHeal";
-import { getProdActionStatuses } from "../server/services/prodActionsRegistry";
+import {
+  getProdActionStatuses,
+  PROD_ACTIONS,
+} from "../server/services/prodActionsRegistry";
 import { runInIsolatedSchema } from "./db-sandbox";
 
 const RAN_AT = "2026-06-01T12:00:00.000Z";
@@ -68,92 +72,95 @@ const SEEDED_TICK: ProdActionSelfHealTickResult = {
 };
 
 async function main(): Promise<void> {
-  await runInIsolatedSchema(
-    async () => {
-      // Seed the master switch ON and the persisted last-run summary
-      // through the real persistence path (the same `setSystemSetting`
-      // calls `persistLastRun()` / the enable toggle use). Inside the
-      // isolated schema these land in the cloned `system_settings` table.
-      await setSystemSetting(SETTING_ENABLED, "true");
-      await setSystemSetting(SETTING_LAST_RUN, JSON.stringify(SEEDED_TICK));
+  // This contract concerns the registry-level readout fields, not the many
+  // unrelated action.status() implementations. Keep the real engine path but
+  // temporarily empty the mutable registry, matching the isolation pattern
+  // used by the prod-actions registry wiring suites.
+  const savedActions = PROD_ACTIONS.splice(0, PROD_ACTIONS.length);
+  try {
+    await runInIsolatedSchema(
+      async () => {
+        // Seed the master switch ON and the persisted last-run summary
+        // through the real persistence path (the same `setSystemSetting`
+        // calls `persistLastRun()` / the enable toggle use). Inside the
+        // isolated schema these land in the cloned `system_settings` table.
+        await setSystemSetting(SETTING_ENABLED, "true");
+        await setSystemSetting(SETTING_LAST_RUN, JSON.stringify(SEEDED_TICK));
 
-      const result = await getProdActionStatuses();
+        const result = await getProdActionStatuses();
 
-      // (1) The master-switch state is threaded through verbatim.
-      assert.equal(
-        result.selfHealEnabled,
-        true,
-        "selfHealEnabled must reflect the seeded master switch",
-      );
+        // (1) The master-switch state is threaded through verbatim.
+        assert.equal(
+          result.selfHealEnabled,
+          true,
+          "selfHealEnabled must reflect the seeded master switch",
+        );
 
-      // (1b) Task #2198 — a readable persisted summary classifies as "ok"
-      //      and never carries an error.
-      assert.equal(
-        result.selfHealLastRunStatus,
-        "ok",
-        "selfHealLastRunStatus must be ok for a readable seeded summary",
-      );
-      assert.ok(
-        !("selfHealLastRunError" in result),
-        "an ok readout must not carry a selfHealLastRunError",
-      );
+        // (1b) Task #2198 — a readable persisted summary classifies as "ok"
+        //      and never carries an error.
+        assert.equal(
+          result.selfHealLastRunStatus,
+          "ok",
+          "selfHealLastRunStatus must be ok for a readable seeded summary",
+        );
+        assert.ok(
+          !("selfHealLastRunError" in result),
+          "an ok readout must not carry a selfHealLastRunError",
+        );
 
-      // (2) The tick summary is present (not null) — the panel renders it.
-      assert.ok(
-        result.selfHealLastRun,
-        "selfHealLastRun must be threaded through, not null",
-      );
-      const lastRun = result.selfHealLastRun!;
+        // (2) The tick summary is present (not null) — the panel renders it.
+        assert.ok(
+          result.selfHealLastRun,
+          "selfHealLastRun must be threaded through, not null",
+        );
+        const lastRun = result.selfHealLastRun!;
 
-      // (3) Field-by-field: ranAt verbatim, counts copied through, and
-      //     eligible/due counts derived from the seeded array lengths.
-      assert.equal(lastRun.ranAt, RAN_AT, "ranAt copied verbatim");
-      assert.equal(
-        lastRun.eligibleCount,
-        SEEDED_TICK.eligibleActionIds.length,
-        "eligibleCount derived from eligibleActionIds length",
-      );
-      assert.equal(
-        lastRun.dueCount,
-        SEEDED_TICK.dueActionIds.length,
-        "dueCount derived from dueActionIds length",
-      );
-      assert.equal(lastRun.applied, SEEDED_TICK.applied, "applied copied through");
-      assert.equal(
-        lastRun.notNeeded,
-        SEEDED_TICK.notNeeded,
-        "notNeeded copied through",
-      );
-      assert.equal(lastRun.errors, SEEDED_TICK.errors, "errors copied through");
+        // (3) Field-by-field: ranAt verbatim, counts copied through, and
+        //     eligible/due counts derived from the seeded array lengths.
+        assert.equal(lastRun.ranAt, RAN_AT, "ranAt copied verbatim");
+        assert.equal(
+          lastRun.eligibleCount,
+          SEEDED_TICK.eligibleActionIds.length,
+          "eligibleCount derived from eligibleActionIds length",
+        );
+        assert.equal(
+          lastRun.dueCount,
+          SEEDED_TICK.dueActionIds.length,
+          "dueCount derived from dueActionIds length",
+        );
+        assert.equal(lastRun.applied, SEEDED_TICK.applied, "applied copied through");
+        assert.equal(
+          lastRun.notNeeded,
+          SEEDED_TICK.notNeeded,
+          "notNeeded copied through",
+        );
+        assert.equal(lastRun.errors, SEEDED_TICK.errors, "errors copied through");
 
-      console.log(
-        "  ok  getProdActionStatuses threads selfHealEnabled + selfHealLastRun",
-      );
-    },
-    {
-      // `getProdActionStatuses()` reads the seeded settings, runs each
-      // action's `status()` (best-effort; uncloned tables surface as
-      // `error` rows we do not assert on), and reads recent runs for any
-      // completed action. Clone the tables those paths touch directly so
-      // they resolve inside the isolated schema rather than racing the
-      // live `public` workers.
-      tables: ["system_settings", "prod_action_runs", "work_queue"],
-    },
-  );
+        console.log(
+          "  ok  getProdActionStatuses threads selfHealEnabled + selfHealLastRun",
+        );
+      },
+      {
+        tables: ["system_settings", "prod_action_runs"],
+      },
+    );
+  } finally {
+    PROD_ACTIONS.splice(0, PROD_ACTIONS.length, ...savedActions);
+  }
 }
 
-// Test teardown in server/db.ts drains the pg pools in test mode (Task #2084), so the
-// process exits on its own once work settles — no manual process.exit(), so a leaked
-// handle now surfaces as a real hang instead of being masked by a forced exit.
-main().then(
-  () => {
-    console.log("prod-actions-self-heal-status-readout: all sections passed");
-  },
-  (err) => {
-    console.error(
-      "prod-actions-self-heal-status-readout: FAILED —",
-      err?.stack ?? err,
-    );
-    process.exitCode = 1;
-  },
-);
+try {
+  await main();
+  console.log("prod-actions-self-heal-status-readout: all sections passed");
+} catch (err: any) {
+  console.error(
+    "prod-actions-self-heal-status-readout: FAILED —",
+    err?.stack ?? err,
+  );
+  process.exitCode = 1;
+} finally {
+  // This suite imports the full prod-actions registry, whose transitive
+  // services may keep unrelated handles alive. Close the pools explicitly:
+  // waiting for beforeExit is circular when another handle prevents it.
+  await closeDbPools();
+}

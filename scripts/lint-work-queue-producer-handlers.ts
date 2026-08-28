@@ -43,7 +43,7 @@
  *    dynamic producer is a deliberate decision, not a silent gap. Stale
  *    baseline entries also fail, keeping the list honest.
  *
- * Gating: the `.replit` `Validate` workflow runs `npm run gate`; this lint is gated by
+ * Gating: the managed Long validation workflow runs the reviewed routine-gate profile; this lint is gated by
  * `tests/lint-work-queue-producer-handlers.test.ts` in SMOKE_FILES (its
  * first assertion runs runLint() on the real tree) — the same pattern as
  * lint-smoke-gate-regression.

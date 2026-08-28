@@ -2,7 +2,7 @@
 {
   "name": "Apply state upsert collision (baseline triage, Task #3424)",
   "notes": "── Task #3424: previously-unregistered tests triaged from the lint-test-registration baseline ──",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

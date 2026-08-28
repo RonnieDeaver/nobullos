@@ -150,9 +150,11 @@ export default function GadsDashboardPage() {
         }.`
       );
     }
-    // Task #4977: force reload recomputes+persists via vendor calls — CEO-only.
-    // Non-CEO Refresh re-reads the stored/cached data without forcing.
-    await load(isCeo);
+    // The server intentionally leaves the dashboard's force cache-bust open
+    // to every authenticated staff role (see server/routes/adsOs.ts header
+    // comment) — only the alerts recompute above is CEO-gated. Refresh must
+    // always force a real rebuild so "cached"/"fresh" reflects reality.
+    await load(true);
     setRefreshing(false);
   }
 
@@ -329,7 +331,7 @@ export default function GadsDashboardPage() {
       <AdsOsShell clickupLive={live} clickupReason={reason} clickupStaleSince={staleSince} clickupBundleAgeMs={bundleAgeMs} storeOk={storeOk} storeReason={storeReason} onDirectoryRefreshed={() => load(true)}>
         <div className="panel error" data-testid="panel-gads-error">
           Couldn’t load accounts: {error}{" "}
-          <button className="link" onClick={() => load(isCeo)}>Retry</button>
+          <button className="link" onClick={() => load(true)}>Retry</button>
         </div>
       </AdsOsShell>
     );
@@ -341,7 +343,7 @@ export default function GadsDashboardPage() {
         {error && rows && (
           <div className="banner banner-amber">
             Refresh failed — showing the last loaded data.{" "}
-            <button className="link" onClick={() => load(isCeo)}>Retry</button>
+            <button className="link" onClick={() => load(true)}>Retry</button>
           </div>
         )}
         <div className="dash-head">

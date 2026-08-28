@@ -41,8 +41,10 @@ import {
   cuRoleProjectionCommands,
   cuRoleProjectionDestinations,
   cuRoleProjectionClientTargets,
+  cuClientListMappings,
   type CuRoleProjectionDestination,
   type CuRoleProjectionClientTarget,
+  type CuClientListMapping,
 } from "@shared/schema";
 import { getDb, withDbAttribution } from "../db";
 import { departmentSupportsChecker } from "@shared/departmentRoleCapabilities";
@@ -353,6 +355,46 @@ export async function stageProjectionCommandInTx(
   }>)[0];
   if (!stagedRow) return;
 
+  // Advance the local side of the bidirectional contract only for a genuinely
+  // new desired revision. This shares the assignment transaction, so a queued
+  // command can never exist without its durable causal revision/evidence.
+  await tx.execute(sql`
+    WITH contract AS (
+      INSERT INTO cu_role_sync_contracts (
+        client_id, destination_id, local_revision, last_outbound_revision,
+        conflict_state, conflict_evidence
+      ) VALUES (
+        ${args.clientId}, ${args.destinationId}, 1, ${revision}, 'none', NULL
+      )
+      ON CONFLICT (client_id, destination_id) DO UPDATE SET
+        local_revision = cu_role_sync_contracts.local_revision + 1,
+        last_outbound_revision = EXCLUDED.last_outbound_revision,
+        conflict_state = 'none',
+        conflict_evidence = NULL,
+        updated_at = now()
+      RETURNING local_revision
+    )
+    INSERT INTO cu_role_sync_transition_evidence (
+      command_id, client_id, destination_id, department_id, responsibility,
+      actor_type, actor_id, source, before_assignment, after_assignment,
+      local_revision, outcome, details
+    )
+    SELECT
+      ${stagedRow.id}, ${args.clientId}, ${args.destinationId},
+      destination.department_id, destination.responsibility,
+      'nobull', 'assignment_boundary', 'nobull_assignment',
+       NULL,
+       jsonb_build_object('userId', (${args.desiredUserId ?? null})::text),
+      contract.local_revision, 'outbound_staged',
+      jsonb_build_object(
+        'commandRevision', (${revision})::text,
+         'desiredClickupUserId', (${args.desiredClickupUserId ?? null})::text
+      )
+    FROM contract
+    JOIN cu_role_projection_destinations destination
+      ON destination.id = ${args.destinationId}
+  `);
+
   // The initial wake is part of the SAME short transaction as the new desired
   // command revision. A failed post-commit accelerator kick therefore cannot
   // strand this command before its first vendor attempt.
@@ -460,9 +502,30 @@ export async function stageProjectionCommandsInTx(
           )
       : [];
 
+  // Canonical production Client List targets are role-independent and must
+  // resolve through the stable client mapping, never a repeated per-destination
+  // target or a normalized name. Non-canonical/sandbox destinations retain the
+  // legacy target table for backward compatibility.
+  const canonicalMappings =
+    clientIds.length > 0
+      ? await tx
+          .select()
+          .from(cuClientListMappings)
+          .where(inArray(cuClientListMappings.clientId, clientIds))
+      : [];
+
   const targetByKey = new Map<string, CuRoleProjectionClientTarget>();
   for (const t of clientTargets as CuRoleProjectionClientTarget[]) {
     targetByKey.set(`${t.clientId}:${t.destinationId}`, t);
+  }
+  const canonicalMappingByClient = new Map<string, CuClientListMapping>();
+  for (const mapping of canonicalMappings as CuClientListMapping[]) {
+    if (
+      mapping.listId === "901417549202" &&
+      mapping.syncState === "verified"
+    ) {
+      canonicalMappingByClient.set(mapping.clientId, mapping);
+    }
   }
 
   let staged = 0;
@@ -551,6 +614,10 @@ export async function stageProjectionCommandsInTx(
     if (dest.targetKind === "direct_task") {
       resolvedTargetId = dest.targetId ?? null;
       resolvedListSnapshot = dest.listId ?? null;
+    } else if (dest.listId === "901417549202") {
+      const mapping = canonicalMappingByClient.get(role.clientId);
+      resolvedTargetId = mapping?.taskId ?? null;
+      resolvedListSnapshot = mapping?.listId ?? dest.listId ?? null;
     } else {
       // client_list_parent (default): needs a per-client target mapping.
       const target = targetByKey.get(`${role.clientId}:${dest.id}`);
@@ -589,6 +656,10 @@ export async function stageProjectionCommandsInTx(
       dest.targetKind === "direct_task"
         ? undefined
         : targetByKey.get(`${role.clientId}:${dest.id}`);
+    const resolvedListId =
+      dest.listId === "901417549202"
+        ? canonicalMappingByClient.get(role.clientId)?.listId ?? null
+        : clientTarget?.resolvedListId ?? null;
 
     // Stage command with target snapshot.
     await stageProjectionCommandInTx(tx, {
@@ -598,7 +669,7 @@ export async function stageProjectionCommandsInTx(
       desiredClickupUserId: role.desiredClickupUserId,
       targetSnapshot: {
         targetId: resolvedTargetId,
-        resolvedListId: clientTarget?.resolvedListId ?? null,
+        resolvedListId,
         listId: resolvedListSnapshot,
         peopleFieldId: dest.peopleFieldId,
         targetKind: dest.targetKind,
@@ -627,6 +698,7 @@ export {
   manualResyncProjectionCommand,
   readProjectionCommandStatuses,
   __test_setProjectionWorkerDeps,
+  __test_loadCurrentProjectionConfig,
   type ClaimedCommand,
   type ProjectionWorkerDeps,
   type CurrentProjectionConfig,
@@ -649,3 +721,18 @@ export {
   type ProjectionStatusRow,
   type ProjectionStatusListResult,
 } from "./clickUpRoleProjectionAdmin";
+
+export {
+  bindCanonicalClientTask,
+  classifyCanonicalClientListPreflight,
+  deriveRequiredRoleColumns,
+  getRoleColumnLabel,
+  findCanonicalMappingConflict,
+  getCanonicalClientListPreflight,
+  listCanonicalClientListConfiguration,
+  __setCanonicalClientListEvidenceLoaderForTest,
+  type BindCanonicalClientTaskInput,
+  type CanonicalClientListConfiguration,
+  type CanonicalClientListPreflight,
+  type CanonicalClientListPreflightUnavailable,
+} from "./clickUpClientListIdentity";

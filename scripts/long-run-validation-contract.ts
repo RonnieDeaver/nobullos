@@ -17,6 +17,39 @@ export interface LongRunRequest {
   label?: string;
 }
 
+/**
+ * Task #5292 — `full-control` and `matched-comparison` are main-workspace
+ * central-integrity actions: they exercise the full test universe, capture
+ * matched evidence, and (for `full-control`) are the reviewed operator path
+ * for explicitly requested central controls. A task/sub-environment must
+ * never be able to select them, even via an otherwise valid request file or
+ * inherited environment values — `focused-test` and `routine-gate` remain
+ * available everywhere. All requested canonical gates use this durable
+ * workflow rather than a foreground validation role.
+ */
+export const MAIN_WORKSPACE_ONLY_PROFILES: ReadonlySet<LongRunProfile> = new Set([
+  "full-control",
+  "matched-comparison",
+]);
+
+/**
+ * Fail-closed profile/environment gate. Pure function: callers supply the
+ * already-detected `isSubEnvironment` signal (see
+ * `server/lib/subEnvironment.ts`) rather than this module reaching out to
+ * detect it itself, keeping the request contract dependency-light and
+ * directly testable with injected signals.
+ */
+export function assertProfileAllowedInEnvironment(
+  profile: LongRunProfile,
+  isSubEnvironment: boolean,
+): void {
+  if (isSubEnvironment && MAIN_WORKSPACE_ONLY_PROFILES.has(profile)) {
+    throw new Error(
+      `Profile "${profile}" is a main-workspace central-integrity control and is not available in a task/sub-environment. Use "focused-test" or "routine-gate" instead.`,
+    );
+  }
+}
+
 export interface StageDefinition {
   name: string;
   args: string[];

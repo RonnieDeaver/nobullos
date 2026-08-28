@@ -3,7 +3,8 @@
   "name": "Rate limit coverage",
   "smoke": true,
   "smokeReason": "Task #4091: repo-wide invariant that every webhook/upload/admin/sensitive-write route is covered by a limiter mount in server/routes/limiterMounts.ts. It reads route files via fs (invisible to import tracing), so it is ALSO listed in DEFAULT_CORE_RULES as an always-run core suite — it must never green-skip while route files change elsewhere (three Zoom match-assistant mutations shipped uncovered exactly this way). Fast, DB-free, deterministic source scan. Task #4788 extends it with the dedicated-bucket write exemption pairing, enforced in BOTH directions: every DEDICATED_BUCKET_WRITE_ROUTES entry must name a real route carrying its dedicated limiter, and every route carrying commsWriteLimiter/sheetsAutosaveLimiter must be listed, so no exempted route is ever unlimited and no dedicated-bucket route silently double-counts into the shared write budget again.",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Performs a repository-wide route and limiter source scan with bidirectional coverage checks."
 }
 test-registration */
 import * as fs from "fs";

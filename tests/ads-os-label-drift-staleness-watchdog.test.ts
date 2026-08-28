@@ -7,7 +7,8 @@
   "extraEnv": {
     "NODE_ENV": "test"
   },
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Covers watchdog episode state, recovery, locking, and notification behavior across simulated ticks."
 }
 test-registration */
 // future-date-literal-reviewed: all 2026-08-24 literals are injected clocks

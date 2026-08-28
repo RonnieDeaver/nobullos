@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, real, boolean, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, real, integer, boolean, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./auth";
@@ -28,6 +28,8 @@ export const commandPanels = pgTable("command_panels", {
   googleAdsBudget: real("google_ads_budget"),
   webinarBudget: real("webinar_budget"),
   lsaBudget: real("lsa_budget"),
+  gbpPlannedLocationCount: integer("gbp_planned_location_count"),
+  gbpPlannedLocationCities: text("gbp_planned_location_cities").array(),
   quarterPrimaryObjective: text("quarter_primary_objective"),
   annualGoals: text("annual_goals"),
   longTermGoals: text("long_term_goals"),

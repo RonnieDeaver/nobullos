@@ -34,8 +34,9 @@
 //     sat BELOW the cinematic, that was load-bearing — these triggers
 //     exist from DOMContentLoaded, but the pin's ~5040px spacer registers
 //     later (first-frame decode), so refreshes measured the band ~5000px
-//     stale without it. Task #4261 moved the band ABOVE the pin (after
-//     the press strip), where its start no longer depends on the spacer;
+//     stale without it. Task #4261 moved the band ABOVE the pin, where its
+//     start no longer depends on the spacer; Task #5369 puts the metric grid
+//     first in the rail and leaves the press strip as secondary validation;
 //     the priority stays as belt-and-braces for any future reshuffle.
 //     Task #4816 merged the press strip + metrics into the single
 //     credibility rail (.nb-cred) directly under the hero — still above

@@ -18,7 +18,7 @@ test-registration */
  *   3. Stale allow-list entry (route gained middleware / deleted) ⇒ fail.
  *   4. Duplicate + malformed + unknown-class allow-list entries ⇒ fail.
  *   5. Wiring lockstep: gate.ts LINT_CHECKS registers the lint and the drift
- *      guard defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      guard defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -340,8 +340,8 @@ try {
     "gate.ts LINT_CHECKS registers lint-route-classification",
   );
   assert(
-    /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(drift),
-    "VALIDATION_WORKFLOW uses command npm run gate",
+    /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(drift),
+    "LONG_VALIDATION_WORKFLOW uses the exact managed Long validation command",
   );
 } finally {
   rmSync(tmp, { recursive: true, force: true });

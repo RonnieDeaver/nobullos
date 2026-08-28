@@ -5,7 +5,8 @@
     "server/services/bookingScheduler.ts",
     "shared/models/booking.ts"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises the booking saga's multi-step persistence and compensation behavior."
 }
 test-registration */
 /**

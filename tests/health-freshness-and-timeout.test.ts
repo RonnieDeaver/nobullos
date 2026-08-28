@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Health freshness shape & probe timeout safety (Task #861)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

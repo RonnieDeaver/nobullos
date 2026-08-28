@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Activity, RefreshCw } from "lucide-react";
 import { InlineLoadingSkeleton } from "@/components/ui/skeleton-loaders";
+import { useAuth } from "@/hooks/use-auth";
 import type { CanonicalAction, ConsoleOverview } from "./types";
 import { relativeTime } from "./utils";
 import { JobRow } from "./JobRow";
@@ -11,6 +12,11 @@ import { CanonicalActionModal } from "./CanonicalActionModal";
 import { LegacyBackfillDisclosure } from "./LegacyBackfillDisclosure";
 
 export function FrontJobsTab() {
+  const { user } = useAuth();
+  // rematch-all / reprocess-dismissed / full-backfill all post to
+  // requireTeamLead server routes; hide the affordances for account
+  // managers instead of letting them submit and get a 403.
+  const canRunCanonicalActions = user?.role === "ceo" || user?.role === "team_lead";
   const { data, isLoading, isFetching, refetch, error } = useQuery<ConsoleOverview>({
     queryKey: ["/api/integrations/front/console/overview"],
     queryFn: async () => {
@@ -58,16 +64,22 @@ export function FrontJobsTab() {
             : "—"}
           {" "}· Canonical operator actions are below. Each runs as a tracked job.
         </p>
-        <div className="flex flex-wrap gap-2 mt-3" data-testid="toolbar-canonical-actions">
-          <Button size="sm" variant="outline" onClick={() => setActionModal("rematch_all")} data-testid="button-run-rematch-all">
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Rematch All
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setActionModal("reprocess_dismissed")} data-testid="button-run-reprocess-dismissed">
-            <Activity className="w-3.5 h-3.5 mr-1.5" />
-            Reprocess Dismissed
-          </Button>
-        </div>
+        {canRunCanonicalActions ? (
+          <div className="flex flex-wrap gap-2 mt-3" data-testid="toolbar-canonical-actions">
+            <Button size="sm" variant="outline" onClick={() => setActionModal("rematch_all")} data-testid="button-run-rematch-all">
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              Rematch All
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setActionModal("reprocess_dismissed")} data-testid="button-run-reprocess-dismissed">
+              <Activity className="w-3.5 h-3.5 mr-1.5" />
+              Reprocess Dismissed
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mt-3" data-testid="text-canonical-actions-role-note">
+            Team lead or CEO role required to run bulk actions.
+          </p>
+        )}
         {actionModal && (
           <CanonicalActionModal
             open={true}

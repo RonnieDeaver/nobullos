@@ -3,15 +3,16 @@
   "name": "lint-react-hooks rules-of-hooks guard (Task #2798)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2798: the rules-of-hooks guard. Its first assertion runs the ESLint rules-of-hooks scan over the REAL client/src tree, so a page-crashing hook mistake (the Task #2791 ConversationHub class: hooks below a conditional early return) fails the routine gate. The Validate workflow runs npm run gate, including this lint and SMOKE_FILES coverage. DB-free, network-free (ESLint Node API + tmpdir fixtures). The client tree has grown to ~469 scanned files (~3min solo as of Task #4271, vs ~25s at 245 files when the old 120s budget was set), so the budget is 300s. Task #4531: both real-tree passes reuse the lint green-verdict cache when every input is byte-identical to the last green run (red verdicts never cached; LINT_VERDICT_CACHE=0 forces the scan), so steady-state full-set runs stop paying the ~80s rescan.",
+  "smokeReason": "Task #2798: the rules-of-hooks guard. Its first assertion runs the ESLint rules-of-hooks scan over the REAL client/src tree, so a page-crashing hook mistake (the Task #2791 ConversationHub class: hooks below a conditional early return) fails the routine gate. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint and SMOKE_FILES coverage. DB-free, network-free (ESLint Node API + tmpdir fixtures). The client tree has grown to ~469 scanned files (~3min solo as of Task #4271, vs ~25s at 245 files when the old 120s budget was set), so the budget is 300s. Task #4531: both real-tree passes reuse the lint green-verdict cache when every input is byte-identical to the last green run (red verdicts never cached; LINT_VERDICT_CACHE=0 forces the scan), so steady-state full-set runs stop paying the ~80s rescan.",
   "timeoutMs": 300000,
-  "tier": "small"
+  "tier": "medium",
+  "tierReason": "The medium tier is intentional despite the latest short cached-harness measurement: this suite owns a real client-tree ESLint scan, has a 300-second timeout, and its uncached execution can materially exceed the small-tier ceiling."
 }
 test-registration */
 /**
  * Task #2798 — Gate + regression test for the rules-of-hooks lint.
  *
- * The `.replit` `Validate` workflow runs `npm run gate`; this test is
+ * The managed Long validation workflow runs the reviewed routine-gate profile; this test is
  * registered in tests/run-all.ts SMOKE_FILES and its FIRST assertion runs the lint over the
  * real client/src tree, so any page-crashing hook violation (the Task #2791
  * ConversationHub class: hooks below a conditional early return) fails the

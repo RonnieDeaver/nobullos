@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Stuck retroactive_reprocess recovery (Task #836 P6)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

@@ -30,6 +30,8 @@ import {
   type ProdActionStatus,
 } from "./kernel";
 import { PROD_ACTIONS } from "./composition";
+import { registerModuleStateResetForTest } from "../moduleStateReset";
+import { acquireProdActionManualLock } from "../crossInstanceLock";
 
 
 /**
@@ -717,11 +719,11 @@ export interface ProdActionApplyResult {
  * contract) and the lever's dedicated endpoint stays the only way to
  * fire it.
  */
-async function settleProdActionApply(
+async function resolveProdActionOutcome(
   action: ProdAction,
   actorId: string | null,
   opts: { viaApplyAll?: boolean; confirmation?: string } = {},
-): Promise<ProdActionApplyResult> {
+): Promise<ProdActionOutcome> {
   let outcome: ProdActionOutcome;
   if (opts.viaApplyAll === true && action.manualLever === true) {
     outcome = {
@@ -749,6 +751,14 @@ async function settleProdActionApply(
         : { state: "error", detail: err?.message ?? String(err) };
     }
   }
+  return outcome;
+}
+
+async function recordAndBuildProdActionApplyResult(
+  action: ProdAction,
+  actorId: string | null,
+  outcome: ProdActionOutcome,
+): Promise<ProdActionApplyResult> {
   const appliedAt = new Date();
   // Task #1806 — write one audit row per action per apply. Audit
   // write is best-effort: a failure to persist the audit must NOT
@@ -786,6 +796,15 @@ async function settleProdActionApply(
   };
 }
 
+async function settleProdActionApply(
+  action: ProdAction,
+  actorId: string | null,
+  opts: { viaApplyAll?: boolean; confirmation?: string } = {},
+): Promise<ProdActionApplyResult> {
+  const outcome = await resolveProdActionOutcome(action, actorId, opts);
+  return recordAndBuildProdActionApplyResult(action, actorId, outcome);
+}
+
 export async function applyAllProdActions(
   actorId: string | null,
 ): Promise<ProdActionApplyResult[]> {
@@ -808,6 +827,22 @@ export type ApplyOneProdActionResult =
   | { kind: "not_manual_lever" }
   | { kind: "applied"; result: ProdActionApplyResult };
 
+// Direct manual levers do not all use startBackgroundDrain (some are short,
+// synchronous control-plane changes). Collapse genuinely concurrent calls by
+// action id so one process cannot execute the same direct lever twice while
+// still allowing different levers to run independently.
+const manualLeverApplies = new Map<string, Promise<ProdActionApplyResult>>();
+
+function resetManualLeverAppliesForTest(): void {
+  manualLeverApplies.clear();
+}
+export const __resetManualLeverAppliesForCrossInstanceTest =
+  resetManualLeverAppliesForTest;
+registerModuleStateResetForTest(
+  "prodActions.engine.manualLeverApplies",
+  resetManualLeverAppliesForTest,
+);
+
 
 /**
  * Task #4019 — single-action apply, restricted to manual levers. Normal
@@ -824,10 +859,51 @@ export async function applyOneProdAction(
   const action = PROD_ACTIONS.find((a) => a.id === actionId);
   if (!action) return { kind: "not_found" };
   if (action.manualLever !== true) return { kind: "not_manual_lever" };
-  const result = await runWithWorkerDb(() =>
-    withDbAttribution("maintenance:prod-actions-apply", () =>
-      settleProdActionApply(action, actorId, { confirmation }),
-    ),
-  );
-  return { kind: "applied", result };
+
+  const existing = manualLeverApplies.get(action.id);
+  if (existing) {
+    return { kind: "applied", result: await existing };
+  }
+
+  const operation = runWithWorkerDb(async () => {
+    const lock = await acquireProdActionManualLock(action.id);
+    if (!lock) {
+      return {
+        id: action.id,
+        title: action.title,
+        description: action.description,
+        change: action.change,
+        outcome: {
+          state: "blocked" as const,
+          detail:
+            "This manual lever is already firing on another app instance. " +
+            "No duplicate action was started; refresh History after the active request settles.",
+        },
+        appliedAt: new Date().toISOString(),
+      };
+    }
+    try {
+      const outcome = await withDbAttribution("maintenance:prod-actions-apply", () =>
+        resolveProdActionOutcome(action, actorId, { confirmation }),
+      );
+      // Release the pinned advisory-lock connection before the audit insert.
+      // The action side effect is complete, so another press cannot overlap
+      // it; freeing this connection prevents concurrent distinct levers from
+      // consuming the pool and starving their own audit writes.
+      await lock.release();
+      return await withDbAttribution("maintenance:prod-actions-apply", () =>
+        recordAndBuildProdActionApplyResult(action, actorId, outcome),
+      );
+    } finally {
+      await lock.release();
+    }
+  });
+  manualLeverApplies.set(action.id, operation);
+  try {
+    return { kind: "applied", result: await operation };
+  } finally {
+    if (manualLeverApplies.get(action.id) === operation) {
+      manualLeverApplies.delete(action.id);
+    }
+  }
 }

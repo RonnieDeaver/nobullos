@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Blocked-IP trim alerts (Task #780)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

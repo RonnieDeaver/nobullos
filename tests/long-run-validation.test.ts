@@ -5,6 +5,7 @@
   "smokeReason": "Fast, DB-free fixture coverage prevents the approved long-control workflow from accepting arbitrary execution, losing evidence, or reporting interrupted controls as green.",
   "regression": true,
   "tier": "medium",
+  "tierReason": "Exercises long-control profile validation, evidence, and lifecycle fixture scenarios.",
   "scanPaths": [".replit", "scripts/long-run-validation.ts", "scripts/lint-gate-workflow-drift.ts"]
 }
 test-registration */
@@ -16,6 +17,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   LONG_RUNS_DIR,
+  MAIN_WORKSPACE_ONLY_PROFILES,
+  assertProfileAllowedInEnvironment,
   buildDeclaredChildEnv,
   classifyChildClose,
   cleanupLongRunValidationArtifacts,
@@ -491,6 +494,111 @@ console.log("\n7) routine gate reports come from a private source mirror");
       "temporary source mirror is removed after reports are captured",
     );
     console.log("✓ fixed-path gate reports cannot collide with writers in the original workspace");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+console.log("\n8) full-control and matched-comparison are refused before any evidence, lock, or child work in a detected sub-environment (Task #5292)");
+{
+  assert.ok(MAIN_WORKSPACE_ONLY_PROFILES.has("full-control"), "full-control is a main-workspace-only profile");
+  assert.ok(MAIN_WORKSPACE_ONLY_PROFILES.has("matched-comparison"), "matched-comparison is a main-workspace-only profile");
+  assert.ok(!MAIN_WORKSPACE_ONLY_PROFILES.has("routine-gate"), "routine-gate remains available everywhere");
+  assert.ok(!MAIN_WORKSPACE_ONLY_PROFILES.has("focused-test"), "focused-test remains available everywhere");
+  assert.throws(
+    () => assertProfileAllowedInEnvironment("full-control", true),
+    /main-workspace central-integrity control/,
+    "the pure gate refuses full-control in a sub-environment",
+  );
+  assert.throws(
+    () => assertProfileAllowedInEnvironment("matched-comparison", true),
+    /main-workspace central-integrity control/,
+    "the pure gate refuses matched-comparison in a sub-environment",
+  );
+  assert.doesNotThrow(() => assertProfileAllowedInEnvironment("full-control", false), "the main workspace keeps its reviewed operator path");
+  assert.doesNotThrow(() => assertProfileAllowedInEnvironment("matched-comparison", false), "the main workspace keeps its matched-comparison path");
+  assert.doesNotThrow(() => assertProfileAllowedInEnvironment("routine-gate", true), "routine-gate is never gated by environment");
+  assert.doesNotThrow(() => assertProfileAllowedInEnvironment("focused-test", true), "focused-test is never gated by environment");
+
+  const dir = root();
+  try {
+    let childInvoked = false;
+    const guardExecutor = async (): Promise<ChildOutcome> => {
+      childInvoked = true;
+      return { kind: "exited", exitCode: 0, signal: null };
+    };
+    await assert.rejects(
+      () =>
+        runLongValidation(
+          { schemaVersion: 1, profile: "full-control", control: "static-4" },
+          undefined,
+          { rootDir: dir, isSubEnvironment: true, executeStage: guardExecutor },
+        ),
+      /main-workspace central-integrity control/,
+      "full-control is refused end-to-end in a detected task/sub-environment",
+    );
+    await assert.rejects(
+      () =>
+        runLongValidation(
+          { schemaVersion: 1, profile: "matched-comparison" },
+          undefined,
+          { rootDir: dir, isSubEnvironment: true, executeStage: guardExecutor },
+        ),
+      /main-workspace central-integrity control/,
+      "matched-comparison is refused end-to-end in a detected task/sub-environment",
+    );
+    assert.equal(childInvoked, false, "a refused profile never spawns a child");
+    assert.ok(
+      !existsSync(join(dir, LONG_RUNS_DIR)),
+      "a refused profile never allocates a run directory, manifest, or lock",
+    );
+
+    initGitFixture(dir);
+    for (const profile of ["focused-test", "routine-gate"] as const) {
+      const admitted = await runLongValidation(
+        request(profile),
+        undefined,
+        {
+          rootDir: dir,
+          isSubEnvironment: true,
+          executeStage: executor({ kind: "exited", exitCode: 0, signal: null }),
+        },
+      );
+      assert.equal(admitted.manifest.status, "passed", `${profile} is unaffected by sub-environment detection`);
+    }
+    console.log("✓ full-control/matched-comparison fail closed pre-evidence in a task environment; routine-gate/focused-test are unaffected");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+console.log("\n9) the main workspace retains the reviewed full-control and matched-comparison paths (Task #5292)");
+{
+  const dir = root();
+  try {
+    initGitFixture(dir);
+    const fullControl = await runLongValidation(
+      { schemaVersion: 1, profile: "full-control", control: "static-4" },
+      undefined,
+      {
+        rootDir: dir,
+        isSubEnvironment: false,
+        executeStage: executor({ kind: "exited", exitCode: 0, signal: null }),
+      },
+    );
+    assert.equal(fullControl.manifest.status, "passed", "full-control still runs to completion on the main workspace");
+    const matchedComparison = await runLongValidation(
+      { schemaVersion: 1, profile: "matched-comparison" },
+      undefined,
+      {
+        rootDir: dir,
+        isSubEnvironment: false,
+        executeStage: executor({ kind: "exited", exitCode: 0, signal: null }),
+      },
+    );
+    assert.equal(matchedComparison.manifest.status, "passed", "matched-comparison still runs to completion on the main workspace");
+    assert.equal(matchedComparison.manifest.stages.length, 2, "a matched comparison still runs both control lanes");
+    console.log("✓ the explicit reviewed operator path for central controls is preserved on the main workspace");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

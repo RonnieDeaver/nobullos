@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Twilio messaging service sid (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // SPDX-License-Identifier: MIT

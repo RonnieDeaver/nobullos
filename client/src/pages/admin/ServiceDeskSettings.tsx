@@ -2582,6 +2582,8 @@ function RequestTypesPanel({
         createdCount: number;
         matchedCount: number;
         alreadyMappedCount: number;
+        staleRecoveredCount?: number;
+        needsDepartmentRemapCount?: number;
         renamedCount?: number;
         note?: string;
       }>;
@@ -2597,10 +2599,17 @@ function RequestTypesPanel({
         if (data.createdCount > 0) parts.push(`${data.createdCount} created`);
         if (data.matchedCount > 0) parts.push(`${data.matchedCount} matched to existing`);
         if (data.alreadyMappedCount > 0) parts.push(`${data.alreadyMappedCount} already mapped`);
+        if ((data.staleRecoveredCount ?? 0) > 0) {
+          parts.push(`${data.staleRecoveredCount} stale mapping(s) restored for remapping`);
+        }
         if ((data.renamedCount ?? 0) > 0) parts.push(`${data.renamedCount} name(s) refreshed from ClickUp`);
         toast({
           title: "Request types imported",
-          description: parts.length > 0 ? parts.join(", ") + "." : "No changes — all options already mapped.",
+          description: parts.length > 0
+            ? parts.join(", ") + ((data.needsDepartmentRemapCount ?? 0) > 0
+              ? `. Assign a department to ${data.needsDepartmentRemapCount} restored request type(s) below.`
+              : ".")
+            : "No changes — all options already mapped.",
         });
       }
     },

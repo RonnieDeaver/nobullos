@@ -4,7 +4,8 @@
   "scanPaths": [
     "server/services/zoomIntegration.ts"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Covers booking scope readiness across account and calendar configuration branches."
 }
 test-registration */
 /**

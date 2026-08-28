@@ -8,7 +8,7 @@
     "server/services/localDominanceSyncWorker.ts",
     "server/services/semrushInventorySync.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

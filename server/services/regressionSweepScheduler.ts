@@ -1,4 +1,3 @@
-// @cross-instance-safe: workspace-only nightly sweep (gated to !isRunningInDeployment so only the single dev-workspace process schedules it); the failure alert is dedupe-keyed by day so a duplicate run can't double-post.
 /**
  * Task #2611 — Nightly scheduled regression sweep.
  *
@@ -38,7 +37,7 @@
  * warning. Only a real, non-quarantined failure raises the alert, so the
  * sweep isn't perpetually red.
  */
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import {
   appendFileSync,
   existsSync,
@@ -54,10 +53,17 @@ import { dirname, join, resolve as resolvePath } from "node:path";
 import cron from "node-cron";
 
 import { isRunningInDeployment } from "../lib/deploymentEnv";
+import {
+  classifySubEnvironment,
+  detectSubEnvironment,
+  __resetSubEnvironmentCacheForTest,
+  type MainReplRemoteProbe,
+} from "../lib/subEnvironment";
 import { withDbAttribution } from "../db";
 import {
   buildSweepRunArgs,
   isFullIntegritySweepDate,
+  parseCanonicalSweepTimestamp,
   parseSweepReport,
   readDurationBudgetBreachEvents,
   reportIndicatesFailure,
@@ -68,6 +74,7 @@ import {
 import { notifyByType } from "./notifications/dispatcher";
 import {
   fileAndResolveSweepFeedback,
+  fileDeferredFailureIntake,
   fileAndResolveQuarantineFeedback,
   listOpenSweepItemFiles,
   resolveOpenSweepItemsForFile,
@@ -77,6 +84,7 @@ import {
   FEEDBACK_SLACK_RELAY_BUDGET_MS,
 } from "./feedbackSlackRelay";
 import { registerModuleStateResetForTest } from "./moduleStateReset";
+import { acquireDistributedLock } from "./workerLock";
 
 const NOTIFICATION_ID = "infra.regression_sweep.failed";
 // 03:30 America/New_York — overnight, after the other daily-ish jobs.
@@ -129,6 +137,8 @@ const TICK_LOG_MAX_ENTRIES = 400;
 export interface CommittedBaselineStatus {
   publishedAt: string | null;
   ageDays: number | null;
+  /** A future stamp is invalid evidence, never proof that a lane is fresh. */
+  invalidStamp?: boolean;
 }
 
 /**
@@ -145,8 +155,11 @@ export function readCommittedBaselineStatus(
   try {
     const parsed = JSON.parse(readFileSync(baselinePath, "utf8")) as { publishedAt?: unknown } | null;
     const publishedAt = parsed && typeof parsed.publishedAt === "string" ? parsed.publishedAt : null;
-    const t = publishedAt ? Date.parse(publishedAt) : NaN;
-    if (!Number.isFinite(t)) return { publishedAt, ageDays: null };
+    const t = parseCanonicalSweepTimestamp(publishedAt);
+    if (t === null) {
+      return publishedAt ? { publishedAt, ageDays: null, invalidStamp: true } : { publishedAt, ageDays: null };
+    }
+    if (t > now.getTime()) return { publishedAt, ageDays: null, invalidStamp: true };
     return { publishedAt, ageDays: (now.getTime() - t) / (24 * 60 * 60 * 1000) };
   } catch {
     return { publishedAt: null, ageDays: null };
@@ -282,29 +295,13 @@ export function writeWatchdogStalenessStamp(
 }
 
 /**
- * Task #4530 — structural sub-environment (task workspace) detection.
- *
- * The publisher opt-in flag alone cannot be "main workspace only": Replit
- * Secrets and shared env vars both propagate into task-branch environments,
- * so a flag set on main is visible in every clone. Two structural signals
- * distinguish the environments regardless of env-var inheritance:
- *
- *  1. REPL_ID shape — task environments run under a sub-scoped repl id of the
- *     form "<uuid>:<subid>"; the main workspace has a bare "<uuid>".
- *  2. The `main-repl` git remote — task environments carry a remote named
- *     `main-repl` (the completion-rebase target). The main workspace has no
- *     such remote (it IS the main repl).
- *
- * Fail-closed: when signals are missing or git cannot answer, we classify as
- * sub-environment (no publish). A wrong "sub-env" answer on main would freeze
- * the publisher — which the staleness watchdog alarm then reports within a
- * day, making the failure loud instead of silent.
+ * Task #4530 / Task #5292 — structural sub-environment (task workspace)
+ * detection now lives in the dependency-light `server/lib/subEnvironment.ts`
+ * so callers like the long-run-validation runner can reuse the exact same
+ * fail-closed classifier without pulling in this module's database and
+ * notification dependencies. Re-exported here for existing importers.
  */
-export interface MainReplRemoteProbe {
-  /** spawnSync status: 0 = remote present, 1 = key absent, other/null = git error. */
-  status: number | null;
-  stdout: string;
-}
+export { classifySubEnvironment, detectSubEnvironment, type MainReplRemoteProbe };
 /**
  * True only when REGRESSION_SWEEP_PUBLISHER_ENABLED=1 is explicitly set AND
  * this process is running in the main workspace (not a task sub-environment).
@@ -379,13 +376,21 @@ export function readCommittedRedManifestStatus(
         ? parsed.lastPartialUpdateAt
         : null,
     ].filter((s): s is string => s !== null);
+    const parsedCandidates = candidates
+      .map((stamp) => ({ stamp, at: parseCanonicalSweepTimestamp(stamp) }))
+    const malformedCandidate = parsedCandidates.find((candidate) => candidate.at === null);
+    if (malformedCandidate) {
+      return { publishedAt: malformedCandidate.stamp, ageDays: null, invalidStamp: true };
+    }
+    const validCandidates = parsedCandidates as Array<{ stamp: string; at: number }>;
     const stamp =
-      candidates.length === 0
-        ? null
-        : candidates.reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
+      validCandidates.length === 0
+        ? candidates[0] ?? null
+        : validCandidates.reduce((a, b) => (a.at >= b.at ? a : b)).stamp;
     if (!stamp) return { publishedAt: null, ageDays: null };
-    const t = Date.parse(stamp);
-    if (!Number.isFinite(t)) return { publishedAt: stamp, ageDays: null };
+    const t = parseCanonicalSweepTimestamp(stamp);
+    if (t === null) return { publishedAt: stamp, ageDays: null, invalidStamp: true };
+    if (t > now.getTime()) return { publishedAt: stamp, ageDays: null, invalidStamp: true };
     return { publishedAt: stamp, ageDays: (now.getTime() - t) / (24 * 60 * 60 * 1000) };
   } catch {
     return { publishedAt: null, ageDays: null };
@@ -589,6 +594,9 @@ export function shouldRunCatchup(params: {
     // No committed baseline yet; nothing to catch up on.
     return { eligible: false, reason: "no committed baseline to assess" };
   }
+  if (!Number.isFinite(baselineAgeDays) || baselineAgeDays < 0) {
+    return { eligible: false, reason: "baseline freshness is invalid or clock-skewed" };
+  }
   if (baselineAgeDays < CATCHUP_BASELINE_AGE_THRESHOLD_DAYS) {
     return {
       eligible: false,
@@ -604,8 +612,12 @@ export function shouldRunCatchup(params: {
   // mid-run sweep that was killed before writing the tick record still blocks
   // a re-attempt within this window, preventing merge-storm thrash.
   if (lastAttemptStartedAt) {
+    const attemptStartedMs = parseCanonicalSweepTimestamp(lastAttemptStartedAt);
+    if (attemptStartedMs === null || attemptStartedMs > now.getTime()) {
+      return { eligible: false, reason: "attempt-start timestamp is invalid or in the future" };
+    }
     const hoursSinceAttemptStart =
-      (now.getTime() - Date.parse(lastAttemptStartedAt)) / (60 * 60 * 1000);
+      (now.getTime() - attemptStartedMs) / (60 * 60 * 1000);
     if (hoursSinceAttemptStart < CATCHUP_MIN_GAP_BETWEEN_ATTEMPTS_HOURS) {
       return {
         eligible: false,
@@ -615,8 +627,12 @@ export function shouldRunCatchup(params: {
   }
   // Check recent completed tick (infra crashes get a shorter cooldown).
   if (lastTickState) {
+    const finishedMs = parseCanonicalSweepTimestamp(lastTickState.finishedAt);
+    if (finishedMs === null || finishedMs > now.getTime()) {
+      return { eligible: false, reason: "last-tick timestamp is invalid or in the future" };
+    }
     const hoursSinceLastTick =
-      (now.getTime() - Date.parse(lastTickState.finishedAt)) / (60 * 60 * 1000);
+      (now.getTime() - finishedMs) / (60 * 60 * 1000);
     const cooldownHours = lastTickState.isInfraCrash
       ? 2 // crash cooldown — retry sooner
       : CATCHUP_MIN_HOURS_SINCE_LAST_TICK;
@@ -653,6 +669,9 @@ let lastExitCode: number | null = null;
 let lastReport: SweepReport | null = null;
 /** True while a sweep child process is running; prevents concurrent sweeps. */
 let sweepInFlight = false;
+const REGRESSION_SWEEP_LOCK_NAME = "regression-sweep-scheduler";
+type SweepLockHandle = { release: () => Promise<void> };
+let acquireSweepLockForTest: (() => Promise<SweepLockHandle | null>) | null = null;
 /** Handle for the 6-hour catch-up + watchdog interval. */
 let catchupIntervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -670,8 +689,16 @@ registerModuleStateResetForTest("regressionSweepScheduler", () => {
   lastExitCode = null;
   lastReport = null;
   sweepInFlight = false;
-  cachedIsSubEnvironment = null;
+  __resetSubEnvironmentCacheForTest();
+  acquireSweepLockForTest = null;
 });
+
+/** Test seam for the durable lock; production always uses the shared worker lock. */
+export function __setRegressionSweepLockForTest(
+  acquire: (() => Promise<SweepLockHandle | null>) | null,
+): void {
+  acquireSweepLockForTest = acquire;
+}
 
 function isEnabledByEnv(): boolean {
   // Default ON. Explicit "false" / "0" / "off" / "no" opts out.
@@ -721,12 +748,14 @@ export function buildSweepNotification(
   // post-publish): a healthy night reads ~0d, so this only fires when the
   // publish arm is genuinely broken. Unknown age (no baseline / no stamp) is
   // not an incident — never alert on nulls.
+  const baselineEvidenceInvalid = baselineStatus?.invalidStamp === true;
   const staleness =
-    baselineStatus && baselineStatus.ageDays !== null && baselineStatus.ageDays > BASELINE_STALENESS_ALERT_DAYS
+    baselineStatus && (baselineEvidenceInvalid || (baselineStatus.ageDays !== null && baselineStatus.ageDays > BASELINE_STALENESS_ALERT_DAYS))
       ? `⚠️ Committed green baseline (tests/green-baseline.json) has not refreshed in ` +
-        `${baselineStatus.ageDays.toFixed(1)} days (published ${baselineStatus.publishedAt ?? "unknown"}; ` +
+        `${baselineEvidenceInvalid ? "a trustworthy amount of time" : `${baselineStatus.ageDays!.toFixed(1)} days`} (published ${baselineStatus.publishedAt ?? "unknown"}; ` +
         `threshold ${BASELINE_STALENESS_ALERT_DAYS}d). Task validation is re-executing every suite — ` +
-        `check the nightly baseline publish (TEST_GREEN_BASELINE_PUBLISH arm) and recent sweep logs.`
+        `check the nightly baseline publish (TEST_GREEN_BASELINE_PUBLISH arm) and recent sweep logs.` +
+        (baselineEvidenceInvalid ? " The publish stamp is in the future, so it is not accepted as freshness proof." : "")
       : null;
   // Task #4116 — once per streak, not once per day: a stale baseline keeps
   // its (frozen) publishedAt stamp all streak long, so "already alerted for
@@ -1069,7 +1098,8 @@ async function runOnce(trigger: string): Promise<void> {
   // or verifiably reached the team (same delivery gate as the poison
   // state); otherwise keep the old state so tomorrow retries the alert.
   const baselineIsStale =
-    baselineStatus.ageDays !== null && baselineStatus.ageDays > BASELINE_STALENESS_ALERT_DAYS;
+    baselineStatus.invalidStamp === true ||
+    (baselineStatus.ageDays !== null && baselineStatus.ageDays > BASELINE_STALENESS_ALERT_DAYS);
   if (!stalenessAlertFired || poisonAlertDeliveryAcceptable(notifyResult)) {
     writeAlertedBaselineStalenessStamp(baselineIsStale ? baselineStatus.publishedAt : null);
   }
@@ -1092,6 +1122,27 @@ async function runOnce(trigger: string): Promise<void> {
     } catch (err) {
       console.warn(
         `[RegressionSweep] feedback filing failed: ${
+          (err as Error)?.message ?? err
+        }`,
+      );
+    }
+    try {
+      const intake = await fileDeferredFailureIntake(report);
+      if (
+        intake.filed > 0 ||
+        intake.updated > 0 ||
+        intake.unresolved > 0 ||
+        intake.resolved > 0 ||
+        intake.repairBatch.queued > 0 ||
+        intake.repairBatch.dispatchFailed > 0
+      ) {
+        console.log(
+          `[RegressionSweep] deferred failure intake: filed=${intake.filed} updated=${intake.updated} resolved=${intake.resolved} manual=${intake.repairBatch.manualTriage} queued=${intake.repairBatch.queued} existing=${intake.repairBatch.existing} stale=${intake.repairBatch.stale} capped=${intake.repairBatch.capped} dispatch_failed=${intake.repairBatch.dispatchFailed}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[RegressionSweep] deferred failure intake failed: ${
           (err as Error)?.message ?? err
         }`,
       );
@@ -1196,10 +1247,32 @@ export async function runRegressionSweepNow(
     return;
   }
   sweepInFlight = true;
+  let lock: SweepLockHandle | null = null;
   try {
+    try {
+      lock = await (acquireSweepLockForTest ??
+        (() => acquireDistributedLock(REGRESSION_SWEEP_LOCK_NAME)))();
+    } catch (err) {
+      console.warn(
+        `[RegressionSweep] could not acquire durable sweep lock; skipping ${trigger} trigger: ${
+          (err as Error)?.message ?? err
+        }`,
+      );
+      return;
+    }
+    if (!lock) {
+      console.log(
+        `[RegressionSweep] durable sweep lock already held, skipping ${trigger} trigger`,
+      );
+      return;
+    }
     await runOnce(trigger);
   } finally {
-    sweepInFlight = false;
+    try {
+      await lock?.release();
+    } finally {
+      sweepInFlight = false;
+    }
   }
 }
 
@@ -1232,8 +1305,9 @@ export async function runStalenessWatchdogOnce(opts?: {
   const notifyFn = opts?.notifyFn ?? notifyByType;
   const baselineStatus = readCommittedBaselineStatus(now, opts?.baselinePath);
   const { ageDays, publishedAt } = baselineStatus;
-  if (ageDays === null) return; // No baseline yet — not an incident.
-  if (ageDays <= BASELINE_STALENESS_ALERT_DAYS) {
+  const baselineEvidenceInvalid = baselineStatus.invalidStamp === true;
+  if (ageDays === null && !baselineEvidenceInvalid) return; // No baseline yet — not an incident.
+  if (!baselineEvidenceInvalid && ageDays! <= BASELINE_STALENESS_ALERT_DAYS) {
     // Baseline is fresh — clear the watchdog state so a future staleness
     // episode alerts again.
     writeWatchdogStalenessState(
@@ -1256,9 +1330,11 @@ export async function runStalenessWatchdogOnce(opts?: {
   const attemptStart = readAttemptStartState(opts?.attemptStartPath);
   let orphanContext = "";
   if (attemptStart?.startedAt) {
-    const hoursSinceAttempt =
-      (now.getTime() - Date.parse(attemptStart.startedAt)) / (60 * 60 * 1000);
-    if (hoursSinceAttempt >= ATTEMPT_ORPHAN_THRESHOLD_HOURS) {
+    const attemptStartedMs = parseCanonicalSweepTimestamp(attemptStart.startedAt);
+    const hoursSinceAttempt = attemptStartedMs === null
+      ? null
+      : (now.getTime() - attemptStartedMs) / (60 * 60 * 1000);
+    if (hoursSinceAttempt !== null && hoursSinceAttempt >= ATTEMPT_ORPHAN_THRESHOLD_HOURS) {
       orphanContext =
         ` An attempt started ${hoursSinceAttempt.toFixed(1)}h ago ` +
         `(trigger=${attemptStart.trigger}, started ${attemptStart.startedAt}) ` +
@@ -1268,10 +1344,14 @@ export async function runStalenessWatchdogOnce(opts?: {
   }
 
   const text =
-    `⚠️ [Watchdog] Committed green baseline (tests/green-baseline.json) has not refreshed in ` +
-    `${ageDays.toFixed(1)} days (published ${publishedAt ?? "unknown"}; threshold ${BASELINE_STALENESS_ALERT_DAYS}d). ` +
+    `⚠️ [Watchdog] Committed green baseline (tests/green-baseline.json) ` +
+    `${baselineEvidenceInvalid ? "has an invalid future publish stamp" : `has not refreshed in ${ageDays!.toFixed(1)} days`} ` +
+    `(published ${publishedAt ?? "unknown"}; threshold ${BASELINE_STALENESS_ALERT_DAYS}d). ` +
     `Task validations are re-executing every suite. Check the nightly sweep publish arm ` +
     `(TEST_GREEN_BASELINE_PUBLISH) and recent sweep logs.` +
+    (baselineEvidenceInvalid
+      ? " The publish stamp is in the future, so it is not accepted as freshness proof."
+      : "") +
     (orphanContext ? `\n\n${orphanContext}` : "");
   console.warn(`[RegressionSweep] ${text}`);
 
@@ -1285,7 +1365,7 @@ export async function runStalenessWatchdogOnce(opts?: {
         // Task #4530 S2 — per-day dedupe key so each calendar day produces one
         // Slack post even when the same staleness episode spans multiple days.
         dedupeKey: `regression-sweep-staleness:${todayUtc}`,
-        metadata: { ageDays, publishedAt },
+        metadata: { ageDays, publishedAt, baselineEvidenceInvalid },
       },
     );
     // Persist alertedOn for any non-null dispatch result — including
@@ -1335,14 +1415,22 @@ async function runRedManifestStalenessCheck(): Promise<void> {
   const now = new Date();
   const redManifestStatus = readCommittedRedManifestStatus(now);
   const { ageDays: redAgeDays, publishedAt: redPublishedAt } = redManifestStatus;
-  if (redAgeDays !== null && redAgeDays > RED_MANIFEST_STALENESS_ALERT_DAYS) {
+  const redEvidenceInvalid = redManifestStatus.invalidStamp === true;
+  if (
+    redEvidenceInvalid ||
+    (redAgeDays !== null && redAgeDays > RED_MANIFEST_STALENESS_ALERT_DAYS)
+  ) {
     const alertedRedStamp = readRedManifestWatchdogStamp();
     if (alertedRedStamp !== redPublishedAt) {
       const redText =
-        `⚠️ [Watchdog] Committed red manifest (tests/red-manifest.json) has not been updated in ` +
-        `${redAgeDays.toFixed(1)} days (last stamp ${redPublishedAt ?? "unknown"}; threshold ${RED_MANIFEST_STALENESS_ALERT_DAYS}d). ` +
+        `⚠️ [Watchdog] Committed red manifest (tests/red-manifest.json) ` +
+        `${redEvidenceInvalid ? "has an invalid future stamp" : `has not been updated in ${redAgeDays!.toFixed(1)} days`} ` +
+        `(last stamp ${redPublishedAt ?? "unknown"}; threshold ${RED_MANIFEST_STALENESS_ALERT_DAYS}d). ` +
         `The post-merge canary or nightly sweep publish arm may be broken — ` +
-        `check the sweep logs and scripts/post-merge-canary.ts.`;
+        `check the sweep logs and scripts/post-merge-canary.ts.` +
+        (redEvidenceInvalid
+          ? " The manifest stamp is in the future, so it is not accepted as freshness proof."
+          : "");
       console.warn(`[RegressionSweep] ${redText}`);
       try {
         const redResult = await notifyByType(
@@ -1352,7 +1440,7 @@ async function runRedManifestStalenessCheck(): Promise<void> {
             triggerSource: "scheduled",
             failureType: "regression_sweep",
             dedupeKey: `regression-sweep-red-manifest-staleness:${now.toISOString().slice(0, 10)}`,
-            metadata: { ageDays: redAgeDays, publishedAt: redPublishedAt },
+            metadata: { ageDays: redAgeDays, publishedAt: redPublishedAt, redEvidenceInvalid },
           },
         );
         if (poisonAlertDeliveryAcceptable(redResult)) {
@@ -1417,6 +1505,8 @@ interface CanaryResultRecord {
   newReds: string[];
   startedAt: string | null;
   finishedAt: string | null;
+  /** Null preserves pre-field result compatibility; false is explicit incomplete evidence. */
+  validationComplete: boolean | null;
 }
 
 /** Shape one parsed JSON object into a CanaryResultRecord. Never throws. */
@@ -1433,6 +1523,8 @@ function parseCanaryRecord(parsed: unknown): CanaryResultRecord | null {
         : [],
       startedAt: typeof p.startedAt === "string" ? p.startedAt : null,
       finishedAt: typeof p.finishedAt === "string" ? p.finishedAt : null,
+      validationComplete:
+        typeof p.validationComplete === "boolean" ? p.validationComplete : null,
     };
   }
 }
@@ -1460,7 +1552,7 @@ export function readCanaryBreakageEvents(
 ): CanaryResultRecord[] {
   const byCulprit = new Map<string, CanaryResultRecord>();
   const consider = (rec: CanaryResultRecord | null): void => {
-    if (!rec || rec.newReds.length === 0) return;
+    if (!rec || rec.validationComplete === false || rec.newReds.length === 0) return;
     const culprit = rec.culpritCommit;
     // Without a culprit commit there is no stable dedupe key; the
     // red-manifest culprit stamps (Task #4501) still carry the signal.
@@ -1764,6 +1856,7 @@ export function buildCanaryBreakageReport(records: CanaryResultRecord[]): SweepR
     hardFailedNames: results.map((r) => r.file),
     quarantinedFailedNames: [],
     flakyNames: [],
+    deferredFailureSource: "post-merge",
   };
 }
 
@@ -1785,6 +1878,7 @@ export async function runCanaryBreakageCheck(opts?: {
   statePath?: string;
   redManifestPath?: string;
   fileFn?: typeof fileAndResolveSweepFeedback;
+  intakeFn?: typeof fileDeferredFailureIntake;
   listOpenFn?: typeof listOpenSweepItemFiles;
   resolveFn?: typeof resolveOpenSweepItemsForFile;
   relayFn?: typeof relayFeedbackToSlack;
@@ -1806,6 +1900,10 @@ export async function runCanaryBreakageCheck(opts?: {
           // not recovery — never auto-resolve older canary incidents.
           autoResolve: false,
         });
+        // The existing culprit item remains the visible owner; deferred intake
+        // recognizes that owner and attaches bounded cross-lane evidence.
+        const intakeFn = opts?.intakeFn ?? (opts?.fileFn ? null : fileDeferredFailureIntake);
+        if (intakeFn) await intakeFn(report);
         // Stamp the state on success even when filed === 0 (another
         // workspace's open row — or the unique-index conflict — deduped us):
         // the signal exists in the DB either way.
@@ -2375,45 +2473,3 @@ export function readAttemptStartState(
   }
 }
 
-/** Pure classifier — exported for unit tests. */
-export function classifySubEnvironment(
-  replId: string | undefined,
-  mainReplProbe: MainReplRemoteProbe,
-): boolean {
-  const id = (replId ?? "").trim();
-  if (id === "" || id.includes(":")) return true; // missing/sub-scoped id → sub-env (fail closed)
-  if (mainReplProbe.status === 0 && mainReplProbe.stdout.trim().length > 0) {
-    return true; // main-repl remote present → task environment
-  }
-  if (mainReplProbe.status === 1) return false; // key absent → main workspace
-  return true; // git error / unknown → fail closed (no publish)
-}
-
-let cachedIsSubEnvironment: boolean | null = null;
-
-/**
- * Cached real-signal detection. Sub-environment-ness cannot change within a
- * process lifetime, so the git probe runs at most once per boot.
- */
-export function detectSubEnvironment(): boolean {
-  if (cachedIsSubEnvironment === null) {
-    cachedIsSubEnvironment = classifySubEnvironment(
-      process.env.REPL_ID,
-      probeMainReplRemote(),
-    );
-  }
-  return cachedIsSubEnvironment;
-}
-
-function probeMainReplRemote(): MainReplRemoteProbe {
-  try {
-    const probe = spawnSync("git", ["config", "--get", "remote.main-repl.url"], {
-      encoding: "utf8",
-      timeout: 5000,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    return { status: probe.status, stdout: probe.stdout ?? "" };
-  } catch {
-    return { status: null, stdout: "" }; // classify() fails closed on null
-  }
-}

@@ -4,7 +4,9 @@
  * This is deliberately an invocation and evidence wrapper around existing
  * commands. It neither changes gate/test-runner behavior nor accepts arbitrary
  * command strings. Operators select a small reviewed profile in a strict JSON
- * request, then start the permanent "Long validation" console workflow.
+ * request, then start the permanent "Long validation" console workflow. This
+ * is the sole managed workflow path for an explicitly requested canonical
+ * gate; routine task completion does not invoke a repository harness.
  */
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
@@ -28,11 +30,14 @@ import {
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   LONG_RUN_SCHEMA_VERSION,
+  MAIN_WORKSPACE_ONLY_PROFILES,
   PROFILE_DEFINITIONS,
+  assertProfileAllowedInEnvironment,
   validateLongRunRequest,
   type LongRunProfile,
   type StageDefinition,
 } from "./long-run-validation-contract";
+import { detectSubEnvironment } from "../server/lib/subEnvironment";
 
 export * from "./long-run-validation-contract";
 
@@ -167,6 +172,11 @@ export interface LongRunDependencies {
     stage: StageDefinition,
     context: { rootDir: string; logPath: string; signal: AbortSignal },
   ) => Promise<ChildOutcome>;
+  /**
+   * Task #5292 injection seam for tests. Production callers omit this and
+   * get real structural detection (`server/lib/subEnvironment.ts`).
+   */
+  isSubEnvironment?: boolean;
 }
 
 export interface LongRunCleanupOptions {
@@ -210,6 +220,14 @@ export async function runLongValidation(
 ): Promise<RunResult> {
   const validated = validateLongRunRequest(requestValue);
   if (!validated.ok) throw new Error(`Invalid long-run request: ${validated.error}`);
+  // Task #5292 — refuse a main-workspace-only profile before anything else
+  // runs: no source capture, run directory, lock, or child process. Only
+  // resolve the (git-probing) real detector when the profile actually needs
+  // it, so focused-test/routine-gate behavior and cost are unchanged.
+  if (MAIN_WORKSPACE_ONLY_PROFILES.has(validated.request.profile)) {
+    const isSubEnvironment = dependencies.isSubEnvironment ?? detectSubEnvironment();
+    assertProfileAllowedInEnvironment(validated.request.profile, isSubEnvironment);
+  }
   const rootDir = resolve(dependencies.rootDir ?? process.cwd());
   const now = dependencies.now ?? (() => new Date());
   const profile = PROFILE_DEFINITIONS[validated.request.profile];

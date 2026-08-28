@@ -37,16 +37,44 @@ type PortalSubmission = {
   timeUsedSec?: number | null;
 };
 
+export type PortalJob = {
+  title: string;
+  screeningQuestions: Array<{ id: string; prompt: string; type: string; options?: string[]; required: boolean }> | null;
+  videoTasks: Array<{ id: string; prompt: string; durationSec: number; required: boolean }> | null;
+  assessmentJson: { items: AssessmentItem[]; meta: any } | null;
+};
+
 type PortalData = {
-  candidate: { id: string; name: string; stage: string };
-  job: {
-    title: string;
-    screeningQuestions: Array<{ id: string; prompt: string; type: string; options?: string[]; required: boolean }> | null;
-    videoTasks: Array<{ id: string; prompt: string; durationSec: number; required: boolean }> | null;
-    assessmentJson: { items: AssessmentItem[]; meta: any } | null;
+  candidate: {
+    id: string;
+    name: string;
+    stage: string;
+    screeningCompletedAt: string | null;
+    videoCompletedAt: string | null;
   };
+  job: PortalJob;
   submissions: PortalSubmission[];
 };
+
+export function portalRequiresVideoCompletion(job: PortalJob): boolean {
+  return !!job.videoTasks?.length
+    || !!job.assessmentJson?.items?.some((item) => item.type === "video");
+}
+
+export function portalCompletionEndpoints(job: PortalJob): string[] {
+  return portalRequiresVideoCompletion(job)
+    ? ["complete-screening", "complete-video"]
+    : ["complete-screening"];
+}
+
+export function isPortalApplicationComplete(
+  candidate: PortalData["candidate"],
+  job: PortalJob,
+): boolean {
+  return portalRequiresVideoCompletion(job)
+    ? !!candidate.videoCompletedAt
+    : !!candidate.screeningCompletedAt;
+}
 
 export default function CandidatePortal() {
   const { token } = useParams<{ token: string }>();
@@ -135,8 +163,21 @@ export default function CandidatePortal() {
       }
       setAnswers(prev => ({ ...submittedAnswers, ...prev }));
 
-      const allDone = orderedItems.length > 0 && orderedItems.every(item => submitted.has(item.id));
-      if (allDone) setIsComplete(true);
+      // Task #5325 (QA fix): this used to treat "every question answered"
+      // as "application submitted" and jump straight to the complete
+      // screen — which fired the instant the last answer's mutation
+      // refetched the portal, before the candidate ever reached (let alone
+      // clicked) the "Submit Application" button. That skipped
+      // complete-screening/complete-video entirely, so the candidate's
+      // stage and screeningCompletedAt/videoCompletedAt never advanced even
+      // though they saw a success screen. Only the server's own completion
+      // timestamps mean the application was actually submitted (e.g. on
+      // reloading a previously-completed application).
+      const actuallySubmitted = isPortalApplicationComplete(
+        portal.candidate,
+        portal.job,
+      );
+      if (actuallySubmitted) setIsComplete(true);
     }
   }, [portal, orderedItems]);
 
@@ -242,10 +283,16 @@ export default function CandidatePortal() {
 
   const completeAssessmentMutation = useMutation({
     mutationFn: async () => {
-      const screeningRes = await fetch(`/api/ats/portal/${token}/complete-screening`, { method: "POST" });
-      if (!screeningRes.ok) throw new Error("Failed to complete screening");
-      const videoRes = await fetch(`/api/ats/portal/${token}/complete-video`, { method: "POST" });
-      if (!videoRes.ok) throw new Error("Failed to complete video");
+      for (const endpoint of portalCompletionEndpoints(portal!.job)) {
+        const res = await fetch(`/api/ats/portal/${token}/${endpoint}`, { method: "POST" });
+        if (!res.ok) {
+          throw new Error(
+            endpoint === "complete-video"
+              ? "Failed to complete video"
+              : "Failed to complete screening",
+          );
+        }
+      }
       return true;
     },
     onSuccess: () => {
@@ -390,7 +437,8 @@ export default function CandidatePortal() {
       });
       if (!urlRes.ok) throw new Error("Failed to get upload URL");
       const { uploadUrl, objectPath } = await urlRes.json();
-      await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "video/webm" }, body: blob });
+      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "video/webm" }, body: blob });
+      if (!putRes.ok) throw new Error("Failed to upload video");
       const submitRes = await fetch(`/api/ats/portal/${token}/submit-video`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -418,7 +466,7 @@ export default function CandidatePortal() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white dark:to-surface-warm-2 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" role="status" aria-label="Loading your application" />
       </div>
     );
@@ -426,7 +474,7 @@ export default function CandidatePortal() {
 
   if (error || !portal) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white dark:to-surface-warm-2 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
             <h2 className="text-xl font-bold text-foreground mb-2">Link Not Found</h2>
@@ -442,8 +490,8 @@ export default function CandidatePortal() {
       <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white flex items-center justify-center">
         <Card className="max-w-lg">
           <CardContent className="p-10 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" aria-hidden="true" />
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-950/40 flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-600 dark:text-green-300" aria-hidden="true" />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2" data-testid="text-complete-title">Application Complete</h2>
             <p className="text-gray-600 mb-4">
@@ -472,10 +520,10 @@ export default function CandidatePortal() {
     const isSelfCorrection = item.layer === "self_correction";
 
     return (
-      <Card key={item.id} className={`border transition-colors ${isSubmitted && !isEditing ? "border-green-200 bg-green-50/30" : "border-gray-200"} ${isLocked ? "opacity-90" : ""}`}>
+      <Card key={item.id} className={`border transition-colors ${isSubmitted && !isEditing ? "border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/25" : "border-gray-200"} ${isLocked ? "opacity-90" : ""}`}>
         <CardContent className="p-5">
           <div className="flex items-start gap-3">
-            <span className={`text-xs font-mono px-2 py-1 rounded flex-shrink-0 ${isSubmitted && !isEditing ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"}`}>
+            <span className={`text-xs font-mono px-2 py-1 rounded flex-shrink-0 ${isSubmitted && !isEditing ? "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300" : "bg-primary/10 text-primary"}`}>
               {isLocked ? <Lock className="w-3 h-3 inline" /> : isSubmitted && !isEditing ? <Check className="w-3 h-3 inline" /> : index + 1}
             </span>
             <div className="flex-1">
@@ -594,15 +642,15 @@ export default function CandidatePortal() {
 
     if (isSubmitted || isLocked) {
       return (
-        <Card key={item.id} className="border border-green-200 bg-green-50/30">
+        <Card key={item.id} className="border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/25">
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
-              <span className="text-caption font-mono px-2 py-1 rounded bg-green-100 text-green-700 flex-shrink-0">
+              <span className="text-caption font-mono px-2 py-1 rounded bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 flex-shrink-0">
                 <Lock className="w-3 h-3 inline" aria-hidden="true" />
               </span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-caption text-orange-700 border-orange-300">Timed Response</Badge>
+                  <Badge variant="outline" className="text-caption text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800">Timed Response</Badge>
                   {submission?.timeUsedSec && <span className="text-caption text-gray-600">Completed in {formatTime(Math.round(submission.timeUsedSec))}</span>}
                 </div>
                 <p className="text-sm font-medium mb-2 break-words">{item.prompt}</p>
@@ -617,23 +665,23 @@ export default function CandidatePortal() {
 
     if (!isTimerActive) {
       return (
-        <Card key={item.id} className="border border-orange-200 bg-orange-50/20">
+        <Card key={item.id} className="border border-orange-200 dark:border-orange-800 bg-orange-50/20 dark:bg-orange-950/20">
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
-              <span className="text-caption font-mono px-2 py-1 rounded bg-orange-100 text-orange-700 flex-shrink-0">
+              <span className="text-caption font-mono px-2 py-1 rounded bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 flex-shrink-0">
                 <Clock className="w-3 h-3 inline" aria-hidden="true" />
               </span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <Badge variant="outline" className="text-caption text-orange-700 border-orange-300">Timed Response</Badge>
-                  <Badge variant="outline" className="text-caption text-status-critical border-red-300">Cannot be redone</Badge>
+                  <Badge variant="outline" className="text-caption text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800">Timed Response</Badge>
+                  <Badge variant="outline" className="text-caption text-status-critical border-red-300 dark:border-red-800">Cannot be redone</Badge>
                 </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                    <AlertTriangle className="w-4 h-4 text-orange-500 dark:text-orange-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
                     <div>
-                      <p className="text-sm font-medium text-orange-800">Before you begin</p>
-                      <ul className="text-caption text-orange-700 mt-1 space-y-1">
+                      <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Before you begin</p>
+                      <ul className="text-caption text-orange-700 dark:text-orange-300/90 mt-1 space-y-1">
                         <li>You will have <strong>{formatTime(timeLimitSec)}</strong> to answer this question</li>
                         <li>The timer starts when you click "Begin" below</li>
                         <li>Your answer will auto-submit when time runs out</li>
@@ -659,10 +707,10 @@ export default function CandidatePortal() {
     const urgencyLevel = timedRemaining < 60 ? "text-status-critical" : timedRemaining < 120 ? "text-status-warn" : "text-gray-700";
 
     return (
-      <Card key={item.id} className="border-2 border-orange-400">
+      <Card key={item.id} className="border-2 border-orange-400 dark:border-orange-700">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <Badge variant="outline" className="text-caption text-orange-700 border-orange-300">Timed Response</Badge>
+            <Badge variant="outline" className="text-caption text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800">Timed Response</Badge>
             <div className={`font-mono text-lg font-bold ${urgencyLevel}`} data-testid={`text-timer-${item.id}`} role="status" aria-label={`Time remaining ${formatTime(timedRemaining)}`}>
               {formatTime(timedRemaining)}
             </div>
@@ -731,10 +779,10 @@ export default function CandidatePortal() {
     const maxDuration = item.duration_sec || 120;
 
     return (
-      <Card key={item.id} className={`border transition-colors ${isSubmitted && !isEditing ? "border-green-200 bg-green-50/30" : "border-gray-200"}`}>
+      <Card key={item.id} className={`border transition-colors ${isSubmitted && !isEditing ? "border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/25" : "border-gray-200"}`}>
         <CardContent className="p-5">
           <div className="flex items-start gap-3">
-            <span className={`text-caption font-mono px-2 py-1 rounded flex-shrink-0 ${isSubmitted && !isEditing ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
+            <span className={`text-caption font-mono px-2 py-1 rounded flex-shrink-0 ${isSubmitted && !isEditing ? "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300" : "bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300"}`}>
               {isSubmitted && !isEditing ? <Check className="w-3 h-3 inline" aria-hidden="true" /> : <Video className="w-3 h-3 inline" aria-hidden="true" />}
             </span>
             <div className="flex-1">
@@ -872,16 +920,16 @@ export default function CandidatePortal() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-surface-warm-1 to-white dark:to-surface-warm-2">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-portal-title">{portal.job.title}</h1>
           <p className="text-gray-600 mt-1">Welcome, {portal.candidate.name}</p>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6" data-testid="notice-integrity">
-          <p className="text-sm font-medium text-amber-800 mb-1">Assessment Integrity Notice</p>
-          <p className="text-caption text-amber-700">All written responses must be your own work. Do not use AI tools such as ChatGPT, Claude, Gemini, or similar systems to generate answers. We evaluate your responses for clarity, reasoning, and decision-making style. When possible, answer using real situations from your own experience with specific details such as tools, numbers, and outcomes.</p>
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6" data-testid="notice-integrity">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Assessment Integrity Notice</p>
+          <p className="text-caption text-amber-700 dark:text-amber-300/90">All written responses must be your own work. Do not use AI tools such as ChatGPT, Claude, Gemini, or similar systems to generate answers. We evaluate your responses for clarity, reasoning, and decision-making style. When possible, answer using real situations from your own experience with specific details such as tools, numbers, and outcomes.</p>
         </div>
 
         <div className="mb-6">

@@ -6,3 +6,4 @@
 .agents/memory/MEMORY.md merge=union
 attached_assets/Revenue_Engine_Sales_Deck___July_13,_2026_(2)_1785952349453.pptx filter=lfs diff=lfs merge=lfs -text
 attached_assets/physical-book-cover-create-a-b_1787601394861.zip filter=lfs diff=lfs merge=lfs -text
+attached_assets/Revenue_Engine_Sales_Deck___July_13,_2026_(9)_1787868993603.pptx filter=lfs diff=lfs merge=lfs -text

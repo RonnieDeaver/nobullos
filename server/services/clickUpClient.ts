@@ -1657,10 +1657,13 @@ export async function createWebhook(
   workspaceId: string,
   endpoint: string,
   events: string[] = ["*"],
-  locationId?: string,
+  location?: {
+    type: "space" | "folder" | "list";
+    id: string;
+  },
 ): Promise<any> {
   const body: any = { endpoint, events };
-  if (locationId) body.space_id = locationId;
+  if (location) body[`${location.type}_id`] = location.id;
   return cuPost(token, `/team/${workspaceId}/webhook`, body);
 }
 

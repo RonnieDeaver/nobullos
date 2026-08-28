@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Health incidents grouping & lifecycle (Task #861)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

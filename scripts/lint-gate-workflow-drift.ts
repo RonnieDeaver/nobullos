@@ -3,12 +3,11 @@
  *
  * Hard topology guard for repository-managed Replit workflows. The canonical
  * gate already owns typecheck, every lint, and smoke validation, so .replit
- * must expose exactly three roles:
+ * must expose exactly two repository roles:
  *
  *   - Start application: the sole Run-button target and web application.
- *   - Validate: the routine console validation role, running `npm run gate`.
- *   - Long validation: the explicit operator-started control runner. It uses a
- *     request file and cannot alter the two normal application roles.
+ *   - Long validation: the sole durable operator-started control runner. It
+ *     uses a request file and cannot alter the application role.
  *
  * Focused `npx tsx scripts/lint-*.ts` and `npm run check` commands remain
  * documented CLI tooling; they are intentionally not workflows. This guard
@@ -31,17 +30,7 @@ export const APPLICATION_WORKFLOW = {
   owner: "NoBull OS Control Plane",
   purpose: "Primary interactive application runtime",
   retirementTrigger: "Replace only through an owner-approved runtime cutover",
-  slotBudget: "runtime-1-of-3",
-} as const;
-
-export const VALIDATION_WORKFLOW = {
-  name: "Validate",
-  command: "npm run gate",
-  isValidation: true,
-  owner: "NoBull OS Control Plane",
-  purpose: "Canonical routine validation gate",
-  retirementTrigger: "Replace only through an owner-approved gate cutover",
-  slotBudget: "control-2-of-3",
+  slotBudget: "runtime-1-of-2",
 } as const;
 
 export const LONG_VALIDATION_WORKFLOW = {
@@ -49,19 +38,18 @@ export const LONG_VALIDATION_WORKFLOW = {
   command: "npm run validate:long -- --request .local/runs/long-validation-request.json",
   outputType: "console",
   owner: "NoBull OS Control Plane",
-  purpose: "Explicit reviewed long-control runner",
+  purpose: "Durable operator-requested canonical gate and main-workspace-only central-integrity control runner (full-control/matched-comparison refused in task/sub-environments)",
   retirementTrigger: "Remove when long-control evidence is retired by owner decision",
-  slotBudget: "control-3-of-3",
+  slotBudget: "control-2-of-2",
 } as const;
 
-export const REPOSITORY_WORKFLOW_CAPACITY = 3;
+export const REPOSITORY_WORKFLOW_CAPACITY = 2;
 export const RESERVED_ARTIFACT_PORT = 23636;
 const ARTIFACT_PREVIEW_PATH = "/__mockup/";
 const ARTIFACT_SERVICE_NAME = "Component Preview Server";
 
 const APPROVED_WORKFLOW_NAMES = new Set([
   APPLICATION_WORKFLOW.name,
-  VALIDATION_WORKFLOW.name,
   LONG_VALIDATION_WORKFLOW.name,
 ]);
 
@@ -138,7 +126,6 @@ export function runLint(
   verifyPortMappings(ports, violations);
   verifyArtifactPreview(artifactSource, violations);
   verifyApplicationWorkflow(byName.get(APPLICATION_WORKFLOW.name), violations);
-  verifyValidationWorkflow(byName.get(VALIDATION_WORKFLOW.name), violations);
   verifyLongValidationWorkflow(byName.get(LONG_VALIDATION_WORKFLOW.name), violations);
 
   if (violations.length > 0) {
@@ -147,14 +134,14 @@ export function runLint(
       message:
         `lint-gate-workflow-drift: ${violations.length} topology violation(s):\n` +
         violations.map((violation) => `  ✗ ${violation}`).join("\n") +
-        "\n\nFix: preserve the 3-role capacity budget (0 spare slots), restore each role's approved metadata and command, and run focused checks from the CLI rather than borrowing a runtime workflow.",
+        "\n\nFix: preserve the 2-role capacity budget (0 spare slots), restore each role's approved metadata and command, and use Long validation for requested gates rather than borrowing a runtime workflow.",
     };
   }
 
   return {
     ok: true,
     message:
-      "lint-gate-workflow-drift: OK (3/3 role slots used; 0 spare slots; protected application and artifact-preview ports; Validate runs the canonical gate; Long validation is the explicit allowlisted control runner)",
+      "lint-gate-workflow-drift: OK (2/2 repository role slots used; 0 spare slots; protected application and artifact-preview ports; Long validation is the sole durable allowlisted control runner)",
   };
 }
 
@@ -181,26 +168,6 @@ function verifyApplicationWorkflow(
     violations.push(`"${workflow.name}" must not be marked as a validation workflow`);
   }
   verifyGovernanceMetadata(workflow, APPLICATION_WORKFLOW, violations);
-}
-
-function verifyValidationWorkflow(
-  workflow: WorkflowEntry | undefined,
-  violations: string[],
-): void {
-  if (!workflow) {
-    violations.push(`missing required workflow "${VALIDATION_WORKFLOW.name}"`);
-    return;
-  }
-  verifySingleShellCommand(workflow, VALIDATION_WORKFLOW.command, violations);
-  if (!workflow.isValidation) {
-    violations.push(`"${workflow.name}" must be marked as a validation workflow`);
-  }
-  if (workflow.outputType !== undefined || workflow.waitForPort !== undefined) {
-    violations.push(
-      `"${workflow.name}" must be a console validation role without webview port metadata`,
-    );
-  }
-  verifyGovernanceMetadata(workflow, VALIDATION_WORKFLOW, violations);
 }
 
 function verifyLongValidationWorkflow(

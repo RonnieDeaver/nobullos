@@ -6,7 +6,7 @@
     "server/services/bookingAvailability.ts",
     "server/services/bookingScheduler.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

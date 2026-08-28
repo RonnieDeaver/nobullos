@@ -50,7 +50,7 @@
 // disclosure. The #4979 endless vertical wall (teamWall.ts — the
 // resurrected #4903 module) is RETIRED on the owner's verdict that it
 // didn't look good, so the band never scrolls or drifts for anyone now:
-// the served 18-card grid is the complete presentation for every
+// the served 20-card grid is the complete presentation for every
 // visitor, and the module just collapses it to its first two rows per
 // breakpoint behind an accessible Meet the Full Team toggle (native
 // button, aria-expanded announced; no GSAP, no ScrollTrigger — the

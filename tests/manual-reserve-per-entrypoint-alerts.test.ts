@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Manual reserve per-entry-point alerts",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

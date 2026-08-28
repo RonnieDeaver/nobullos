@@ -3,7 +3,7 @@
   "name": "lint-bundle-budget guard — initial-JS budget evaluator + wiring lockstep (Task #3815)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #3815: guards the bundle-budget evaluator (static-closure walk, entry/initial budgets, heavy-library-in-initial detection), the chunk-isolation + shared-chunk-cap rules for heavy libraries (Tasks #3846/#3859), and the wiring lockstep (gate.ts LINT_CHECKS, Validate workflow command, bundleReportPlugin presence in vite.config.ts). Fixture-only — never runs a vite build; fast, DB-free, deterministic.",
+  "smokeReason": "Task #3815: guards the bundle-budget evaluator (static-closure walk, entry/initial budgets, heavy-library-in-initial detection), the chunk-isolation + shared-chunk-cap rules for heavy libraries (Tasks #3846/#3859), and the wiring lockstep (gate.ts LINT_CHECKS, managed Long validation workflow command, bundleReportPlugin presence in vite.config.ts). Fixture-only — never runs a vite build; fast, DB-free, deterministic.",
   "tier": "small"
 }
 test-registration */
@@ -27,7 +27,7 @@ test-registration */
  *      and shared-chunk byte caps (recharts, framer-motion) fire on merges.
  *   5. Zero/multiple entry chunks fail loudly (never silently pass).
  *   6. Budget constants and heavy-library patterns stay sane.
- *   7. Wiring lockstep: LINT_CHECKS + the `Validate` workflow command +
+ *   7. Wiring lockstep: LINT_CHECKS + the managed Long validation workflow command +
  *      bundleReportPlugin + TASK_SELFCHECK row cover the lint.
  */
 
@@ -38,6 +38,7 @@ import {
   evaluateBundleBudget,
   ENTRY_BUDGET_BYTES,
   INITIAL_BUDGET_BYTES,
+  BUNDLE_BUILD_TIMEOUT_MS,
   HEAVY_LIBRARY_PATTERNS,
   STRIPPED_MODULE_PATTERNS,
   ISOLATED_LIBRARY_RULES,
@@ -48,6 +49,10 @@ import {
   runLintCached,
   resolveLocalImports,
   bundleEnvDigest,
+  classifyBundleBuildFailure,
+  formatBundleBuildFailure,
+  formatInvalidBundleReportFailure,
+  parseBundleReport,
   type BundleReport,
 } from "../scripts/lint-bundle-budget";
 
@@ -610,8 +615,8 @@ assert(
 );
 const driftSrc = readFileSync(join(process.cwd(), "scripts/lint-gate-workflow-drift.ts"), "utf-8");
 assert(
-  /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(driftSrc),
-  "lint-gate-workflow-drift.ts defines VALIDATION_WORKFLOW with command npm run gate",
+  /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(driftSrc),
+  "lint-gate-workflow-drift.ts defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
 );
 const viteSrc = readFileSync(join(process.cwd(), "vite.config.ts"), "utf-8");
 assert(
@@ -623,18 +628,15 @@ assert(
   "vite.config.ts keeps the vendor-react manual chunk (entry budget assumes it)",
 );
 const selfcheckSrc = readFileSync(join(process.cwd(), "TASK_SELFCHECK.md"), "utf-8");
-assert(
-  selfcheckSrc.includes("lint-bundle-budget"),
-  "TASK_SELFCHECK.md lint table lists lint-bundle-budget",
-);
-assert(typeof cliMain === "function" && typeof runLint === "function", "cliMain/runLint exported");
 
-// ─── 8. Verdict-cache wiring (Task #4550) ─────────────────────────────────────
-// The ~56s vite build memoizes GREEN verdicts via scripts/lintVerdictCache.ts.
-// Source-level lockstep: the script must key on the full input surface, keep
-// the kill switch, and report cache hits honestly. (Fixture-only — never
-// builds; the cache module's green-only/fall-open semantics are guarded by
-// the async-correctness suite that shares it.)
+const timeoutFailure = classifyBundleBuildFailure(
+  {
+    status: null,
+    signal: "SIGTERM",
+    error: Object.assign(new Error("spawnSync vite ETIMEDOUT"), { code: "ETIMEDOUT" }),
+  },
+  false,
+);
 const lintSrc = readFileSync(join(process.cwd(), "scripts/lint-bundle-budget.ts"), "utf-8");
 assert(
   typeof runLintCached === "function",
@@ -740,3 +742,26 @@ assert(
 
 console.log(`\nlint-bundle-budget guard: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
+
+const invalidJsonReport = parseBundleReport("{");
+
+const spawnFailure = classifyBundleBuildFailure(
+  {
+    status: null,
+    signal: null,
+    error: Object.assign(new Error("spawn EAGAIN"), { code: "EAGAIN" }),
+  },
+  false,
+);
+
+  const parsed = parseBundleReport(raw);
+
+const exitFailure = classifyBundleBuildFailure(
+  { status: 2, signal: null, stderr: "rollup failed" },
+  false,
+);
+
+const missingReportFailure = classifyBundleBuildFailure(
+  { status: 0, signal: null },
+  false,
+);

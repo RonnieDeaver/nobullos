@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Safe date / ISO string helper (Task #1045)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

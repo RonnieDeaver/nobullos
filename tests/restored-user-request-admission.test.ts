@@ -102,6 +102,7 @@ async function runIsAuthenticated(opts: {
   sub: string;
   accept: string;
   authenticated?: boolean;
+  originalUrl?: string;
 }): Promise<MockOutcome> {
   const outcome: MockOutcome = {
     nextCalled: false,
@@ -116,6 +117,7 @@ async function runIsAuthenticated(opts: {
     // user without a real Clerk session.  null = unauthenticated.
     __test_clerkUserId: (opts.authenticated ?? true) ? opts.sub : null,
     headers: { accept: opts.accept },
+    ...(opts.originalUrl ? { originalUrl: opts.originalUrl } : {}),
   };
 
   const res: any = {
@@ -231,12 +233,90 @@ async function testMidSessionDeleteApiBooted(): Promise<void> {
     assert.equal(outcome.statusCode, 401, "API request gets 401");
     assert.deepEqual(
       outcome.jsonBody,
-      { message: "Access revoked" },
-      "API request gets the 'Access revoked' JSON body",
+      { message: "Access revoked", code: "account_revoked" },
+      "API request gets the 'Access revoked' JSON body with a stable machine-readable code",
     );
     assert.equal(outcome.redirectedTo, null, "API request is not redirected");
 
     console.log("  ✓ mid-session soft-deleted user is 401'd on an API request");
+  } finally {
+    await cleanupUsers(created);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// (D) Mid-session soft-delete on an /api path with a bare Accept header (the
+//     shape of a real browser fetch(), which defaults to "*/*") → JSON, never
+//     a redirect. This is the exact defect fixed by Task #5330: the frontend's
+//     own fetch("/api/auth/user") probe used to follow the old redirect-first
+//     branch and choke trying to .json() the SPA HTML response, so a revoked
+//     user silently fell through to a sign-in loop instead of /access-revoked.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function testMidSessionDeleteApiBareAcceptStillJson(): Promise<void> {
+  console.log(
+    "(D) soft-deleted mid-session, /api path + bare Accept (real fetch() default) → JSON, never a redirect",
+  );
+  const created: string[] = [];
+  try {
+    const user = await seedUser({ role: "account_manager", suffix: "api-bare-accept" });
+    created.push(user.id);
+
+    await storageDeleteUser(user.id);
+    assert.equal(await storageIsUserRevoked(user.id), true, "user is revoked after delete");
+
+    const outcome = await runIsAuthenticated({
+      sub: user.id,
+      accept: "*/*",
+      originalUrl: "/api/auth/user",
+    });
+
+    assert.equal(outcome.nextCalled, false, "booted request does NOT proceed (next not called)");
+    assert.equal(outcome.statusCode, 401, "an /api path always gets 401 JSON, regardless of Accept");
+    assert.deepEqual(
+      outcome.jsonBody,
+      { message: "Access revoked", code: "account_revoked" },
+      "an /api path gets the 'Access revoked' JSON body even with a bare '*/*' Accept",
+    );
+    assert.equal(outcome.redirectedTo, null, "an /api path is NEVER redirected, even with Accept: text/html");
+
+    console.log("  ✓ /api probe with a bare Accept header gets JSON, not a redirect it can't parse");
+  } finally {
+    await cleanupUsers(created);
+  }
+}
+
+// Belt-and-suspenders: an /api path that (unusually) sends Accept: text/html
+// must still get JSON — the isApiPath check takes precedence over the Accept
+// sniff, matching the established denyNotApproved convention.
+async function testMidSessionDeleteApiPathWithHtmlAcceptStillJson(): Promise<void> {
+  console.log(
+    "(E) soft-deleted mid-session, /api path + Accept: text/html → JSON, never a redirect",
+  );
+  const created: string[] = [];
+  try {
+    const user = await seedUser({ role: "account_manager", suffix: "api-html-accept" });
+    created.push(user.id);
+
+    await storageDeleteUser(user.id);
+    assert.equal(await storageIsUserRevoked(user.id), true, "user is revoked after delete");
+
+    const outcome = await runIsAuthenticated({
+      sub: user.id,
+      accept: "text/html,application/xhtml+xml",
+      originalUrl: "/api/auth/user",
+    });
+
+    assert.equal(outcome.nextCalled, false, "booted request does NOT proceed (next not called)");
+    assert.equal(outcome.statusCode, 401, "an /api path always gets 401 JSON, regardless of Accept");
+    assert.deepEqual(
+      outcome.jsonBody,
+      { message: "Access revoked", code: "account_revoked" },
+      "an /api path gets JSON even with Accept: text/html",
+    );
+    assert.equal(outcome.redirectedTo, null, "an /api path is NEVER redirected, even with Accept: text/html");
+
+    console.log("  ✓ /api path with Accept: text/html still gets JSON, not a redirect");
   } finally {
     await cleanupUsers(created);
   }
@@ -281,6 +361,8 @@ async function main(): Promise<void> {
   await testRestoredUserRequestProceeds();
   await testMidSessionDeleteApiBooted();
   await testMidSessionDeleteHtmlRedirected();
+  await testMidSessionDeleteApiBareAcceptStillJson();
+  await testMidSessionDeleteApiPathWithHtmlAcceptStillJson();
   console.log("restored-user-request-admission: PASSED");
 }
 

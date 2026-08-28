@@ -75,9 +75,9 @@ export function HierarchySidebar({
   selectedSpace: string | null;
   selectedFolder: string | null;
   selectedList: string | null;
-  onSelectSpace(id: string): void;
-  onSelectFolder(id: string): void;
-  onSelectList(id: string, folderId: string | null): void;
+  onSelectSpace(id: string | null): void;
+  onSelectFolder(id: string | null): void;
+  onSelectList(id: string | null, folderId: string | null): void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -158,10 +158,15 @@ export function HierarchySidebar({
   const deleteSpaceMut = useMutation({
     mutationFn: async (spaceId: string) => {
       await apiRequest("DELETE", `/api/clickup/spaces/${spaceId}`, undefined);
+      return spaceId;
     },
-    onSuccess: () => {
+    onSuccess: (spaceId) => {
       toast({ title: "Space deleted" });
       void queryClient.invalidateQueries({ queryKey: ["/api/clickup/workspaces", workspaceId, "spaces"] }); // fire-and-forget: cache refresh only
+      // Deleting the currently-selected space would otherwise leave stale
+      // space/folder/list ids selected, pointing task/list panels at
+      // resources that no longer exist.
+      if (spaceId === selectedSpace) onSelectSpace(null);
       setDlg(null);
     },
     onError: (e: any) =>
@@ -197,10 +202,14 @@ export function HierarchySidebar({
   const deleteFolderMut = useMutation({
     mutationFn: async (folderId: string) => {
       await apiRequest("DELETE", `/api/clickup/folders/${folderId}`, undefined);
+      return folderId;
     },
-    onSuccess: () => {
+    onSuccess: (folderId) => {
       toast({ title: "Folder deleted" });
       void queryClient.invalidateQueries({ queryKey: ["/api/clickup/spaces", selectedSpace, "folders"] }); // fire-and-forget: cache refresh only
+      // A deleted folder's list ids no longer exist server-side; clear the
+      // downstream selection so task/list panels don't keep querying them.
+      if (folderId === selectedFolder) onSelectFolder(null);
       setDlg(null);
     },
     onError: (e: any) =>
@@ -337,10 +346,14 @@ export function HierarchySidebar({
   const deleteListMut = useMutation({
     mutationFn: async (listId: string) => {
       await apiRequest("DELETE", `/api/clickup/lists/${listId}`, undefined);
+      return listId;
     },
-    onSuccess: () => {
+    onSuccess: (listId) => {
       toast({ title: "List deleted" });
       invalidateAll();
+      // A deleted list's tasks are gone; clear the selection so the task
+      // panel doesn't keep querying a list id that no longer exists.
+      if (listId === selectedList) onSelectList(null, null);
       setDlg(null);
     },
     onError: (e: any) =>

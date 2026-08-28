@@ -152,6 +152,10 @@ export default function ClientManagement() {
   );
   const visibleClients = demoPartition.visible;
   const hiddenDemoCount = demoPartition.hiddenDemoCount;
+  const demoClientIds = useMemo(
+    () => new Set((clients ?? []).filter((c) => c.isDemo).map((c) => c.id)),
+    [clients],
+  );
 
   type InvalidProductsRow = {
     id: string;
@@ -444,6 +448,7 @@ export default function ClientManagement() {
     onSuccess: (_, { clientId }) => {
       void queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "locations"] }); // fire-and-forget: cache refresh only
       void queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "locations", "audit"] }); // fire-and-forget: cache refresh only
+      void queryClient.invalidateQueries({ queryKey: ["/api/admin/locations/ungeocoded"] }); // fire-and-forget: a newly added location can itself be ungeocoded
       setNewLocationName("");
       setNewLocationAddress("");
       setNewDraftLocation("");
@@ -467,6 +472,8 @@ export default function ClientManagement() {
     },
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ["/api/clients", data.clientId, "locations"] }); // fire-and-forget: cache refresh only
+      void queryClient.invalidateQueries({ queryKey: ["/api/clients", data.clientId, "locations", "audit"] }); // fire-and-forget: cache refresh only
+      void queryClient.invalidateQueries({ queryKey: ["/api/admin/locations/ungeocoded"] }); // fire-and-forget: removing an ungeocoded location should clear it from the audit banner
       toast({ title: "Location removed" });
     },
     onError: () => {
@@ -1256,7 +1263,7 @@ export default function ClientManagement() {
           </CardHeader>
           <CardContent>
             {(() => {
-              const zeroProductClients = (clients || []).filter(
+              const zeroProductClients = (visibleClients || []).filter(
                 c => !c.isArchived && (!c.products || c.products.length === 0)
               );
               if (zeroProductClients.length === 0) return null;
@@ -1293,16 +1300,29 @@ export default function ClientManagement() {
                 </div>
               );
             })()}
-            {ungeocoded && ungeocoded.totalClients > 0 && (
+            {ungeocoded && (() => {
+              // The ungeocoded-locations audit comes from a server endpoint
+              // that isn't demo-aware; apply the same hide-demo filter used
+              // for every other client-derived list on this page.
+              const ungeocodedClients = ungeocoded.clients ?? [];
+              const visibleUngeocodedClients = hideDemo
+                ? ungeocodedClients.filter((uc) => !demoClientIds.has(uc.clientId))
+                : ungeocodedClients;
+              const visibleTotalLocations = visibleUngeocodedClients.reduce(
+                (sum, uc) => sum + uc.locations.length,
+                0,
+              );
+              if (visibleUngeocodedClients.length === 0) return null;
+              return (
               <div
                 className="mb-4 p-3 border border-amber-300 bg-amber-50 rounded-md"
                 data-testid="banner-ungeocoded-locations"
               >
                 <p className="text-sm font-medium text-amber-900">
-                  {ungeocoded.totalClients} client{ungeocoded.totalClients === 1 ? "" : "s"} {ungeocoded.totalClients === 1 ? "has" : "have"} {ungeocoded.totalLocations} saved location{ungeocoded.totalLocations === 1 ? "" : "s"} with no map coordinates. These are excluded from MCU capacity analysis — open Locations and re-enter the address to fix.
+                  {visibleUngeocodedClients.length} client{visibleUngeocodedClients.length === 1 ? "" : "s"} {visibleUngeocodedClients.length === 1 ? "has" : "have"} {visibleTotalLocations} saved location{visibleTotalLocations === 1 ? "" : "s"} with no map coordinates. These are excluded from MCU capacity analysis — open Locations and re-enter the address to fix.
                 </p>
                 <ul className="mt-2 space-y-1">
-                  {ungeocoded.clients.map(uc => (
+                  {visibleUngeocodedClients.map(uc => (
                     <li
                       key={uc.clientId}
                       className="flex items-center justify-between gap-2 text-sm text-amber-900"
@@ -1327,7 +1347,8 @@ export default function ClientManagement() {
                   ))}
                 </ul>
               </div>
-            )}
+              );
+            })()}
             {!clients?.length ? (
               <p className="text-foreground">No clients yet.</p>
             ) : !visibleClients.length ? (
@@ -1434,23 +1455,31 @@ export default function ClientManagement() {
                         <MapPin className={`w-4 h-4 ${isUngeocoded ? "text-amber-600" : "text-primary"}`} />
                         <span className="text-sm font-medium text-foreground">{loc.name}</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
+                      <ConfirmActionDialog
+                        title={`Remove location "${loc.name}"?`}
+                        description="The location is deleted from this client immediately. Rankings, heatmaps, and reports scoped to it stop updating. This cannot be undone."
+                        confirmLabel="Remove location"
+                        testId={`dialog-confirm-remove-location-${loc.id}`}
+                        onConfirm={() => {
                           if (locationsDialogClient) {
-                            deleteLocationMutation.mutate({ 
-                              clientId: locationsDialogClient.id, 
-                              locationId: loc.id 
+                            deleteLocationMutation.mutate({
+                              clientId: locationsDialogClient.id,
+                              locationId: loc.id
                             });
                           }
                         }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        aria-label={`Remove location ${loc.name}`}
-                        data-testid={`button-delete-location-${loc.id}`}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            aria-label={`Remove location ${loc.name}`}
+                            data-testid={`button-delete-location-${loc.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        }
+                      />
                     </div>
                     {isUngeocoded && (
                       <div className="mt-2 pl-6" data-testid={`warning-ungeocoded-${loc.id}`}>

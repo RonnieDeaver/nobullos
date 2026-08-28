@@ -1,7 +1,8 @@
 /* test-registration
 {
   "name": "Booking AM-side slots + lazy-default + per-meeting overrides (Task #892)",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises booking availability defaults and per-meeting override behavior through the scheduler path."
 }
 test-registration */
 /**

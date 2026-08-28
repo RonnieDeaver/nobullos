@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Rate-limit notifications prune",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

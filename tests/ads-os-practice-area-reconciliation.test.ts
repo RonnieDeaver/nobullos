@@ -4,7 +4,8 @@
   "regression": true,
   "smoke": true,
   "smokeReason": "Pins the one-shot production rollout safety contract: one no-egress fresh directory snapshot, raw-key-preserving field-only criteria writes, shared-parent multi-CID convergence, missing/empty behavior, unmapped and ambiguous fail-closed diagnostics, retryable partial failure, manual-only classification, and fresh served-purpose retirement. Uses one isolated criteria schema and stubbed ClickUp data.",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises bounded reconciliation across shared-parent, ambiguous, failure, and retirement cases."
 }
 test-registration */
 

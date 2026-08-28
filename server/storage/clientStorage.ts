@@ -33,6 +33,7 @@
 import { getDb } from "../db";
 import { desc, eq, and, sql, inArray, or, ne, not, count, gt, arrayContains, arrayOverlaps, type SQL } from "drizzle-orm";
 import { REVENUE_FUNCTIONS, FULFILLMENT_FUNCTIONS } from "../auth/permissions";
+import { stageClientMirrorIntentInTx } from "../services/clickUpClientMirrorKick";
 
 /**
  * Task #1909 — pre-delete impact summary for a user.
@@ -833,12 +834,21 @@ export async function getClientsByOwnerPaginated(ownerId: string, limit: number,
 }
 
 export async function createClient(data: InsertClient): Promise<Client> {
-  const result = await getDb().execute(sql`SELECT nextval('client_code_seq') as nextval`);
-  const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
-  const nextval = rows[0]?.nextval;
-  const clientCode = `NB-${String(Number(nextval)).padStart(4, '0')}`;
-  const [client] = await getDb().insert(clients).values({ ...data, clientCode }).returning();
-  return client;
+  return getDb().transaction(async (tx) => {
+    const result = await tx.execute(sql`SELECT nextval('client_code_seq') as nextval`);
+    const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
+    const nextval = rows[0]?.nextval;
+    const clientCode = `NB-${String(Number(nextval)).padStart(4, '0')}`;
+    const [client] = await tx.insert(clients).values({ ...data, clientCode }).returning();
+    if (client.lifecycleStage === "customer") {
+      await stageClientMirrorIntentInTx(tx, {
+        clientId: client.id,
+        desiredName: client.firmName,
+        desiredArchived: client.isArchived === true,
+      });
+    }
+    return client;
+  });
 }
 
 export async function updateClient(id: string, data: UpdateClient): Promise<Client | undefined> {
@@ -846,8 +856,18 @@ export async function updateClient(id: string, data: UpdateClient): Promise<Clie
   // identity (id) / generated clientCode / server timestamps out even if a
   // caller forwards a raw request-shaped patch.
   const parsed = updateClientSchema.parse(data);
-  const [client] = await getDb().update(clients).set({ ...parsed, updatedAt: new Date() }).where(eq(clients.id, id)).returning();
-  return client;
+  return getDb().transaction(async (tx) => {
+    const [client] = await tx.update(clients).set({ ...parsed, updatedAt: new Date() })
+      .where(eq(clients.id, id)).returning();
+    if (client?.lifecycleStage === "customer") {
+      await stageClientMirrorIntentInTx(tx, {
+        clientId: client.id,
+        desiredName: client.firmName,
+        desiredArchived: client.isArchived === true,
+      });
+    }
+    return client;
+  });
 }
 
 export async function deleteClient(id: string): Promise<void> {

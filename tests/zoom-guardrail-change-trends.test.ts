@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Zoom guardrail change trends",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

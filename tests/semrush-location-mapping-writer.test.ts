@@ -6,7 +6,7 @@
     "server/routes/heatmap.ts",
     "server/services/semrushInventorySync.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

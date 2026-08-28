@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   CheckCircle2,
   AlertCircle,
@@ -98,6 +99,10 @@ function StatusBadge({ status }: { status: FrontBringTo100Summary["status"] }) {
 
 export function FrontBringTo100() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  // The run action posts to a requireTeamLead server route; hide the
+  // affordance for account managers instead of letting them hit a 403.
+  const canRun = user?.role === "ceo" || user?.role === "team_lead";
 
   const { data, isLoading, isError } = useQuery<FrontBringTo100Summary>({
     queryKey: [SUMMARY_KEY],
@@ -183,7 +188,8 @@ export function FrontBringTo100() {
     run.isPending ||
     data.blocked ||
     data.status === "working" ||
-    t.reachableRemainingWork === 0;
+    t.reachableRemainingWork === 0 ||
+    !canRun;
 
   return (
     <Card data-testid="card-bring100">
@@ -290,6 +296,7 @@ export function FrontBringTo100() {
           <Button
             onClick={() => run.mutate()}
             disabled={buttonDisabled}
+            title={!canRun ? "Team lead or CEO role required to run this" : undefined}
             data-testid="button-bring100-run"
           >
             {run.isPending || data.status === "working" ? (
@@ -299,6 +306,11 @@ export function FrontBringTo100() {
             )}
             Bring it to 100%
           </Button>
+          {!canRun && (
+            <span className="text-xs text-gray-400" data-testid="text-bring100-role-note">
+              Team lead or CEO role required
+            </span>
+          )}
           {data.queuePaused && (
             <span
               className="inline-flex items-center gap-1.5 text-xs text-amber-700"

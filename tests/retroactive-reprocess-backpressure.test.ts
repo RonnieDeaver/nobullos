@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Retroactive reprocess backpressure (Task #1025)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

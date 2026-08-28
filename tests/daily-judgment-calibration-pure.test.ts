@@ -54,9 +54,11 @@ import {
   buildJudgmentBasis,
   buildLifetimeContextSection,
   buildOperatorIntelSection,
+  buildPositiveClientContextSignals,
   computeBusinessDaySilence,
   computeInputsFingerprint,
   getSystemPrompt,
+  isClearlyPositiveClientIntel,
   type JudgmentDataInventory,
   type JudgmentSourceSignals,
 } from "../server/services/dailyJudgment";
@@ -111,6 +113,7 @@ function baseSources(): JudgmentSourceSignals {
       outboundComms: 270,
       comms90d: 36,
       longestGapDays: 21,
+      averageGapDays: 4.5,
     },
     trajectory: [
       { month: "2026-07", endStatus: "Watch", avgRisk: 38, days: 22 },
@@ -316,6 +319,7 @@ check("full lifetime fixture renders tenure, totals, cadence, gap, trajectory, h
   assertIncludes(text, "/week lifetime average", "weekly lifetime");
   assertIncludes(text, "over the last 90 days", "weekly 90d");
   assertIncludes(text, "Longest historical gap between communications: 21 days", "longest gap");
+  assertIncludes(text, "Observed average gap: 4.5 days", "observed average gap");
   assertIncludes(text, "- 2026-07: Watch (avg risk 38, 22 judgments)", "trajectory row");
   assertIncludes(text, "STANDING issue", "standing-issue instruction");
   assertIncludes(text, "do not re-escalate it as new", "no re-escalation");
@@ -413,6 +417,24 @@ check("intel entries render with RESOLVED/CONTEXT labels, dates, and hard rules"
   );
   assertIncludes(text, "must NOT appear in your \"concerns\" as unaddressed", "resolved hard rule");
   assertIncludes(text, "CONTEXT notes must temper your framing", "context hard rule");
+  assertIncludes(text, "Clearly positive, current client context is authoritative", "positive-intel rule");
+});
+
+check("positive intel is classified narrowly and carries explicit recent-contact evidence", () => {
+  assertEq(isClearlyPositiveClientIntel(INTEL_ROWS[0]), true, "client satisfaction is positive");
+  assertEq(isClearlyPositiveClientIntel(INTEL_ROWS[1]), false, "operational pause context is not positive");
+  assertEq(
+    isClearlyPositiveClientIntel({
+      concernText: "Relationship",
+      note: "Client is not happy with current performance.",
+    }),
+    false,
+    "negated positive wording is rejected",
+  );
+  const signals = buildPositiveClientContextSignals(INTEL_ROWS, "2026-08-10");
+  assertEq(signals.length, 1, "only current positive intel becomes a gate signal");
+  assertEq(signals[0]?.id, "i-1", "source identity retained");
+  assertEq(signals[0]?.confirmsRecentClientContact, true, "the filed call contradicts silence");
 });
 
 check("no intel → empty section (absence of intel is normal)", () => {
@@ -489,13 +511,19 @@ console.log("\nbuildJudgmentBasis / buildDataAvailabilityManifest:");
 
 check("basis basedOn gains lifetime/trajectory/history/intel labels", () => {
   const s = baseSources();
-  s.intel = { count90d: 2, latestAt: "2026-08-08T00:00:00.000Z" };
+  s.intel = {
+    count90d: 2,
+    latestAt: "2026-08-08T00:00:00.000Z",
+    positiveCurrentCount: 1,
+    positiveLatestAt: "2026-08-08T00:00:00.000Z",
+  };
   const { basedOn } = buildJudgmentBasis(s, 3);
   const joined = basedOn.join(" | ");
   assertIncludes(joined, "lifetime history (480 comms since 2024-03-15)", "lifetime label");
   assertIncludes(joined, "2 months judgment trajectory", "trajectory label");
   assertIncludes(joined, "2-month report history", "report-history label");
   assertIncludes(joined, "operator intel (2 notes, 90d)", "intel label");
+  assertIncludes(joined, "current positive client intel (1 signal)", "positive intel label");
 });
 
 check("absence of intel is never 'missing data'", () => {
@@ -505,7 +533,12 @@ check("absence of intel is never 'missing data'", () => {
 
 check("manifest lists lifetime + intel lines and the comms recency business-day rule", () => {
   const s = baseSources();
-  s.intel = { count90d: 1, latestAt: "2026-08-08T00:00:00.000Z" };
+  s.intel = {
+    count90d: 1,
+    latestAt: "2026-08-08T00:00:00.000Z",
+    positiveCurrentCount: 1,
+    positiveLatestAt: "2026-08-08T00:00:00.000Z",
+  };
   const manifest = buildDataAvailabilityManifest(inventoryFor(s));
   assertIncludes(
     manifest,
@@ -519,9 +552,15 @@ check("manifest lists lifetime + intel lines and the comms recency business-day 
   );
   assertIncludes(
     manifest,
+    "- Positive client context: 1 current human-verified signal; latest 2026-08-08 (authoritative supporting evidence)",
+    "positive-intel manifest line",
+  );
+  assertIncludes(
+    manifest,
     "Recency: last matched communication 3 calendar days ago (1 business day). Gaps of 0–3 business days are normal cadence — never a silence concern.",
     "recency line",
   );
+  assertIncludes(manifest, "rolling pace ~2.8/week (acceptable standard: at least 1/week)", "rolling 30d cadence");
 });
 
 check("zero-comms silence line carries the business-day note and cadence-baseline rule", () => {

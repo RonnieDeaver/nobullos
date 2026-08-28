@@ -56,6 +56,11 @@ test-registration */
  *      sub-row of the Task #4349 grouped navigation (domain rows CSS-hide
  *      inactive TabsLists — triggers must stay mounted and activatable).
  *
+ * Task #5353 adds:
+ *
+ *   8. `?tab=daily-judgment` → Judgment is active in the Agent sub-navigation,
+ *      and is absent from the Comms sub-navigation.
+ *
  * `ClientDetail` statically imports many heavy feature panels (CommandPanel is
  * even `forceMount`ed) that pull in `maplibre-gl` / `@uppy/*` / `react-pdf` /
  * `.css` side-effects the bare jsdom harness can't evaluate; they're stubbed to
@@ -412,6 +417,53 @@ async function scenarioTimelineDeepLink(): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Scenario 8: ?tab=daily-judgment → Judgment belongs to Agent (Task #5353).
+// ---------------------------------------------------------------------------
+
+async function scenarioDailyJudgmentAgentDeepLink(): Promise<void> {
+  console.log(
+    "\n— Scenario 8: /clients/:id?tab=daily-judgment → Agent Judgment —",
+  );
+  setLocation(`/clients/${CLIENT_ID}?tab=daily-judgment`);
+  const root = await mountAt();
+  try {
+    const active = activeTabValue();
+    assert(
+      active === "daily-judgment",
+      `?tab=daily-judgment must activate the Judgment tab (got '${active}')`,
+    );
+
+    const agentDomain = document.querySelector('[data-testid="tabgroup-agent"]');
+    assert(
+      agentDomain?.getAttribute("aria-current") === "true",
+      "daily-judgment must activate the Agent domain",
+    );
+
+    const agentSubtabs = document.querySelector('[data-testid="subtabs-agent"]');
+    const judgmentInAgent = agentSubtabs?.querySelector(
+      '[data-testid="tab-daily-judgment"]',
+    );
+    assert(
+      judgmentInAgent !== null,
+      "Judgment must be exposed in the Agent sub-navigation",
+    );
+    assert(
+      !agentSubtabs?.classList.contains("hidden"),
+      "Agent sub-navigation must be visible for daily-judgment",
+    );
+
+    const commsSubtabs = document.querySelector('[data-testid="subtabs-comms"]');
+    assert(
+      commsSubtabs?.querySelector('[data-testid="tab-daily-judgment"]') === null,
+      "Judgment must not remain in the Comms sub-navigation",
+    );
+    console.log("  ✓ active domain → Agent; Judgment only in Agent sub-navigation");
+  } finally {
+    await unmount(root);
+  }
+}
+
 async function main(): Promise<void> {
   await scenarioReportsTab();
   await scenarioOverviewAlias();
@@ -420,6 +472,7 @@ async function main(): Promise<void> {
   await scenarioIntelligenceFeedUrlRewrite();
   await scenarioAgentMemoryDeepLink();
   await scenarioTimelineDeepLink();
+  await scenarioDailyJudgmentAgentDeepLink();
   console.log("\nclient-detail-tab-from-url: all DOM cases passed");
 }
 

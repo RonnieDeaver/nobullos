@@ -4,7 +4,7 @@
   "scanPaths": [
     "server/routes/booking.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

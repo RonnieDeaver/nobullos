@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Stale-lease threshold audit prune",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

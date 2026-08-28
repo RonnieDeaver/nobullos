@@ -24,9 +24,12 @@ import {
   upsertRoleProjectionDestination,
   handleClickUpRoleProjectionJob,
   manualResyncProjectionCommand,
+  bindCanonicalClientTask,
+  __setCanonicalClientListEvidenceLoaderForTest,
   stageProjectionCommandInTx,
   stageProjectionCommandsInTx,
   __test_setProjectionWorkerDeps,
+  __test_loadCurrentProjectionConfig,
   type ClaimedCommand,
   type ProjectionWorkerDeps,
   type CurrentProjectionConfig,
@@ -52,11 +55,13 @@ import {
   PAID_SEARCH_DEPT_NAME,
 } from "../server/services/adsOs/paidSearchRoleContract";
 import { PAID_SEARCH_DEPARTMENT_ID } from "@shared/departmentRoleCapabilities";
+import { applyInboundClickUpRoleChanges } from "../server/services/clickUpRoleInboundSync";
 
 const CU_TABLES = [
   "cu_role_projection_destinations",
   "cu_role_projection_client_targets",
   "cu_role_projection_commands",
+  "cu_client_list_mappings",
   "sd_departments",
   "sd_department_members",
   "sd_client_dept_assignments",
@@ -65,6 +70,8 @@ const CU_TABLES = [
   // continuation both INSERT into work_queue via the same isolated-schema tx.
   // Isolating it prevents public-schema fallthrough polluting the live queue.
   "work_queue",
+  "cu_role_sync_contracts",
+  "cu_role_sync_transition_evidence",
 ] as const;
 
 let passed = 0;
@@ -368,10 +375,11 @@ async function testGateChangesAfterMutationNeverSynced(): Promise<void> {
 async function testApprovalActions(): Promise<void> {
   // Task #5157 fix 3: upsertRoleProjectionDestination now queries the
   // destination's department in the upsert transaction (to enforce the Paid
-  // Search-specific policy). A GENERIC department must exist for these approval
-  // tests; its non-Paid-Search name means the special policy is skipped.
+  // Search-specific policy). Approval lifecycle coverage uses the supported
+  // company-scoped direct-task lane; per-client roles are canonical parent
+  // columns and cannot use a direct task.
   await getDb().execute(
-    sql`INSERT INTO sd_departments (id, name, assignment_scope) VALUES ('dept-appr', 'Approval Dept', 'per_client') ON CONFLICT (id) DO NOTHING`,
+    sql`INSERT INTO sd_departments (id, name, assignment_scope) VALUES ('dept-appr', 'Approval Dept', 'company') ON CONFLICT (id) DO NOTHING`,
   );
 
   const base = {
@@ -1033,6 +1041,495 @@ async function testTransientFailureWritesWakeThenAutoRetries(): Promise<void> {
   );
 }
 
+async function testCanonicalClientBindingIdentity(): Promise<void> {
+  const clientA = "71000000-0000-4000-8000-000000000001";
+  const clientB = "71000000-0000-4000-8000-000000000002";
+  const clientC = "71000000-0000-4000-8000-000000000003";
+  const clientD = "71000000-0000-4000-8000-000000000004";
+  const departmentId = "71000000-0000-4000-8000-000000000010";
+  const destinationId = "71000000-0000-4000-8000-000000000020";
+  await getDb().execute(sql`
+    INSERT INTO clients (id, firm_name, is_archived, lifecycle_stage)
+    VALUES
+      (${clientA}, 'Identity Client A', false, 'customer'),
+      (${clientB}, 'Identity Client B', false, 'customer'),
+      (${clientC}, 'Identity Client C', false, 'customer'),
+      (${clientD}, 'Identity Client D', false, 'customer')
+    ON CONFLICT (id) DO NOTHING
+  `);
+  await getDb().execute(sql`
+    INSERT INTO sd_departments (id, name, active, assignment_scope)
+    VALUES (${departmentId}, 'Identity Test Department', true, 'per_client')
+    ON CONFLICT (id) DO NOTHING
+  `);
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_destinations
+      (id, workspace_id, department_id, responsibility, target_kind, list_id,
+       people_field_id, max_people, environment, enabled,
+       sandbox_exit_approved_at, owner_approved_at)
+    VALUES
+      (${destinationId}, 'workspace-identity', ${departmentId}, 'doer',
+       'client_list_parent', ${CANONICAL_PRODUCTION_LIST_ID},
+       'field-identity', 1, 'production', true, now(), now())
+  `);
+  const desiredRevision = computeProjectionRevision(
+    clientA,
+    destinationId,
+    "nobull-user-1",
+    "12345",
+  );
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_commands
+      (client_id, destination_id, desired_user_id, desired_clickup_user_id,
+       revision, status, last_error, last_error_code)
+    VALUES
+      (${clientA}, ${destinationId}, 'nobull-user-1', '12345',
+       ${desiredRevision}, 'blocked', 'No target configured', 'missing_target')
+  `);
+  __setCanonicalClientListEvidenceLoaderForTest(async () => ({
+    canonicalListId: CANONICAL_PRODUCTION_LIST_ID,
+    fetchedAt: Date.now(),
+    fields: [],
+    normNameToTaskIds: {
+      "remote firm": ["canonical-parent-1"],
+      "race firm": ["canonical-parent-2"],
+    },
+    parents: [{
+      taskId: "canonical-parent-1",
+      name: "Remote Firm",
+      normName: "remote firm",
+      status: "active",
+      excluded: false,
+      doerPeople: [],
+      checkerPeople: [],
+      doerFieldMeta: null,
+      checkerFieldMeta: null,
+      subtasks: [],
+      hasGads: false,
+      hasLsa: false,
+      missingProduct: true,
+      duplicateNormNameTaskIds: [],
+      remoteRevision: "remote-rev-7",
+    }, {
+      taskId: "canonical-parent-2",
+      name: "Race Firm",
+      normName: "race firm",
+      status: "active",
+      excluded: false,
+      doerPeople: [],
+      checkerPeople: [],
+      doerFieldMeta: null,
+      checkerFieldMeta: null,
+      subtasks: [],
+      hasGads: false,
+      hasLsa: false,
+      missingProduct: true,
+      duplicateNormNameTaskIds: [],
+      remoteRevision: "remote-rev-8",
+    }],
+  }));
+  try {
+    const first = await bindCanonicalClientTask({
+      clientId: clientA,
+      taskId: "canonical-parent-1",
+      source: "manual_review",
+      actorId: "test-actor",
+    });
+    check("client identity: verified canonical parent binds successfully", first.ok);
+    const stored = await getDb().execute(sql`
+      SELECT client_id, list_id, task_id, remote_revision, sync_state, ownership_verified_at
+      FROM cu_client_list_mappings
+      WHERE client_id = ${clientA}
+    `);
+    const row = (stored.rows as any[])[0];
+    check(
+      "client identity: stable IDs, remote revision, visible state, and ownership proof persist",
+      row?.client_id === clientA &&
+        row?.list_id === CANONICAL_PRODUCTION_LIST_ID &&
+        row?.task_id === "canonical-parent-1" &&
+        row?.remote_revision === "remote-rev-7" &&
+        row?.sync_state === "verified" &&
+        row?.ownership_verified_at != null,
+    );
+
+    const rebound = await getDb().execute(sql`
+      SELECT status, target_snapshot, last_error_code
+      FROM cu_role_projection_commands
+      WHERE client_id = ${clientA} AND destination_id = ${destinationId}
+    `);
+    const reboundRow = (rebound.rows as any[])[0];
+    check(
+      "client identity: binding re-pends an existing missing-target command against the canonical task",
+      reboundRow?.status === "pending" &&
+        reboundRow?.last_error_code == null &&
+        reboundRow?.target_snapshot?.targetId === "canonical-parent-1" &&
+        reboundRow?.target_snapshot?.listId === CANONICAL_PRODUCTION_LIST_ID,
+    );
+
+    const current = await __test_loadCurrentProjectionConfig({
+      id: "config-probe",
+      clientId: clientA,
+      destinationId,
+      desiredUserId: "nobull-user-1",
+      desiredClickupUserId: "12345",
+      revision: desiredRevision,
+      targetSnapshot: reboundRow.target_snapshot,
+      status: "pending",
+      attemptCount: 0,
+      maxAttempts: 5,
+      mutationAttempts: 0,
+      leaseToken: "probe",
+      leaseExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    check(
+      "client identity: execution-time resolver ignores legacy targets and reads the canonical mapping",
+      current.clientTarget?.targetId === "canonical-parent-1" &&
+        current.clientTarget.resolvedListId === CANONICAL_PRODUCTION_LIST_ID,
+    );
+
+    const priorEnv = process.env.CLICKUP_ROLE_PROJECTION_ENVIRONMENT;
+    process.env.CLICKUP_ROLE_PROJECTION_ENVIRONMENT = "production";
+    const staged = await getDb().transaction((tx) =>
+      stageProjectionCommandsInTx(tx, [{
+        clientId: clientA,
+        departmentId,
+        responsibility: "doer",
+        desiredUserId: "nobull-user-1",
+        desiredClickupUserId: "12345",
+      }]),
+    );
+    if (priorEnv === undefined) {
+      delete process.env.CLICKUP_ROLE_PROJECTION_ENVIRONMENT;
+    } else {
+      process.env.CLICKUP_ROLE_PROJECTION_ENVIRONMENT = priorEnv;
+    }
+    check(
+      "client identity: normal role staging resolves the canonical mapping without a legacy target row",
+      staged.staged === 1,
+    );
+
+    const race = await Promise.all([
+      bindCanonicalClientTask({
+        clientId: clientC,
+        taskId: "canonical-parent-2",
+        source: "manual_review",
+        actorId: "test-actor-c",
+      }),
+      bindCanonicalClientTask({
+        clientId: clientD,
+        taskId: "canonical-parent-2",
+        source: "manual_review",
+        actorId: "test-actor-d",
+      }),
+    ]);
+    check(
+      "client identity: concurrent duplicate adoption has exactly one winner",
+      race.filter((result) => result.ok).length === 1 &&
+        race.filter((result) => !result.ok).length === 1,
+    );
+    const count = await getDb().execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM cu_client_list_mappings
+      WHERE list_id = ${CANONICAL_PRODUCTION_LIST_ID}
+        AND task_id = 'canonical-parent-2'
+    `);
+    check(
+      "client identity: unique index preserves one row after the concurrent race",
+      Number((count.rows as any[])[0]?.n) === 1,
+    );
+  } finally {
+    __setCanonicalClientListEvidenceLoaderForTest(null);
+  }
+}
+
+async function testCanonicalInboundRoleStateMachine(): Promise<void> {
+  const clientId = "72000000-0000-4000-8000-000000000001";
+  const departmentId = "72000000-0000-4000-8000-000000000010";
+  const destinationId = "72000000-0000-4000-8000-000000000020";
+  const taskId = "canonical-inbound-role-task";
+  const fieldId = "canonical-inbound-doer-field";
+  const taskFor = (value: any, revision: string) => ({
+    id: taskId,
+    list: { id: CANONICAL_PRODUCTION_LIST_ID },
+    date_updated: revision,
+    custom_fields: [{ id: fieldId, type: "users", value }],
+  });
+  const eventFor = (receiptId: string) => ({
+    receiptId,
+    taskId,
+    actorClickupUserId: "clickup-actor",
+    changedFieldIds: [fieldId],
+    eventType: "taskUpdated",
+  });
+
+  await getDb().execute(sql`
+    INSERT INTO clients (id, firm_name, is_archived, lifecycle_stage)
+    VALUES (${clientId}, 'Inbound Role Client', false, 'customer')
+  `);
+  await getDb().execute(sql`
+    INSERT INTO sd_departments (id, name, active, assignment_scope)
+    VALUES (${departmentId}, 'Inbound Role Department', true, 'per_client')
+  `);
+  await getDb().execute(sql`
+    INSERT INTO sd_department_members (department_id, user_id, clickup_user_id, active)
+    VALUES
+      (${departmentId}, 'inbound-user-a', '111', true),
+      (${departmentId}, 'inbound-user-b', '222', true)
+  `);
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_destinations
+      (id, workspace_id, department_id, responsibility, target_kind, list_id,
+       people_field_id, max_people, environment, enabled,
+       sandbox_exit_approved_at, owner_approved_at)
+    VALUES
+      (${destinationId}, 'ws-inbound', ${departmentId}, 'doer',
+       'client_list_parent', ${CANONICAL_PRODUCTION_LIST_ID}, ${fieldId},
+       1, 'production', true, now(), now())
+  `);
+  await getDb().execute(sql`
+    INSERT INTO cu_client_list_mappings
+      (client_id, list_id, task_id, sync_state, ownership_verified_at)
+    VALUES
+      (${clientId}, ${CANONICAL_PRODUCTION_LIST_ID}, ${taskId}, 'verified', now())
+  `);
+
+  await applyInboundClickUpRoleChanges(
+    eventFor("role-receipt-set"),
+    taskFor([{ id: "111" }], "vendor-rev-1"),
+  );
+  const applied = await getDb().execute(sql`
+    SELECT primary_user_id FROM sd_client_dept_assignments
+    WHERE client_id = ${clientId} AND department_id = ${departmentId}
+  `);
+  const appliedEvidence = await getDb().execute(sql`
+    SELECT outcome FROM cu_role_sync_transition_evidence
+    WHERE receipt_id = 'role-receipt-set' AND destination_id = ${destinationId}
+  `);
+  check(
+    "inbound: fresh mapped one-person ClickUp edit applies through universal assignment boundary",
+    (applied.rows as any[])[0]?.primary_user_id === "inbound-user-a" &&
+      (appliedEvidence.rows as any[])[0]?.outcome === "inbound_applied",
+  );
+
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_commands
+      (client_id, destination_id, desired_user_id, desired_clickup_user_id,
+       revision, target_snapshot, status, attempt_count, max_attempts, mutation_attempts)
+    VALUES (
+      ${clientId}, ${destinationId}, 'inbound-user-a', '111',
+      'outbound-echo-rev', '{}'::jsonb, 'pending', 0, 5, 0
+    )
+  `);
+  await applyInboundClickUpRoleChanges(
+    eventFor("role-receipt-echo"),
+    taskFor([{ id: "111" }], "vendor-rev-2"),
+  );
+  const echo = await getDb().execute(sql`
+    SELECT outcome FROM cu_role_sync_transition_evidence
+    WHERE receipt_id = 'role-receipt-echo' AND destination_id = ${destinationId}
+  `);
+  check(
+    "inbound: matching outbound webhook echo is durable no-op",
+    (echo.rows as any[])[0]?.outcome === "outbound_echo_noop",
+  );
+
+  await getDb().execute(sql`
+    UPDATE cu_role_projection_commands
+    SET desired_user_id = 'inbound-user-b',
+        desired_clickup_user_id = '222',
+        revision = 'outbound-conflict-rev',
+        status = 'pending',
+        terminal_at = NULL
+    WHERE client_id = ${clientId} AND destination_id = ${destinationId}
+  `);
+  await applyInboundClickUpRoleChanges(
+    eventFor("role-receipt-conflict"),
+    taskFor([{ id: "111" }], "vendor-rev-3"),
+  );
+  const conflict = await getDb().execute(sql`
+    SELECT outcome FROM cu_role_sync_transition_evidence
+    WHERE receipt_id = 'role-receipt-conflict' AND destination_id = ${destinationId}
+  `);
+  const command = await getDb().execute(sql`
+    SELECT status FROM cu_role_projection_commands
+    WHERE client_id = ${clientId} AND destination_id = ${destinationId}
+  `);
+  check(
+    "inbound: divergent pending local revision becomes review conflict without overwrite",
+    (conflict.rows as any[])[0]?.outcome === "conflict_pending_outbound" &&
+      (command.rows as any[])[0]?.status === "blocked" &&
+      (applied.rows as any[])[0]?.primary_user_id === "inbound-user-a",
+  );
+
+  await getDb().execute(sql`
+    UPDATE cu_role_sync_contracts
+    SET conflict_state = 'none', conflict_evidence = NULL
+    WHERE client_id = ${clientId} AND destination_id = ${destinationId}
+  `);
+  await applyInboundClickUpRoleChanges(
+    eventFor("role-receipt-multi"),
+    taskFor([{ id: "111" }, { id: "222" }], "vendor-rev-4"),
+  );
+  const blocked = await getDb().execute(sql`
+    SELECT outcome FROM cu_role_sync_transition_evidence
+    WHERE receipt_id = 'role-receipt-multi' AND destination_id = ${destinationId}
+  `);
+  check(
+    "inbound: multi-person People field is blocked for review without mutation",
+    (blocked.rows as any[])[0]?.outcome === "blocked_multi_person",
+  );
+
+  await getDb().execute(sql`
+    UPDATE cu_role_projection_commands
+    SET status = 'synced', terminal_at = NULL
+    WHERE client_id = ${clientId} AND destination_id = ${destinationId}
+  `);
+  await getDb().execute(sql`
+    UPDATE cu_role_sync_contracts
+    SET conflict_state = 'none', conflict_evidence = NULL
+    WHERE client_id = ${clientId} AND destination_id = ${destinationId}
+  `);
+  await applyInboundClickUpRoleChanges(
+    eventFor("role-receipt-clear"),
+    taskFor([], "vendor-rev-5"),
+  );
+  const cleared = await getDb().execute(sql`
+    SELECT primary_user_id FROM sd_client_dept_assignments
+    WHERE client_id = ${clientId} AND department_id = ${departmentId}
+  `);
+  const clearEvidence = await getDb().execute(sql`
+    SELECT outcome FROM cu_role_sync_transition_evidence
+    WHERE receipt_id = 'role-receipt-clear' AND destination_id = ${destinationId}
+  `);
+  check(
+    "inbound: exact fresh empty People field clears the NoBull role with evidence",
+    (cleared.rows as any[])[0]?.primary_user_id === null &&
+      (clearEvidence.rows as any[])[0]?.outcome === "inbound_cleared",
+  );
+}
+
+async function testInboundRoleRevisionStateMachine(): Promise<void> {
+  const listId = CANONICAL_PRODUCTION_LIST_ID;
+  await getDb().execute(sql`
+    INSERT INTO sd_departments (id, name, assignment_scope)
+    VALUES ('dept-inbound', 'Inbound Dept', 'per_client')
+  `);
+  await getDb().execute(sql`
+    INSERT INTO sd_department_members
+      (department_id, user_id, clickup_user_id, active)
+    VALUES
+      ('dept-inbound', 'in-user-1', '111', true),
+      ('dept-inbound', 'in-user-2', '222', true)
+  `);
+  await getDb().execute(sql`
+    INSERT INTO sd_client_dept_assignments
+      (client_id, department_id, primary_user_id)
+    VALUES ('in-client', 'dept-inbound', 'in-user-1')
+  `);
+  await getDb().execute(sql`
+    INSERT INTO cu_client_list_mappings
+      (client_id, list_id, task_id, sync_state, ownership_verified_at)
+    VALUES ('in-client', ${listId}, 'in-task', 'verified', now())
+  `);
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_destinations
+      (id, workspace_id, department_id, responsibility, target_kind,
+       list_id, people_field_id, max_people, environment, enabled,
+       sandbox_exit_approved_at, owner_approved_at)
+    VALUES
+      ('in-dest', 'in-workspace', 'dept-inbound', 'doer',
+       'client_list_parent', ${listId}, 'in-field', 1, 'production', true,
+       now(), now())
+  `);
+  const task = (ids: string[]) => ({
+    id: "in-task",
+    date_updated: "100",
+    list: { id: listId },
+    custom_fields: [{
+      id: "in-field",
+      type: "users",
+      value: ids.map((id) => ({ id })),
+    }],
+  });
+  await applyInboundClickUpRoleChanges(
+    {
+      receiptId: "in-receipt-1",
+      taskId: "in-task",
+      actorClickupUserId: "900",
+      changedFieldIds: ["in-field"],
+      eventType: "taskUpdated",
+    },
+    task(["222"]),
+  );
+  let assignment = await getDb().execute(sql`
+    SELECT primary_user_id
+    FROM sd_client_dept_assignments
+    WHERE client_id = 'in-client' AND department_id = 'dept-inbound'
+  `);
+  check(
+    "inbound exact mapped People edit applies through assignment CAS",
+    String((assignment.rows as any[])[0]?.primary_user_id) === "in-user-2",
+  );
+
+  await getDb().execute(sql`
+    INSERT INTO cu_role_projection_commands (
+      client_id, destination_id, desired_user_id, desired_clickup_user_id,
+      revision, target_snapshot, status
+    ) VALUES (
+      'in-client', 'in-dest', 'in-user-2', '222', 'pending-in-revision',
+      '{}'::jsonb, 'pending'
+    )
+  `);
+  await applyInboundClickUpRoleChanges(
+    {
+      receiptId: "in-receipt-2",
+      taskId: "in-task",
+      actorClickupUserId: "901",
+      changedFieldIds: ["in-field"],
+      eventType: "taskUpdated",
+    },
+    { ...task(["111"]), date_updated: "101" },
+  );
+  assignment = await getDb().execute(sql`
+    SELECT primary_user_id
+    FROM sd_client_dept_assignments
+    WHERE client_id = 'in-client' AND department_id = 'dept-inbound'
+  `);
+  const conflict = await getDb().execute(sql`
+    SELECT c.conflict_state, p.status
+    FROM cu_role_sync_contracts c
+    JOIN cu_role_projection_commands p
+      ON p.client_id = c.client_id AND p.destination_id = c.destination_id
+    WHERE c.client_id = 'in-client' AND c.destination_id = 'in-dest'
+  `);
+  check(
+    "divergent ClickUp edit racing pending outbound is quarantined, not applied",
+    String((assignment.rows as any[])[0]?.primary_user_id) === "in-user-2" &&
+      String((conflict.rows as any[])[0]?.conflict_state) === "review_required" &&
+      String((conflict.rows as any[])[0]?.status) === "blocked",
+  );
+
+  const evidence = await getDb().execute(sql`
+    SELECT outcome, actor_id, before_assignment, after_assignment
+    FROM cu_role_sync_transition_evidence
+    WHERE client_id = 'in-client'
+    ORDER BY created_at
+  `);
+  check(
+    "inbound transitions persist actor/source/revision before-after outcome evidence",
+    (evidence.rows as any[]).some(
+      (row) =>
+        row.outcome === "inbound_applied" &&
+        row.actor_id === "900" &&
+        row.before_assignment &&
+        row.after_assignment,
+    ) &&
+      (evidence.rows as any[]).some(
+        (row) => row.outcome === "conflict_pending_outbound",
+      ),
+  );
+}
+
 async function main(): Promise<void> {
   console.log("\n=== ClickUp role projection WORKER (executed hermetic) ===\n");
 
@@ -1055,6 +1552,9 @@ async function main(): Promise<void> {
       await testInitialWakeSurvivesFailedPostCommitKick();
       await testOverCapLeavesDurableContinuation();
       await testTransientFailureWritesWakeThenAutoRetries();
+      await testCanonicalClientBindingIdentity();
+      await testCanonicalInboundRoleStateMachine();
+      await testInboundRoleRevisionStateMachine();
     },
     { tables: [...CU_TABLES] },
   );

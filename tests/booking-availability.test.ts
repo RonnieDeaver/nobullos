@@ -4,7 +4,7 @@
   "scanPaths": [
     "server/services/bookingAvailability.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

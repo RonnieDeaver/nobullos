@@ -12,8 +12,13 @@ export function cliMain(): number {
     console.error("fixture-slow: GATE_FIXTURE_LOG not set");
     return 9;
   }
+  const requestedDelayMs = Number(process.env.GATE_FIXTURE_DELAY_MS);
+  const delayMs =
+    Number.isFinite(requestedDelayMs) && requestedDelayMs >= 1
+      ? Math.min(requestedDelayMs, 1500)
+      : 1500;
   appendFileSync(logPath, `S ${Date.now()}\n`);
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
   appendFileSync(logPath, `E ${Date.now()}\n`);
   console.log("fixture-slow: done");
   return 0;

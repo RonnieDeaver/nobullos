@@ -4,7 +4,7 @@
   "scanPaths": [
     "server/routes/integrations/workQueue.ts"
   ],
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

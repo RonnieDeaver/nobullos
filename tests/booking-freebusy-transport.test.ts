@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Booking free/busy transport (Task #929D)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

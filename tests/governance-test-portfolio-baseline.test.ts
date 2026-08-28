@@ -4,6 +4,7 @@
   "regression": true,
   "smoke": true,
   "tier": "small",
+  "tierReason": "Deliberately small, overriding the unmeasured default of medium: the generator freshness contract is a bounded filesystem-only check with no database, browser, child process, or network.",
   "smokeReason": "Freshness guard for the committed audits/governance/test-portfolio-baseline.json hardening-epic baseline: any suite add/edit/registration change must regenerate the portfolio inventory in the same diff or the gate fails here. Also proves the generator never touches tests/green-baseline.json. DB-free, seconds-fast.",
   "scanPaths": ["tests", "client/src", "scripts/generate-test-portfolio-baseline.ts", "scripts/governanceInventoryLib.ts", "audits/governance/test-portfolio-baseline.json"]
 }

@@ -85,26 +85,25 @@ The OS app's og:image/twitter:image tags are static in `client/index.html` (NoBu
 
 These are the primary conversion points. A broken booking widget or form means no leads.
 
-### Calendly inline embed
-- Must appear exactly once in the generated bundle, at homepage `#booking`.
-- URL must remain: `https://calendly.com/jmangle-nobullmarketing/high-impact-revenue-session-other`
-- Script `https://assets.calendly.com/assets/external/widget.js` must be loaded async on the homepage.
-- CSP header (`frame-src`) must allow `calendly.com`. This is already configured in `marketingSite.ts` — do not overwrite it.
-- Fluid minimum width and the explicit 760px height must be preserved so the homepage widget renders correctly.
+### Calendly external handoff
+- Must appear exactly once at homepage `#booking` as the `View Available Times →` action.
+- URL must remain: `https://calendly.com/jmangle-nobullmarketing/high-impact-revenue-session-other`.
+- The action opens in a new tab with `target="_blank"` and `rel="noopener"`.
+- Do not restore the Calendly inline widget, its external script, its fixed-height shell, or recovery-copy variants without a new owner decision.
 
 ### Contact form (homepage `#contact`)
 - Fields: Full Name, Email, Phone, Message (all required), honeypot (`name="website"`, `tabindex="-1"`, `aria-hidden="true"`) — do not remove the honeypot.
 - `data-nb-inquiry="contact"` must be preserved on the homepage form; `home.js` and `site.js` compile the same shared inquiry handler. The unsubscribe utility keeps its separate `data-nb-inquiry="unsubscribe"` contract.
-- Contact submissions require Cloudflare Turnstile. `TURNSTILE_SITE_KEY` is the public browser key returned by the bounded `/api/website/inquiry/config` response; `TURNSTILE_SECRET_KEY` is deployment-secret-only and must never be emitted or logged.
-- Register every served contact-form hostname in the Turnstile widget, including `nobullmarketing.com` and any preview hostname used for acceptance testing. A successful token whose Cloudflare-verified hostname is outside the deployment's configured marketing/Replit host set fails closed; never derive that trust boundary from request headers.
-- Missing, expired/replayed, rejected, misconfigured, or timed-out Turnstile checks must create no inquiry. The visitor must receive recovery copy that asks them to complete or refresh the security check.
-- Keep the honeypot check before Turnstile verification. A tripped honeypot silently succeeds without verification, storage, lead promotion, in-app notification, or Slack delivery.
+- Contact submissions require Google reCAPTCHA. `RECAPTCHA_SITE_KEY` is the public browser key returned by the bounded `/api/website/inquiry/config` response; `RECAPTCHA_SECRET_KEY` is deployment-secret-only and must never be emitted or logged.
+- Register every served contact-form hostname in reCAPTCHA, including `nobullmarketing.com` and any preview hostname used for acceptance testing. A successful token whose Google-verified hostname is outside the deployment's configured marketing/Replit host set fails closed; never derive that trust boundary from request headers.
+- Missing, expired/replayed, rejected, misconfigured, or timed-out reCAPTCHA checks must create no inquiry. The visitor must receive recovery copy that asks them to complete or refresh the security check.
+- Keep the honeypot check before reCAPTCHA verification. A tripped honeypot silently succeeds without verification, storage, lead promotion, in-app notification, or Slack delivery.
 - After a valid contact is stored, one best-effort Slack attempt targets only the exact `sales-calls` channel. The existing Slack bot must be invited to that channel; there is no fallback channel and no retry after an uncertain post failure.
 - Slack delivery is notification-only. If it fails, the stored `website_inquiries` row and existing in-app admin notification are the recovery path; do not delete or roll back the inquiry.
 - Form must not be replaced with a third-party embed unless the server-side handler is updated to match.
 
 ### Unsubscribe form (`/unsubscribe/`)
-- Must remain functional through the shared inquiry handler with only its honeypot + email field. Legal / CAN-SPAM compliance. It remains independent of Turnstile and contact-form fields.
+- Must remain functional through the shared inquiry handler with only its honeypot + email field. Legal / CAN-SPAM compliance. It remains independent of reCAPTCHA and contact-form fields.
 
 ---
 
@@ -126,11 +125,12 @@ CSP must allow `player.vimeo.com` frames (already configured in `marketingSite.t
 
 ---
 
-## 8. External Book Links
+## 8. Book Availability
 
-Both book purchase links must remain valid and open in a new tab with `rel="noopener"`:
-- Amazon: `https://www.amazon.com/Revenue-Engineering-Law-Firms-Skyrocket-ebook/dp/B0DPXYCGKK`
-- Audible: `https://www.amazon.com/Revenue-Engineering-Law-Firms-Skyrocket/dp/B0DRWC53C9/`
+Amazon and Audible are intentionally non-interactive `Coming Soon!` notices
+on the homepage and free-chapters reader. Do not restore historical listing,
+search, buy, or listen URLs until the client confirms canonical current-edition
+destinations. The on-site `/free-chapters/` action remains the live book CTA.
 
 ---
 
@@ -152,8 +152,12 @@ Both social links in the footer must remain correct:
 - **The `Practice Areas Served` header link must remain** and must resolve to
   `/about/#practice-areas-served` at every generated page depth. The retired dropdown label and
   dropdown behavior must not be restored.
-- **The About roster and practice-area list are complete contracts:** 18 people from the shared
-  `TEAM_ROSTER` and 14 entries from the shared `INDUSTRIES` source, in canonical order.
+- **The About roster and practice-area list are complete contracts:** 20 people from the shared
+  homepage/About `TEAM_ROSTER` and 14 entries from the shared `INDUSTRIES` source, in canonical
+  order. The Paid Search run is Juan and Santiago (`Senior Paid Search Expert`), Devin and Kreston
+  (`Senior Paid Search Expert`), Kaylie and Inno (`Paid Search Expert`). About exposes biographies only for Ronnie, Oliver, and
+  Jake. The homepage reveal must keep the first two rows visible (12 / 6 / 4 / 2 cards at the
+  6 / 3 / 2 / 1-column breakpoints) and must not change roster order.
 - **The footer product group is independent of the retired route:** `The Revenue Engine™` resolves to
   homepage `#system`; `CaseGen™`, `CaseIntake™`, and `CaseConvert™` resolve to `#casegen`,
   `#caseintake`, and `#caseconvert`. Do not repoint these links while editing top navigation.
@@ -198,17 +202,17 @@ This separation is controlled by `requestHostname()` + `isMarketingHost()` in `m
 These items must be in place before DNS is pointed or SEO/lead equity is at risk:
 
 - [ ] Analytics (GA4, GTM, Meta Pixel — operator to provide IDs; currently absent from Replit build)
-- [ ] JSON-LD schema (`WebPage` + `Organization` + `BreadcrumbList` — present on WordPress, absent from Replit build)
+- [x] JSON-LD schema (`WebPage` + `Organization` + `BreadcrumbList` — present on WordPress, absent from Replit build) — sitewide `Organization`+`WebPage` in every page's `<head>`, `BreadcrumbList` on every non-homepage page, plus `Article` schema on all 15 resource/article pages (website/src/html.ts, website/src/pages/article.ts)
 - [ ] All 15 canonical article slugs resolving in Replit build
 - [ ] Legacy `/resource/episode-13/` returning one 301 to the canonical Brita Long route, whose response is 200
 - [ ] Contact form POST handler verified to be working in production
-- [ ] Calendly widget loading correctly (including CSP)
+- [ ] The single external Calendly action opens the canonical destination with `noopener`
 - [ ] `sitemap.xml` returning all page URLs with correct `https://nobullmarketing.com/` origin
 - [ ] `robots.txt` returning correct content
 - [ ] `www → apex 301` verified
-- [ ] Vimeo embeds loading (CSP check)
-- [ ] All "As Seen On" logos displaying
-- [ ] Google review carousel displaying
+- [ ] All five Vimeo poster links open their canonical destinations
+- [ ] All five opaque "As Seen On" assets display without inferred identity text
+- [ ] Static written-review grid displays without a carousel dependency
 - [ ] Mobile nav working on iOS and Android
-- [ ] Book purchase links opening correctly
+- [ ] Amazon and Audible render as non-interactive `Coming Soon!` notices
 - [ ] Copyright year updated (currently says 2024)

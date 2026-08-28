@@ -56,6 +56,8 @@ type CommandPanelData = {
   googleAdsBudget: number | null;
   webinarBudget: number | null;
   lsaBudget: number | null;
+  gbpPlannedLocationCount: number | null;
+  gbpPlannedLocationCities: string[] | null;
   annualRevenueGoal: number | null;
   onboardingNotes: string | null;
   quarterPrimaryObjective: string | null;
@@ -1400,6 +1402,33 @@ export default function CommandPanel({ clientId, client, currentUser, allUsers, 
           return;
         }
       }
+      if (draftProducts.includes("gbp")) {
+        const locationCount = Number(editData.gbpPlannedLocationCount);
+        const cities: string[] = editData.gbpPlannedLocationCities || [];
+        if (!Number.isInteger(locationCount) || locationCount < 1 || locationCount > 50) {
+          toast({
+            title: "GBP planned locations are required",
+            description: "Enter a whole number from 1 to 50.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          cities.slice(0, locationCount).length !== locationCount ||
+          cities.slice(0, locationCount).some((city) => !city.trim())
+        ) {
+          toast({
+            title: "GBP location cities are required",
+            description: `Enter a city for each of the ${locationCount} planned locations.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        editData.gbpPlannedLocationCities = cities
+          .slice(0, locationCount)
+          .map((city) => city.trim());
+        editData.gbpPlannedLocationCount = locationCount;
+      }
     }
     saveMutation.mutate(editData);
   }, [editData, editingSection, panel, dataAccessDraft, dataAccess, saveMutation, toast, onUpdateClient, updateDataAccessMutation]);
@@ -1423,7 +1452,7 @@ export default function CommandPanel({ clientId, client, currentUser, allUsers, 
       identity: ["accountOwnerId", "secondaryOwnerIds", "clientPreferences", "internalHandlingNotes", "googleDriveFolderLink", "googleDriveFolderName", "zoomRecordingsFolderId", "zoomRecordingsFolderLink", "zoomRecordingsFolderName", "rerReportsFolderId", "rerReportsFolderLink", "rerReportsFolderName", "externalSystemLinks"],
       onboarding: ["onboardingNotes"],
       strategy: ["annualRevenueGoal", "quarterPrimaryObjective", "approvedTerritory", "priorityMarkets", "secondaryMarkets", "geographicExpansionNotes"],
-      products: ["productTypes", "productStatusNotes", "googleAdsBudget", "webinarBudget", "lsaBudget", "googleAdsTargetAreas", "googleAdsTargetingMethod", "googleAdsExcludedAreas", "googleAdsGeoNotes", "webinarTargetAreas", "webinarGeoNotes"],
+      products: ["productTypes", "productStatusNotes", "googleAdsBudget", "webinarBudget", "lsaBudget", "gbpPlannedLocationCount", "gbpPlannedLocationCities", "googleAdsTargetAreas", "googleAdsTargetingMethod", "googleAdsExcludedAreas", "googleAdsGeoNotes", "webinarTargetAreas", "webinarGeoNotes"],
     };
     const fields = sectionFields[section];
     if (!fields) return false;
@@ -3238,6 +3267,8 @@ export default function CommandPanel({ clientId, client, currentUser, allUsers, 
           sectionRefs.current["lsaBudget"] = el;
           sectionRefs.current["googleAdsBudget"] = el;
           sectionRefs.current["webinarBudget"] = el;
+          sectionRefs.current["gbpPlannedLocationCount"] = el;
+          sectionRefs.current["gbpPlannedLocationCities"] = el;
         }}
       >
         <CardHeader className="pb-3">
@@ -3512,6 +3543,46 @@ export default function CommandPanel({ clientId, client, currentUser, allUsers, 
               )}
               {(editData.productTypes || []).includes("gbp") && (
                 <div className="space-y-3 p-3 bg-green-50/50 border border-green-200/50 rounded-lg" data-testid="gbp-locations-section">
+                  <div className="space-y-2 border-b border-green-200/60 pb-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Planned location count *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={50}
+                        step={1}
+                        value={editData.gbpPlannedLocationCount ?? ""}
+                        onChange={(e) =>
+                          setEditData((prev) => ({ ...prev, gbpPlannedLocationCount: e.target.value }))
+                        }
+                        className="h-8 text-sm"
+                        data-testid="input-command-panel-gbp-planned-location-count"
+                      />
+                    </div>
+                    {Number.isInteger(Number(editData.gbpPlannedLocationCount)) &&
+                      Number(editData.gbpPlannedLocationCount) > 0 &&
+                      Number(editData.gbpPlannedLocationCount) <= 50 && (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {Array.from({ length: Number(editData.gbpPlannedLocationCount) }, (_, index) => (
+                            <div key={index}>
+                              <Label className="text-xs text-muted-foreground">Location {index + 1} city *</Label>
+                              <Input
+                                value={(editData.gbpPlannedLocationCities || [])[index] || ""}
+                                onChange={(e) =>
+                                  setEditData((prev) => {
+                                    const cities = [...(prev.gbpPlannedLocationCities || [])];
+                                    cities[index] = e.target.value;
+                                    return { ...prev, gbpPlannedLocationCities: cities };
+                                  })
+                                }
+                                className="h-8 text-sm"
+                                data-testid={`input-command-panel-gbp-planned-location-city-${index}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-green-700 uppercase tracking-wide flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
@@ -3763,6 +3834,10 @@ export default function CommandPanel({ clientId, client, currentUser, allUsers, 
               )}
               {panelProducts.includes("gbp") && (
                 <div className="p-3 bg-green-50/50 border border-green-200/50 rounded-lg space-y-2" data-testid="display-gbp-locations">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {renderField("Planned Locations", panel?.gbpPlannedLocationCount)}
+                    {renderField("Planned Cities", panel?.gbpPlannedLocationCities || [], "list")}
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-green-700 uppercase tracking-wide flex items-center gap-1">
                       <MapPin className="w-3 h-3" />

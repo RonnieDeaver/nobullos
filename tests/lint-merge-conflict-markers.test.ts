@@ -3,7 +3,7 @@
   "name": "lint-merge-conflict-markers guard (Task #2812)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2812: leftover merge-conflict markers guard. A stray conflict-end (seven `>`) line left in THIS file by an upstream merge once crashed the whole test gate at parse time (Task #2804) — so no smoke tests ran and nothing flagged it. The Validate workflow runs npm run gate, including the lint through gate.ts LINT_CHECKS and this real-tree SMOKE_FILES assertion. Fast, DB-free, deterministic (filesystem scan + tmpdir fixtures).",
+  "smokeReason": "Task #2812: leftover merge-conflict markers guard. A stray conflict-end (seven `>`) line left in THIS file by an upstream merge once crashed the whole test gate at parse time (Task #2804) — so no smoke tests ran and nothing flagged it. The managed Long validation workflow runs the reviewed routine-gate profile, including the lint through gate.ts LINT_CHECKS and this real-tree SMOKE_FILES assertion. Fast, DB-free, deterministic (filesystem scan + tmpdir fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -13,7 +13,7 @@ test-registration */
  * Background: a stray conflict-end marker line (seven `>` then `ed353e1 (...)`) left in
  * tests/run-all.ts by an upstream merge crashed the entire validation run at
  * parse time — so NO smoke tests ran at all (Task #2804). The `.replit`
- * `Validate` workflow runs `npm run gate`; this SMOKE_FILES-gated test's
+ * managed Long validation workflow runs the reviewed routine-gate profile; this SMOKE_FILES-gated test's
  * FIRST assertion also runs the lint against the real tree.
  *
  * Proves:

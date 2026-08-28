@@ -6,7 +6,8 @@
     "server/services/bookingScheduler.ts",
     "server/services/zoomIntegration.ts"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Covers effective-host resolution across booking routes and scheduler configuration."
 }
 test-registration */
 /**

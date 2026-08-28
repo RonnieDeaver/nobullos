@@ -25,7 +25,10 @@ test-registration */
  *     callback. Plus a pure stageHeatmapImport test (no DB).
  *  6. Duplicate-import (same campaign/keyword/day) semantics unchanged: the
  *     second import returns the existing snapshot id and writes nothing new.
- *  7. Enrichment begins only after a successful commit: rollback paths reject
+ *  7. A materially changed same-day 5×5 scan atomically refreshes the same
+ *     snapshot id to a 15×15 / 225-point scan, including metrics and cache.
+ *  8. A failed same-day refresh rolls back to the complete prior version.
+ *  9. Enrichment begins only after a successful commit: rollback paths reject
  *     before any enrichment (the enrichment target snapshot never exists).
  *
  * Hermeticity: unique per-run campaign/location IDs; all rows deleted in
@@ -33,12 +36,18 @@ test-registration */
  */
 
 import { db } from "../server/db";
-import { heatmapSnapshots, heatmapPoints, heatmapMetrics } from "@shared/schema";
+import {
+  heatmapSnapshots,
+  heatmapPoints,
+  heatmapMetrics,
+  heatmapCompetitorSnapshots,
+} from "@shared/schema";
 import { getTableName } from "drizzle-orm";
 import { eq, like } from "drizzle-orm";
 import {
   importHeatmap,
   stageHeatmapImport,
+  getSnapshotGeoJSON,
   GEOJSON_GEOMETRY_VERSION,
   type SemrushImportPayload,
 } from "../server/services/heatmapService";
@@ -131,7 +140,10 @@ function installTxSpy(opts: TxSpyOptions = {}): TxSpy {
             return (table: any) => {
               spy.ops.push(`insert:${getTableName(table)}`);
               if (opts.failOnInsertTable && table === opts.failOnInsertTable) {
-                throw new Error("forced point-write failure");
+                const tableName = getTableName(table);
+                throw new Error(table === heatmapPoints
+                  ? "forced point-write failure"
+                  : `forced ${tableName} insert failure`);
               }
               return target.insert(table);
             };
@@ -143,6 +155,12 @@ function installTxSpy(opts: TxSpyOptions = {}): TxSpy {
                 throw new Error("forced cache-write failure");
               }
               return target.update(table);
+            };
+          }
+          if (prop === "delete") {
+            return (table: any) => {
+              spy.ops.push(`delete:${getTableName(table)}`);
+              return target.delete(table);
             };
           }
           if (prop === "select") {
@@ -172,6 +190,17 @@ async function countRowsFor(campaignId: string): Promise<{ snapshots: number; po
     metrics += (await db.select({ id: heatmapMetrics.id }).from(heatmapMetrics).where(eq(heatmapMetrics.snapshotId, s.id))).length;
   }
   return { snapshots: snaps.length, points, metrics };
+}
+
+async function seedCompetitor(snapshotId: string, campaignId: string, name: string): Promise<void> {
+  await db.insert(heatmapCompetitorSnapshots).values({
+    snapshotId,
+    campaignId,
+    keyword: "personal injury lawyer",
+    scanDate: new Date("2026-08-01T12:00:00.000Z"),
+    competitorName: name,
+    competitorRankPosition: 1,
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -207,6 +236,7 @@ async function testSuccessCommitAndBoundary(): Promise<void> {
     spy.restore();
   }
   assert(spy.txInvocations === 1, `exactly one transaction, got ${spy.txInvocations}`);
+  assert(result.status === "created", `first import should report created, got ${result.status}`);
   // Structural boundary: ONLY the dedupe check + atomic writes inside the tx.
   assert(
     JSON.stringify(spy.ops) === JSON.stringify([
@@ -341,15 +371,185 @@ async function testDuplicateImportIdempotent(): Promise<void> {
     spy.restore();
   }
   assert(second.snapshotId === first.snapshotId, "duplicate import returns the existing snapshot id");
+  assert(second.status === "unchanged", `exact replay should report unchanged, got ${second.status}`);
+  assert(second.pointCount === 3, `exact replay should report 3 persisted points, got ${second.pointCount}`);
   assert(canonical(second.metrics) === canonical(first.metrics), "duplicate import returns existing metrics");
-  // Boundary on the duplicate path: dedupe select + existing-metrics select
+  // Boundary on the duplicate path: locked identity + points + metrics reads
   // only — NO writes.
-  assert(JSON.stringify(spy.ops) === JSON.stringify(["select", "select"]),
+  assert(JSON.stringify(spy.ops) === JSON.stringify(["select", "select", "select"]),
     `duplicate path must not write, got ${JSON.stringify(spy.ops)}`);
   const counts = await countRowsFor(campaignId);
   assert(counts.snapshots === 1 && counts.points === 3 && counts.metrics === 1,
     `duplicate import must not add rows, got ${JSON.stringify(counts)}`);
   console.log("[TestF DuplicateImportIdempotent] ✓");
+}
+
+function makeGridPoints(dim: number, rankOffset = 0): SemrushImportPayload["points"] {
+  const points: SemrushImportPayload["points"] = [];
+  for (let row = 0; row < dim; row++) {
+    for (let col = 0; col < dim; col++) {
+      points.push({
+        lat: 40 + row * 0.01,
+        lng: -75 + col * 0.01,
+        position: ((row * dim + col + rankOffset) % 25) + 1,
+        diff: rankOffset === 0 ? 0 : (col % 3) - 1,
+      });
+    }
+  }
+  return points;
+}
+
+// ----------------------------------------------------------------------------
+// Test G — changed same-day scan refreshes the same snapshot id atomically.
+// ----------------------------------------------------------------------------
+async function testChangedSameDayScanRefreshesInPlace(): Promise<void> {
+  const campaignId = `camp-${TAG}-refresh`;
+  const initialPayload = makePayload({
+    campaignId,
+    gridTemplate: "5x5",
+    pointsNumber: 25,
+    points: makeGridPoints(5),
+  });
+  const first = await importHeatmap(initialPayload);
+  await seedCompetitor(first.snapshotId, campaignId, "Prior Scan Competitor");
+
+  const refreshedPayload = makePayload({
+    campaignId,
+    locationName: "Refreshed Location",
+    businessName: "Refreshed Business",
+    gridTemplate: "15x15",
+    gridDistance: 10,
+    pointsNumber: 225,
+    points: makeGridPoints(15, 4),
+  });
+  const second = await importHeatmap(refreshedPayload);
+
+  assert(second.snapshotId === first.snapshotId, "changed same-day scan preserves the snapshot id");
+  assert(second.status === "refreshed", `changed scan should report refreshed, got ${second.status}`);
+  assert(second.pointCount === 225, `refresh response should report 225 persisted points, got ${second.pointCount}`);
+
+  const snapshots = await db.select().from(heatmapSnapshots)
+    .where(eq(heatmapSnapshots.campaignId, campaignId));
+  assert(snapshots.length === 1, `refresh must retain one canonical snapshot, got ${snapshots.length}`);
+  const [snapshot] = snapshots;
+  assert(snapshot.id === first.snapshotId, "stored snapshot id remains report-reference stable");
+  assert(snapshot.gridTemplate === "15x15" && snapshot.pointsNumber === 225,
+    `snapshot metadata should refresh to 15x15/225, got ${snapshot.gridTemplate}/${snapshot.pointsNumber}`);
+  assert(snapshot.locationName === "Refreshed Location" && snapshot.businessName === "Refreshed Business",
+    "snapshot descriptive metadata refreshed");
+  assert(canonical(snapshot.rawPayload) === canonical(refreshedPayload), "raw payload refreshed to incoming scan");
+
+  const points = await db.select().from(heatmapPoints)
+    .where(eq(heatmapPoints.snapshotId, first.snapshotId));
+  assert(points.length === 225, `refresh should replace children with 225 points, got ${points.length}`);
+  assert(points.some((point) => point.pointIndex === 224), "last 15x15 point persisted");
+
+  const metrics = await db.select().from(heatmapMetrics)
+    .where(eq(heatmapMetrics.snapshotId, first.snapshotId));
+  assert(metrics.length === 1, `refresh should retain exactly one metrics row, got ${metrics.length}`);
+  assert(canonical(second.metrics) === canonical(stageHeatmapImport(refreshedPayload, first.snapshotId).metrics),
+    "refresh response metrics match the newly persisted scan");
+  const competitors = await db.select().from(heatmapCompetitorSnapshots)
+    .where(eq(heatmapCompetitorSnapshots.snapshotId, first.snapshotId));
+  assert(competitors.length === 0, "refresh atomically clears prior-scan competitor children");
+
+  const servedGeojson = await getSnapshotGeoJSON(first.snapshotId);
+  const polygonFeatures = servedGeojson.features.filter((feature: any) => feature.geometry?.type === "Polygon");
+  assert(polygonFeatures.length === 225,
+    `report-bound snapshot should serve 225 polygon features after refresh, got ${polygonFeatures.length}`);
+  assert(servedGeojson.features.length === 226, "served cache includes 225 cells plus the business pin");
+  console.log("[TestG ChangedSameDayScanRefreshesInPlace] ✓");
+}
+
+// ----------------------------------------------------------------------------
+// Test H — a failed changed-content refresh preserves the prior full version.
+// ----------------------------------------------------------------------------
+async function testFailedRefreshPreservesPriorVersion(): Promise<void> {
+  const campaignId = `camp-${TAG}-refreshfail`;
+  const initialPayload = makePayload({
+    campaignId,
+    gridTemplate: "5x5",
+    pointsNumber: 25,
+    points: makeGridPoints(5),
+  });
+  const first = await importHeatmap(initialPayload);
+  await seedCompetitor(first.snapshotId, campaignId, "Rollback Competitor");
+  const [beforeSnapshot] = await db.select().from(heatmapSnapshots)
+    .where(eq(heatmapSnapshots.id, first.snapshotId));
+  const beforePoints = await db.select().from(heatmapPoints)
+    .where(eq(heatmapPoints.snapshotId, first.snapshotId))
+    .orderBy(heatmapPoints.pointIndex);
+  const beforeMetrics = await db.select().from(heatmapMetrics)
+    .where(eq(heatmapMetrics.snapshotId, first.snapshotId));
+  const beforeCompetitors = await db.select().from(heatmapCompetitorSnapshots)
+    .where(eq(heatmapCompetitorSnapshots.snapshotId, first.snapshotId));
+
+  const changedPayload = makePayload({
+    campaignId,
+    gridTemplate: "15x15",
+    gridDistance: 10,
+    pointsNumber: 225,
+    points: makeGridPoints(15, 7),
+  });
+  const spy = installTxSpy({ failOnInsertTable: heatmapMetrics });
+  let threw = false;
+  try {
+    await importHeatmap(changedPayload);
+  } catch (err) {
+    threw = true;
+    assert(err instanceof Error && err.message.includes("forced heatmap_metrics insert failure"), `unexpected error: ${err}`);
+  } finally {
+    spy.restore();
+  }
+  assert(threw, "failed refresh must reject");
+  assert(spy.ops.includes("update:heatmap_snapshots")
+    && spy.ops.includes("delete:heatmap_points")
+    && spy.ops.includes("delete:heatmap_metrics")
+    && spy.ops.includes("delete:heatmap_competitor_snapshots")
+    && spy.ops.includes("insert:heatmap_points")
+    && spy.ops.includes("insert:heatmap_metrics"),
+  `refresh failure fixture must reach replacement writes, got ${JSON.stringify(spy.ops)}`);
+
+  const [afterSnapshot] = await db.select().from(heatmapSnapshots)
+    .where(eq(heatmapSnapshots.id, first.snapshotId));
+  const afterPoints = await db.select().from(heatmapPoints)
+    .where(eq(heatmapPoints.snapshotId, first.snapshotId))
+    .orderBy(heatmapPoints.pointIndex);
+  const afterMetrics = await db.select().from(heatmapMetrics)
+    .where(eq(heatmapMetrics.snapshotId, first.snapshotId));
+  const afterCompetitors = await db.select().from(heatmapCompetitorSnapshots)
+    .where(eq(heatmapCompetitorSnapshots.snapshotId, first.snapshotId));
+  assert(canonical(afterSnapshot) === canonical(beforeSnapshot), "failed refresh restores prior snapshot metadata/raw/cache");
+  assert(canonical(afterPoints) === canonical(beforePoints), "failed refresh restores all prior point rows");
+  assert(canonical(afterMetrics) === canonical(beforeMetrics), "failed refresh restores prior metrics row");
+  assert(canonical(afterCompetitors) === canonical(beforeCompetitors), "failed refresh restores prior competitor rows");
+  console.log("[TestH FailedRefreshPreservesPriorVersion] ✓");
+}
+
+// ----------------------------------------------------------------------------
+// Test I — concurrent first imports serialize to one canonical snapshot.
+// ----------------------------------------------------------------------------
+async function testConcurrentFirstImportsCreateOneSnapshot(): Promise<void> {
+  const campaignId = `camp-${TAG}-concurrent`;
+  const payload = makePayload({
+    campaignId,
+    gridTemplate: "5x5",
+    pointsNumber: 25,
+    points: makeGridPoints(5),
+  });
+
+  const [left, right] = await Promise.all([
+    importHeatmap(payload),
+    importHeatmap(payload),
+  ]);
+  assert(left.snapshotId === right.snapshotId, "concurrent first imports converge on one snapshot id");
+  assert(new Set([left.status, right.status]).has("created"), "one concurrent importer creates the snapshot");
+  assert(new Set([left.status, right.status]).has("unchanged"), "the other concurrent importer observes an exact replay");
+
+  const counts = await countRowsFor(campaignId);
+  assert(counts.snapshots === 1 && counts.points === 25 && counts.metrics === 1,
+    `concurrent first imports must persist one complete version, got ${JSON.stringify(counts)}`);
+  console.log("[TestI ConcurrentFirstImportsCreateOneSnapshot] ✓");
 }
 
 // ----------------------------------------------------------------------------
@@ -368,6 +568,9 @@ async function cleanup(): Promise<void> {
     await testCacheWriteFailureRollsBack();
     await testStagingFailureWritesNothing();
     await testDuplicateImportIdempotent();
+    await testChangedSameDayScanRefreshesInPlace();
+    await testFailedRefreshPreservesPriorVersion();
+    await testConcurrentFirstImportsCreateOneSnapshot();
     console.log("heatmap-import-short-transaction: all cases passed");
   } catch (err) {
     console.error("heatmap-import-short-transaction: FAILED", err);

@@ -8,7 +8,8 @@
     "migrations/20260825130000_contract_supervisor_schema.sql",
     "shared/models/serviceDesk.ts"
   ],
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Creates a disposable schema and runs the migration through upgrade, constraint, and replay cases."
 }
 test-registration */
 

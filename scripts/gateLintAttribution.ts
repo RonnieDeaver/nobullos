@@ -187,7 +187,32 @@ export function normalizeOffenseOutput(text: string, stripPrefixes: readonly str
   }
   out = out
     .replace(/\b\d+(\.\d+)?\s*(ms|s)\b/g, "<t>")
-    .replace(/\d{4}-\d{2}-\d{2}T[0-9:.]+Z?/g, "<ts>");
+    .replace(/\d{4}-\d{2}-\d{2}T[0-9:.]+Z?/g, "<ts>")
+    // lint-replit-md's whole-file anti-regrowth budget (Rule 6) and
+    // per-section bullet-count cap (Rule 7) embed the file's EXACT current
+    // overage in prose. That count drifts on every unrelated upstream merge
+    // that nudges replit.md by even one character, so two honest measurements
+    // of the SAME chronic "still over budget" offense almost never hash
+    // identically — the base/head signature then mismatches and a task that
+    // never touched replit.md is misclassified "yours" (Task #5344). Match
+    // only these two message shapes verbatim (scoped to lint-replit-md's own
+    // wording, not a generic "any N > M" rule that could mask a genuinely
+    // different numeric offense from some other lint) and collapse the
+    // drifting counts to a placeholder while preserving which rule — and,
+    // for the bullet-count cap, which section — is violated, so a genuinely
+    // different violation still produces a different signature.
+    .replace(
+      /file has \d+ lines > \d+\. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts\./g,
+      "file has <n> lines > <cap>. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts.",
+    )
+    .replace(
+      /file has \d+ chars \(~\d+ tokens\) > \d+\. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts\./g,
+      "file has <n> chars (~<n> tokens) > <cap>. RELOCATE detail into the owning runbook and leave a one-line pointer — do NOT delete durable facts.",
+    )
+    .replace(
+      /section "### ([^"]+)" has \d+ bullets > \d+\. Collapse a per-task changelog chain into one durable subsystem bullet and RELOCATE detail into the owning runbook — do NOT delete durable facts\./g,
+      'section "### $1" has <n> bullets > <cap>. Collapse a per-task changelog chain into one durable subsystem bullet and RELOCATE detail into the owning runbook — do NOT delete durable facts.',
+    );
   return (
     out
       .split("\n")

@@ -121,7 +121,6 @@ const MANIFEST_PATH = join(ROOT, "tests/red-manifest.json");
 const BUDGET_MS = Number(process.env.POST_MERGE_CANARY_BUDGET_MS) || 240_000;
 /** Per-suite timeout passed to the child run (TEST_FILE_TIMEOUT_MS). */
 const SUITE_TIMEOUT_MS = 60_000;
-
 // ─── Main ────────────────────────────────────────────────────────────────────
 interface CanaryResult {
   startedAt: string;
@@ -135,6 +134,8 @@ interface CanaryResult {
   newReds: string[];
   clearedReds: string[];
   budgetMs: number;
+  /** False for every skip: no skip is completion evidence. */
+  validationComplete: boolean;
   // Task #4617 — additive disclosure fields (older readers ignore them; the
   // scheduler only consumes culpritCommit/culpritTask/newReds/startedAt/
   // finishedAt, guarded by tests/post-merge-canary.test.ts).
@@ -146,7 +147,7 @@ interface CanaryResult {
 
 type ResultInput = Omit<
   CanaryResult,
-  "finishedAt" | "selectionMode" | "plannedFiles" | "executedFiles" | "excludedOverBudget"
+  "finishedAt" | "validationComplete" | "selectionMode" | "plannedFiles" | "executedFiles" | "excludedOverBudget"
 > &
   Partial<Pick<CanaryResult, "selectionMode" | "plannedFiles" | "executedFiles" | "excludedOverBudget">>;
 
@@ -154,6 +155,7 @@ function writeResult(result: ResultInput): void {
   try {
     mkdirSync(dirname(CANARY_REPORT_PATH), { recursive: true });
     const full: CanaryResult = {
+      validationComplete: !result.skipped,
       selectionMode: "related",
       plannedFiles: [],
       executedFiles: [],
@@ -285,13 +287,11 @@ async function main(): Promise<void> {
     );
 
     if (manifest.mode !== "related") {
-      // Fall-open means "run the whole smoke universe" — that is the gate's
-      // and the nightly's job. Inside a 240s advisory budget it would just
-      // get SIGKILLed after ~4 wasted minutes (the pre-#4617 failure mode:
-      // every canary died at budget with "no report"). Skip honestly instead.
-      const skipReason = `related selection fell open to full (${manifest.fullReason ?? "unknown"}) — ${smokeSuites.length} smoke suites cannot finish inside the ${Math.round(BUDGET_MS / 1000)}s advisory budget; full coverage belongs to the gate/nightly`;
+      // Deferred selection leaves broad verification to the central lanes.
+      // The canary stays bounded rather than launching an unrelated universe.
+      const skipReason = `related selection deferred broad coverage (${manifest.deferredReason ?? "unknown"}) — ${smokeSuites.length} smoke suites belong to the post-merge/nightly/weekly integrity lane`;
       console.log(`[canary] ${skipReason}`);
-      writeResult({ ...baseResult, skipped: true, skipReason, selectionMode: "full-fallback" });
+      writeResult({ ...baseResult, skipped: true, skipReason, selectionMode: "central-integrity-deferred" });
       return;
     }
 

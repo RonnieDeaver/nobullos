@@ -3,7 +3,7 @@
   "name": "lint-smoke-gate-regression guard (Task #2616, reworked by Task #3786)",
   "regression": true,
   "smoke": true,
-  "tier": "medium",
+  "tier": "small",
   "smokeReason": "Task #2616/#3786: the smoke-gate guard's own test. This guard stops the recurring \"regression-flagged-but-unselected\" rot (#2523 / #2554 / #2577 / #2599 / #2601); since #3786 the decision lives in each test's own registration block (smoke+smokeReason vs sweepOnlyReason) instead of a shared baseline file. The final assertions run the lint over the REAL repo. Fast, DB-free, deterministic.",
   "notes": "Tier reconciled to the mechanical unmeasured default during the 2026-08 blocking-portfolio audit; membership is unchanged."
 }

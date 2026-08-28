@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Semrush auto match autosave review queue (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

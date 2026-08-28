@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Last-edited badges (admin tools)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

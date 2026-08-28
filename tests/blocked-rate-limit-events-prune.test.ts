@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Blocked rate-limit events prune",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

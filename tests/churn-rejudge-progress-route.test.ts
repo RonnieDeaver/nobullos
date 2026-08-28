@@ -4,7 +4,8 @@
   "regression": true,
   "smoke": true,
   "smokeReason": "Task #4812: GET /api/churn/rejudge-progress feeds the leaderboard's re-score banner. This pins the STRICT director gate (core/lead 403 in BOTH permissive modes — it exposes book-wide churn posture), 401 unauthenticated, 403 for an unknown sub, and the delta-scoped fresh/stale arithmetic (totalJudged = fresh + stale; a seeded current-revision client lands in fresh, an old-revision client in stale, archived clients excluded). A drift here either opens the churn surface below director or makes the CEO-facing progress banner lie about re-score coverage. DB-backed route test, ~5s.",
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Exercises the churn rejudge progress route and its durable job-status readout."
 }
 test-registration */
 /**

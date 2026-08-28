@@ -92,8 +92,12 @@ export type DeliveryStability = "stable" | "declining" | "unknown";
  * contract before rating and explanation assembly. Distinct atomic fragment
  * identities remain independent; legacy items without fragment metadata fall
  * back to their normalized quote fingerprint.
+ *
+ * v7: current, clearly positive operator intel is persisted as authoritative
+ * supporting evidence and can temper a contradicted silence-only escalation.
+ * It never overrides current client-risk evidence or objective delivery decline.
  */
-export const TIER_GATE_VERSION = 6;
+export const TIER_GATE_VERSION = 7;
 
 /** Evidence that permits a Critical tier when validated. */
 export const CRITICAL_EVIDENCE_CATEGORIES = [
@@ -724,28 +728,49 @@ function applyCategoryEligibility(
 
 /**
  * Fallback silence threshold (calendar days) when the client has no usable
- * historical-gap baseline: three weeks of silence is beyond normal cadence
- * for any active account, without being so tight that thin-history clients
- * get flagged by a normal fortnight.
+ * historical baseline: the owner-approved acceptable standard is one client
+ * communication per week.
  */
-export const FALLBACK_SILENCE_THRESHOLD_DAYS = 21;
+export const FALLBACK_SILENCE_THRESHOLD_DAYS = 7;
+export const ACCEPTABLE_ROLLING_30D_COMMUNICATIONS = 4;
 
 /**
- * Baseline-relative silence: exceeded only when today's gap is longer than
- * the client's own longest historical gap (their demonstrated normal
- * rhythm). Mirrors the prompt's hard rules: ≤3 business days is never a
- * silence signal, and a client with no matched comms at all has no cadence
- * baseline to breach (that's a data-availability fact, not behavior).
+ * Baseline-relative silence: the weekly standard is the minimum acceptable
+ * cadence, and a client's observed average gap can make that threshold more
+ * permissive for a genuinely slower relationship. The rolling 30-day count
+ * remains an explicit input so the decision cannot silently drift away from
+ * the headline communication volume. A longest-gap value is retained only as
+ * a compatibility fallback for pre-average inventories.
  */
 export function isBaselineSilenceExceeded(args: {
   silenceDays: number | null;
   businessDaySilence: number | null;
   longestGapDays: number | null;
+  averageGapDays?: number | null;
+  rolling30dCount?: number;
 }): boolean {
-  const { silenceDays, businessDaySilence, longestGapDays } = args;
+  const {
+    silenceDays,
+    businessDaySilence,
+    longestGapDays,
+    averageGapDays,
+    rolling30dCount = 0,
+  } = args;
   if (silenceDays === null) return false;
   if (businessDaySilence !== null && businessDaySilence <= 3) return false;
-  if (longestGapDays !== null && longestGapDays > 0) return silenceDays > longestGapDays;
+  // Four or more communications in a rolling 30-day window meets the
+  // once-per-week standard. Do not call that account silent; the rolling
+  // window itself will stop protecting it as older communications age out.
+  const weeklyStandardDays = 7;
+  const observedAverage =
+    averageGapDays !== null && averageGapDays !== undefined && Number.isFinite(averageGapDays) && averageGapDays > 0
+      ? averageGapDays
+      : longestGapDays !== null && longestGapDays > 0
+        ? longestGapDays
+        : null;
+  const acceptableGapDays = Math.max(weeklyStandardDays, observedAverage ?? 0);
+  if (rolling30dCount >= ACCEPTABLE_ROLLING_30D_COMMUNICATIONS) return false;
+  if (observedAverage !== null) return silenceDays > acceptableGapDays;
   return silenceDays > FALLBACK_SILENCE_THRESHOLD_DAYS;
 }
 
@@ -881,9 +906,28 @@ export interface TierGateInput {
   deliveryStability: DeliveryStability;
   /** Task #4766 — where the stability verdict's evidence came from. */
   deliveryStabilitySource: DeliveryStabilitySource;
+  /**
+   * Current, clearly positive human-filed client context. Text is classified
+   * before this boundary and never persisted here; the gate independently
+   * enforces freshness from the source timestamp.
+   */
+  positiveClientContext?: PositiveClientContextSignal[];
 }
 
 export type JudgmentRelationshipStatus = "Strong" | "Stable" | "Strained" | "At Risk";
+
+export interface PositiveClientContextSignal {
+  /** Stable source identity; never contains operator-entered text. */
+  id: string;
+  sourceType: "operator_intel";
+  occurredAt: string;
+  /**
+   * The intel explicitly records recent direct contact (for example, a call
+   * or meeting), so it can contradict a missing/misclassified silence fact.
+   * General positive sentiment alone never suppresses a genuine cadence gap.
+   */
+  confirmsRecentClientContact?: boolean;
+}
 
 export interface RatingDriver {
   /** Stable, deduplicated identifier; never contains the underlying quote. */
@@ -906,6 +950,33 @@ export interface TierGateDecision {
   healthyForced: boolean;
   finalOverallRisk: number;
   riskClamped: boolean;
+  /** Current positive operator signals accepted as authoritative support. */
+  positiveClientContext: PositiveClientContextSignal[];
+  /** True only when positive context contradicted an otherwise silence-only escalation. */
+  silenceTemperedByPositiveContext: boolean;
+}
+
+export const POSITIVE_CLIENT_CONTEXT_MAX_AGE_DAYS = 14;
+
+function currentPositiveClientContext(input: TierGateInput): PositiveClientContextSignal[] {
+  const judged = new Date(`${input.judgmentDate.slice(0, 10)}T23:59:59.999Z`).getTime();
+  if (!Number.isFinite(judged)) return [];
+  const seen = new Set<string>();
+  return (input.positiveClientContext ?? []).filter(signal => {
+    if (
+      !signal ||
+      signal.sourceType !== "operator_intel" ||
+      typeof signal.id !== "string" ||
+      !signal.id ||
+      seen.has(signal.id)
+    ) return false;
+    const occurred = new Date(signal.occurredAt).getTime();
+    if (!Number.isFinite(occurred)) return false;
+    const ageDays = Math.floor((judged - occurred) / 86_400_000);
+    if (ageDays < 0 || ageDays > POSITIVE_CLIENT_CONTEXT_MAX_AGE_DAYS) return false;
+    seen.add(signal.id);
+    return true;
+  });
 }
 
 /**
@@ -922,6 +993,16 @@ export function applyJudgmentTierGate(input: TierGateInput): TierGateDecision {
   );
   const hasCriticalEvidence = acceptedSeverities.includes("critical");
   const hasAtRiskEvidence = acceptedSeverities.includes("at_risk");
+  const positiveClientContext = currentPositiveClientContext(input);
+  const hasCurrentPositiveClientContext = positiveClientContext.length > 0;
+  const silenceTemperedByPositiveContext =
+    positiveClientContext.some(signal => signal.confirmsRecentClientContact === true) &&
+    input.silenceExceeded &&
+    !hasCriticalEvidence &&
+    !hasAtRiskEvidence &&
+    input.deliveryStability !== "declining";
+  const effectiveSilenceExceeded =
+    input.silenceExceeded && !silenceTemperedByPositiveContext;
   const criticalClaimsReclassified = valid.some(
     e => e.reclassifiedFrom !== undefined && CRITICAL_SET.has(e.reclassifiedFrom),
   );
@@ -933,19 +1014,23 @@ export function applyJudgmentTierGate(input: TierGateInput): TierGateDecision {
   let finalStatus: JudgmentGateStatus;
   if (hasCriticalEvidence) {
     finalStatus = "Critical";
-  } else if (hasAtRiskEvidence || input.silenceExceeded || input.deliveryStability === "declining") {
+  } else if (hasAtRiskEvidence || effectiveSilenceExceeded || input.deliveryStability === "declining") {
     finalStatus = "At Risk";
   } else if (
     valid.length === 0 &&
     input.tier === "full" &&
     input.deliveryStability === "stable" &&
-    !input.silenceExceeded
+    !effectiveSilenceExceeded
   ) {
     finalStatus = "Healthy";
   } else {
     finalStatus = "Watch";
   }
   if (criticalClaimsReclassified) addReason("critical_claims_reclassified");
+  if (hasCurrentPositiveClientContext) addReason("positive_client_context_validated");
+  if (silenceTemperedByPositiveContext) {
+    addReason("positive_client_context_tempered_silence");
+  }
   if (valid.length === 0 && finalStatus === "Watch") {
     addReason("no_validated_negative_evidence");
     addReason("genuinely_uncertain_or_incomplete_basis");
@@ -974,6 +1059,8 @@ export function applyJudgmentTierGate(input: TierGateInput): TierGateDecision {
     finalOverallRisk,
     riskDrivers,
     riskClamped: finalOverallRisk !== input.proposedOverallRisk,
+    positiveClientContext,
+    silenceTemperedByPositiveContext,
   };
 }
 
@@ -1067,7 +1154,13 @@ function buildRiskDrivers(
     });
   }
   if (input.silenceExceeded) {
-    add({ id: "context:baseline_silence", severity: "at_risk", reason: "baseline_silence_exceeded" });
+    const positiveContextTempersSilence =
+      currentPositiveClientContext(input).some(signal => signal.confirmsRecentClientContact === true) &&
+      input.deliveryStability !== "declining" &&
+      !valid.some(item => acceptedEvidenceSeverity(item, input.judgmentDate) !== "watch");
+    if (!positiveContextTempersSilence) {
+      add({ id: "context:baseline_silence", severity: "at_risk", reason: "baseline_silence_exceeded" });
+    }
   }
   if (input.deliveryStability === "declining") {
     add({ id: "context:delivery_declining", severity: "at_risk", reason: "delivery_metrics_declining" });
@@ -1149,6 +1242,8 @@ export interface TierGateAudit {
   deliveryStability: DeliveryStability;
   /** Task #4766 — measured data is never mistaken for entered data. */
   deliveryStabilitySource: DeliveryStabilitySource;
+  positiveClientContext: PositiveClientContextSignal[];
+  silenceTemperedByPositiveContext: boolean;
   evidence: {
     validCount: number;
     rejectedCount: number;
@@ -1179,6 +1274,8 @@ export function buildTierGateAudit(
     silenceExceeded: input.silenceExceeded,
     deliveryStability: input.deliveryStability,
     deliveryStabilitySource: input.deliveryStabilitySource,
+    positiveClientContext: decision.positiveClientContext,
+    silenceTemperedByPositiveContext: decision.silenceTemperedByPositiveContext,
     evidence: {
       validCount: validation.validCount,
       rejectedCount: validation.rejectedCount,
@@ -1218,6 +1315,9 @@ const REASON_LABELS: Record<string, string> = {
   stable_delivery_in_baseline_no_negative_evidence:
     "Delivery is stable, cadence is within baseline, and no negative evidence was accepted",
   critical_claims_reclassified: "Unsupported critical claims were downgraded",
+  positive_client_context_validated: "Current positive client context was accepted",
+  positive_client_context_tempered_silence:
+    "Current positive client context tempered an otherwise contradictory silence-only signal",
 };
 
 function asRecord(value: unknown): Record<string, any> | null {
@@ -1482,14 +1582,19 @@ export function reconcileJudgmentNarrative(
   finalStatus: JudgmentGateStatus,
   finalRelationshipStatus: JudgmentRelationshipStatus,
   finalOverallRisk: number,
+  authoritativeContext?: string,
 ): string {
   const verdict =
     `Server verdict: ${finalStatus} / ${finalOverallRisk}. ` +
     `Relationship: ${finalRelationshipStatus}.`;
   const supportingContext = stripModelRatingClaims(narrative);
-  return supportingContext
-    ? `${verdict}\n\nSupporting context: ${supportingContext}`
-    : verdict;
+  const sections = [verdict];
+  const trimmedAuthoritativeContext = authoritativeContext?.trim();
+  if (trimmedAuthoritativeContext) {
+    sections.push(`Authoritative context: ${trimmedAuthoritativeContext}`);
+  }
+  if (supportingContext) sections.push(`Supporting context: ${supportingContext}`);
+  return sections.join("\n\n");
 }
 
 const JUDGMENT_RELATIONSHIP_LABELS = "Strong|Stable|Strained|At Risk";

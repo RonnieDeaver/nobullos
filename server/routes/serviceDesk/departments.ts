@@ -55,9 +55,16 @@ import {
   listRoleProjectionConfiguration,
   upsertRoleProjectionDestination,
   upsertRoleProjectionClientTarget,
+  bindCanonicalClientTask,
+  getCanonicalClientListPreflight,
+  listCanonicalClientListConfiguration,
   listRoleProjectionStatuses,
   manualResyncProjectionByRole,
 } from "../../services/clickUpRoleProjection";
+import {
+  listClientMirrorStatuses,
+  retryClientMirrorCommand,
+} from "../../services/clickUpClientMirror";
 
 const ASSIGNMENT_USER_ID_SCHEMA = z.string().trim().min(1).max(255).nullable();
 
@@ -1441,8 +1448,13 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
   // GET  /api/service-desk/role-projections/configuration  — CEO only
   // PUT  /api/service-desk/role-projections/destinations   — CEO only
   // PUT  /api/service-desk/role-projections/targets        — CEO only
+  // GET  /api/service-desk/role-projections/client-list/configuration — CEO only
+  // GET  /api/service-desk/role-projections/client-list/preflight     — CEO only
+  // PUT  /api/service-desk/role-projections/client-list/mappings      — CEO only
   // GET  /api/service-desk/role-projections/status         — team-lead+
   // POST /api/service-desk/role-projections/resync         — team-lead+
+  // GET  /api/service-desk/client-mirror/status            — team-lead+
+  // POST /api/service-desk/client-mirror/:commandId/retry  — team-lead+
 
   const RESPONSIBILITY_ENUM = z.enum(["doer", "checker"]);
   const ENV_ENUM = z.enum(["sandbox", "production"]);
@@ -1479,7 +1491,10 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
           departmentId: z.string().uuid(),
           responsibility: RESPONSIBILITY_ENUM,
           environment: ENV_ENUM,
-          workspaceId: z.string().max(64),
+          // The canonical setup UI derives this from the Service Desk mapping
+          // instead of trusting a user to copy a workspace ID. Retain support
+          // for existing API clients that already send it.
+          workspaceId: z.string().max(64).optional(),
           // Owning list UUID — REQUIRED for every destination (each task write is
           // preceded by a live owning-list ownership proof).
           listId: z.string().max(64),
@@ -1487,6 +1502,8 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
           targetId: z.string().max(64).optional(),
           targetKind: z.enum(["direct_task", "client_list_parent"]),
           peopleFieldId: z.string().max(128),
+          peopleFieldLabel: z.string().trim().min(1).max(255).optional(),
+          peopleFieldType: z.enum(["users", "people"]).optional(),
           enabled: z.boolean().optional().default(false),
           // Approval ACTIONS only — never raw timestamps/actors. The service
           // stamps now()+authenticated actor on approve, clears on revoke, and
@@ -1509,6 +1526,18 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
                 "Cannot set the canonical production list ID as a sandbox destination",
             });
           }
+          if (
+            val.environment === "production" &&
+            val.targetKind === "client_list_parent" &&
+            val.listId !== "901417549202"
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["listId"],
+              message:
+                "Production per-client role destinations must use the canonical Client List",
+            });
+          }
         });
         const parsed = BodySchema.safeParse(req.body);
         if (!parsed.success) {
@@ -1518,8 +1547,86 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
         // Actor id from authenticated session only — never client input. An
         // approval must be attributable to the acting CEO.
         const actorId: string | null = req.dbUser?.id ?? req.user?.claims?.sub ?? null;
+        const canonicalListId = "901417549202";
+        const isCanonicalClientRole =
+          parsed.data.environment === "production" &&
+          parsed.data.targetKind === "client_list_parent" &&
+          parsed.data.listId === canonicalListId;
+
+        const configuredWorkspaceId =
+          (await getListMappingConfig())?.clickupWorkspaceId ?? null;
+        if (isCanonicalClientRole && !configuredWorkspaceId) {
+          return res.status(400).json({
+            error: "ClickUp workspace is not configured for Service Desk",
+          });
+        }
+        if (
+          isCanonicalClientRole &&
+          parsed.data.workspaceId &&
+          parsed.data.workspaceId !== configuredWorkspaceId
+        ) {
+          return res.status(400).json({
+            error: "Submitted ClickUp workspace does not match the configured canonical Client List workspace",
+          });
+        }
+
+          // A canonical Client List role field can only be mapped after a fresh
+          // server-side read. Labels are descriptive metadata, never lookup
+          // keys: the exact live field ID is the sole write identity.
+        let liveField: { id: string; label: string; type: string; observedMaxCardinality: number | null } | null = null;
+        if (isCanonicalClientRole) {
+          const preflight = await getCanonicalClientListPreflight(500);
+          if (!preflight.available) {
+            return res.status(409).json({
+              error: "Canonical Client List could not be freshly read; no field mapping or approval was changed",
+            });
+          }
+          const expected = preflight.roleColumns.find(
+            (column) =>
+              column.departmentId === parsed.data.departmentId &&
+              column.responsibility === parsed.data.responsibility,
+          );
+          if (!expected) {
+            return res.status(400).json({
+              error: "Only active per-client Doer/Checker roles may be mapped to the canonical Client List",
+            });
+          }
+          liveField = preflight.fields.find((field) => field.id === parsed.data.peopleFieldId) ?? null;
+          if (!liveField) {
+            return res.status(400).json({
+              error: "Selected ClickUp field was not present in the fresh canonical-list read",
+            });
+          }
+          if (
+            !["users", "people"].includes(liveField.type.toLowerCase()) ||
+            (liveField.observedMaxCardinality !== null && liveField.observedMaxCardinality > 1)
+          ) {
+            return res.status(400).json({
+              error: "Selected ClickUp field does not satisfy the expected one-person role-column contract",
+            });
+          }
+        }
+
+        const workspaceId =
+          isCanonicalClientRole
+            ? configuredWorkspaceId
+            : (parsed.data.workspaceId ?? configuredWorkspaceId);
+        if (!workspaceId) {
+          return res.status(400).json({
+            error: "ClickUp workspace is not configured for Service Desk",
+          });
+        }
         const result = await upsertRoleProjectionDestination({
           ...parsed.data,
+          workspaceId,
+          // Facts come from the fresh server-side evidence. Client-provided
+          // labels/types can describe a field but never authorize it.
+          peopleFieldLabel: liveField?.label ?? parsed.data.peopleFieldLabel,
+          peopleFieldType:
+            (liveField
+              ? (liveField.type.toLowerCase() as "users" | "people")
+              : undefined) ??
+            parsed.data.peopleFieldType,
           actorId,
         });
         if (!result.ok) {
@@ -1532,6 +1639,106 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
             roleCapabilities: getDepartmentRoleCapabilities(result.destination.departmentId),
           },
         });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    },
+  );
+
+  const CLIENT_LIST_LIMIT_QUERY = z.object({
+    limit: z.string().optional().transform((value) => {
+      const parsed = Number(value ?? "200");
+      return Math.min(Math.max(1, Number.isFinite(parsed) ? Math.trunc(parsed) : 200), 500);
+    }),
+  });
+
+  // ─ GET /api/service-desk/role-projections/client-list/configuration ────────
+  app.get(
+    "/api/service-desk/role-projections/client-list/configuration",
+    isAuthenticated,
+    requireCeo,
+    async (req: any, res) => {
+      try {
+        const parsed = CLIENT_LIST_LIMIT_QUERY.safeParse(req.query);
+        if (!parsed.success) {
+          return res.status(400).json({
+            error: "Invalid query parameters",
+            details: parsed.error.flatten(),
+          });
+        }
+        res.json(await listCanonicalClientListConfiguration(parsed.data.limit));
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    },
+  );
+
+  // ─ GET /api/service-desk/role-projections/client-list/preflight ────────────
+  app.get(
+    "/api/service-desk/role-projections/client-list/preflight",
+    isAuthenticated,
+    requireCeo,
+    async (req: any, res) => {
+      try {
+        const parsed = CLIENT_LIST_LIMIT_QUERY.safeParse(req.query);
+        if (!parsed.success) {
+          return res.status(400).json({
+            error: "Invalid query parameters",
+            details: parsed.error.flatten(),
+          });
+        }
+        const [preflight, config] = await Promise.all([
+          getCanonicalClientListPreflight(parsed.data.limit),
+          getListMappingConfig(),
+        ]);
+        res.json({
+          ...preflight,
+          workspaceId: config?.clickupWorkspaceId ?? null,
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    },
+  );
+
+  // ─ PUT /api/service-desk/role-projections/client-list/mappings ─────────────
+  app.put(
+    "/api/service-desk/role-projections/client-list/mappings",
+    isAuthenticated,
+    requireCeo,
+    async (req: any, res) => {
+      try {
+        const BodySchema = z
+          .object({
+            clientId: z.string().uuid(),
+            taskId: z.string().trim().min(1).max(64),
+            source: z.enum(["manual_review", "name_adoption"]).default("manual_review"),
+            note: z.string().trim().max(500).nullable().optional(),
+          })
+          .strict();
+        const parsed = BodySchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({
+            error: "Invalid request",
+            details: parsed.error.flatten(),
+          });
+        }
+        const actorId: string | null =
+          req.dbUser?.id ?? req.user?.claims?.sub ?? null;
+        if (!actorId) {
+          return res.status(400).json({ error: "Authenticated actor is required" });
+        }
+        const result = await bindCanonicalClientTask({
+          ...parsed.data,
+          actorId,
+        });
+        if (!result.ok) {
+          return res.status(409).json({
+            error: "Client List mapping was not saved",
+            errors: result.errors,
+          });
+        }
+        res.json(result);
       } catch (err: any) {
         res.status(500).json({ error: err.message });
       }
@@ -1648,6 +1855,77 @@ export function registerServiceDeskDepartmentRoutes(app: Express): void {
           return res.status(409).json({ ...response, error: response.message });
         }
         res.json(response);
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    },
+  );
+
+  // ─ GET /api/service-desk/client-mirror/status (team-lead+) ─────────────────
+  // The lifecycle mirror is NoBull-owned and its queue state is operational
+  // evidence, not an instruction to mutate the client record. Bound the read
+  // and expose only sanitized diagnostics plus server-computed eligibility.
+  app.get(
+    "/api/service-desk/client-mirror/status",
+    isAuthenticated,
+    requireTeamLead,
+    async (req: any, res) => {
+      try {
+        const QuerySchema = z.object({
+          limit: z.string().optional().transform((value) => {
+            const parsed = Number(value ?? "100");
+            return Math.min(Math.max(1, Number.isFinite(parsed) ? Math.trunc(parsed) : 100), 200);
+          }),
+        });
+        const parsed = QuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+          return res.status(400).json({
+            error: "Invalid query parameters",
+            details: parsed.error.flatten(),
+          });
+        }
+        const statuses = await listClientMirrorStatuses(parsed.data.limit);
+        res.json({
+          statuses: statuses.map((status) => ({
+            id: status.id,
+            clientId: status.clientId,
+            status: status.status,
+            attemptCount: status.attemptCount,
+            lastErrorCode: status.lastErrorCode ? String(status.lastErrorCode).slice(0, 120) : null,
+            lastError: status.lastError ? String(status.lastError).slice(0, 500) : null,
+            retryEligible: status.retryEligible === true,
+          })),
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    },
+  );
+
+  // ─ POST /api/service-desk/client-mirror/:commandId/retry (team-lead+) ───────
+  // The service performs the atomic terminal/lease/kill-switch check. This
+  // route never resets ambiguity, drift, or a live worker lease.
+  app.post(
+    "/api/service-desk/client-mirror/:commandId/retry",
+    isAuthenticated,
+    requireTeamLead,
+    async (req: any, res) => {
+      try {
+        const parsed = z.object({ commandId: z.string().uuid() }).safeParse(req.params);
+        if (!parsed.success) {
+          return res.status(400).json({
+            error: "Invalid mirror command id",
+            details: parsed.error.flatten(),
+          });
+        }
+        const queued = await retryClientMirrorCommand(parsed.data.commandId);
+        if (!queued) {
+          return res.status(409).json({
+            ok: false,
+            error: "This mirror command is not eligible for retry",
+          });
+        }
+        res.json({ ok: true, queued: true });
       } catch (err: any) {
         res.status(500).json({ error: err.message });
       }

@@ -1,7 +1,11 @@
 import { registerHandler, isHandlerRegistered } from "./workScheduler";
 import { handleUserSlackDmJob, USER_SLACK_DM_QUEUE } from "./notifications/userSlackSender";
 import { registerGoogleAdsSyncHandler } from "./googleAdsSync";
-import { registerRepairHandler, enqueueRepairJob } from "./repairDispatcher";
+import {
+  DEFERRED_FAILURE_REPAIR_QUEUE,
+  registerRepairHandler,
+  enqueueRepairJob,
+} from "./repairDispatcher";
 import type { WorkQueueJob } from "@shared/schema";
 import {
   HEATMAP_COVERAGE_CHECK_QUEUE,
@@ -52,6 +56,11 @@ import {
   scheduleClickUpRoleProjectionBootCatchup,
 } from "./clickUpRoleProjection";
 import { CLICKUP_ROLE_PROJECTION_QUEUE } from "./clickUpRoleProjectionKick";
+import {
+  handleClickUpClientMirrorJob,
+  scheduleClickUpClientMirrorBootCatchup,
+} from "./clickUpClientMirror";
+import { CLICKUP_CLIENT_MIRROR_QUEUE } from "./clickUpClientMirrorKick";
 
 const CHUNK_SIZE = 500;
 const BACKFILL_BATCH_SIZE = 20;
@@ -83,6 +92,37 @@ function parsePayload(job: WorkQueueJob): JobPayload {
 }
 
 /**
+ * A repair queue job is a durable dispatch envelope, not an autonomous test
+ * fixer. Completing it acknowledges that the existing feedback owner is ready
+ * for human root-cause work; the owner stays pending until authoritative
+ * nightly recovery proves the family gone.
+ */
+function handleDeferredFailureRepair(
+  job: WorkQueueJob,
+): Promise<{ cursor: string }> {
+  const payload = parsePayload(job);
+  const ownerFeedbackId = payload.ownerFeedbackId;
+  const canonicalKey = payload.canonicalKey;
+  const classification = payload.classification;
+  if (
+    !Number.isInteger(ownerFeedbackId) ||
+    typeof canonicalKey !== "string" ||
+    !canonicalKey.startsWith("deferred-failure:") ||
+    classification === "unresolved"
+  ) {
+    throw new Error("Invalid deferred failure repair handoff payload");
+  }
+
+  workerLog({
+    worker: "deferredFailureRepair",
+    event: "started",
+    workloadClass: "repair",
+    jobId: job.id,
+  });
+  return Promise.resolve({ cursor: `owner:${ownerFeedbackId}:manual-repair` });
+}
+
+/**
  * Queue names whose handlers MUST be registered for the Front webhook
  * pipeline to drain. If any of these is missing after
  * `registerAllHandlers()` returns, work-queue rows for that queue land
@@ -101,6 +141,7 @@ export function registerAllHandlers(): void {
   registerHandler("zoom_revai_transcription", handleZoomRevAiTranscription);
   registerHandler("zoom_meeting_apply", handleZoomMeetingApplyJob);
   registerHandler("zoom_transcript_apply", handleZoomTranscriptApplyJob);
+  registerHandler(DEFERRED_FAILURE_REPAIR_QUEUE, handleDeferredFailureRepair);
   // Task #3702 — opt-in client face-sentiment analysis of Zoom videos
   // (sweep producer + per-record analyzer, both on `maintenance`).
   registerZoomFaceSentimentHandlers();
@@ -272,6 +313,7 @@ export function registerAllHandlers(): void {
   registerRepairHandler("zoom_revai_transcription", handleZoomRevAiTranscription);
   registerRepairHandler("zoom_meeting_apply", handleZoomMeetingApplyJob);
   registerRepairHandler("zoom_transcript_apply", handleZoomTranscriptApplyJob);
+  registerRepairHandler(DEFERRED_FAILURE_REPAIR_QUEUE, handleDeferredFailureRepair);
   registerRepairHandler("front_webhook_normalize", handleFrontWebhookNormalize);
   registerRepairHandler("front_webhook_apply", handleFrontWebhookApply);
   registerRepairHandler("front_reconciliation", handleFrontReconciliation);
@@ -333,6 +375,16 @@ export function registerAllHandlers(): void {
   if (!isHandlerRegistered(CLICKUP_ROLE_PROJECTION_QUEUE)) {
     throw new Error(
       `[workQueueHandlers] ClickUp role projection handler not registered for queue: ${CLICKUP_ROLE_PROJECTION_QUEUE}`,
+    );
+  }
+
+  // Task #5245 — canonical Client List lifecycle mirror. Producers stage a
+  // command and wake in the same client transaction.
+  registerHandler(CLICKUP_CLIENT_MIRROR_QUEUE, handleClickUpClientMirrorJob);
+  scheduleClickUpClientMirrorBootCatchup();
+  if (!isHandlerRegistered(CLICKUP_CLIENT_MIRROR_QUEUE)) {
+    throw new Error(
+      `[workQueueHandlers] ClickUp client mirror handler not registered for queue: ${CLICKUP_CLIENT_MIRROR_QUEUE}`,
     );
   }
 }

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Work-queue kill-switch abort + sub-attribution (Task #988)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 /**

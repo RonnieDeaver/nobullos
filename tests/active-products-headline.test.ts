@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Active-Products headline + write boundary (Task #1028; rated-based % Task #4914)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

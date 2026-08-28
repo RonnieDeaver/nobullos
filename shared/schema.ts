@@ -48,6 +48,7 @@ export * from "./models/clientFiles";
 export * from "./models/clickup";
 export * from "./models/comms";
 export * from "./models/serviceDesk";
+export * from "./models/onboarding";
 export * from "./departmentRoleCapabilities";
 export * from "./models/roadmap";
 export * from "./models/websiteInquiries";

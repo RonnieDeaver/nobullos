@@ -168,6 +168,14 @@ export default function DealDetail() {
         description: result.error ?? "Something went wrong. Try again.",
         variant: "destructive",
       });
+    } catch {
+      // Network/aborted request: surface it instead of leaving the move
+      // control silently stuck with no feedback.
+      toast({
+        title: "Couldn't move deal",
+        description: "Something went wrong. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setMoving(false);
     }

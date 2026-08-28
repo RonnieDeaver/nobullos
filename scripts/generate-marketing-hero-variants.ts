@@ -81,10 +81,42 @@ async function generate(dir: string, v: Variant): Promise<void> {
   );
 }
 
+// Sitewide default og:image/twitter:image (SEO/OG audit): a single ~1200x630
+// landscape crop of the approved homepage machinery hero art, replacing the
+// old WordPress background image every page used to share
+// (website/src/html.ts DEFAULT_OG_IMAGE). Cropped/re-encoded only from the
+// same 1024x1024 approved source — never new or AI-generated imagery. JPEG
+// (not WebP) for broad link-unfurl scraper compatibility.
+const OG_SOCIAL_IMAGE = {
+  source: "machinery-hero.png",
+  out: "og-social-default.jpg",
+  width: 1200,
+  height: 630,
+};
+
+async function generateOgSocialImage(dir: string): Promise<void> {
+  const src = path.join(dir, OG_SOCIAL_IMAGE.source);
+  const dst = path.join(dir, OG_SOCIAL_IMAGE.out);
+  await sharp(src)
+    .resize({
+      width: OG_SOCIAL_IMAGE.width,
+      height: OG_SOCIAL_IMAGE.height,
+      fit: "cover",
+      position: "centre",
+    })
+    .jpeg({ quality: 85 })
+    .toFile(dst);
+  const after = fs.statSync(dst).size;
+  console.log(
+    `${OG_SOCIAL_IMAGE.out}: ${(after / 1024).toFixed(0)}KB (${OG_SOCIAL_IMAGE.width}x${OG_SOCIAL_IMAGE.height} crop of ${OG_SOCIAL_IMAGE.source})`,
+  );
+}
+
 async function main(): Promise<void> {
   for (const v of VARIANTS) await generate(BRAND_DIR, v);
   for (const v of UPLOAD_MOBILE_VARIANTS) await generate(UPLOADS_DIR, v);
   for (const v of UPLOAD_ALLWIDTH_VARIANTS) await generate(UPLOADS_DIR, v);
+  await generateOgSocialImage(BRAND_DIR);
 }
 
 main().catch((err) => {

@@ -11,7 +11,8 @@
     "server/services/regressionSweepScheduler.ts",
     "server/services/healthOverview.ts"
   ],
-  "tier": "small"
+  "tier": "small",
+  "tierReason": "Deliberately small, overriding the unmeasured default of medium: these fixture tests use temporary JSON and source reads only, with no database, browser, child process, or network."
 }
 test-registration */
 /**
@@ -482,6 +483,25 @@ test("runCanaryBreakageCheck: drains the event ledger, files exactly one 'fix ma
     );
     await runCanaryBreakageCheck({ ...paths, fileFn });
     assert.equal(calls.length, 0, "empty newReds → nothing filed");
+
+    writeFileSync(
+      resultPath,
+      JSON.stringify({
+        culpritCommit: "deferred000",
+        culpritTask: null,
+        newReds: ["tests/unproven.test.ts"],
+        skipped: true,
+        validationComplete: false,
+        selectionMode: "central-integrity-deferred",
+      }),
+      "utf8",
+    );
+    await runCanaryBreakageCheck({ ...paths, fileFn });
+    assert.equal(
+      calls.length,
+      0,
+      "deferred/full selection is explicit incomplete evidence and never files unproven reds",
+    );
 
     // Unknown culprit → no call (no stable dedupe key).
     writeFileSync(
@@ -1013,9 +1033,13 @@ test("canary pre-computes its slice with the runner's own selection code and spa
   assert.ok(src.includes("SMOKE_RELATED_BASE: mergeBase"), "merge base passed to the selector explicitly");
 
   // Result discloses the plan (additive fields; scheduler contract untouched).
-  for (const field of ["selectionMode", "plannedFiles", "executedFiles", "excludedOverBudget"]) {
+  for (const field of ["validationComplete", "selectionMode", "plannedFiles", "executedFiles", "excludedOverBudget"]) {
     assert.ok(src.includes(field), `result carries ${field}`);
   }
+  assert.ok(
+    src.includes("validationComplete: !result.skipped"),
+    "every skipped canary result is persisted as incomplete validation evidence",
+  );
 });
 
 test("canary skips honestly on fall-open/full selection instead of attempting the universe (Task #4617)", () => {
@@ -1024,8 +1048,11 @@ test("canary skips honestly on fall-open/full selection instead of attempting th
   // Full-universe fallback = skip with disclosed reason (full coverage is the
   // gate/nightly's job; a 240s budget cannot run ~746 suites).
   assert.ok(src.includes('manifest.mode !== "related"'), "detects fall-open selection");
-  assert.ok(src.includes('"full-fallback"'), "full fall-open skip mode disclosed");
-  assert.ok(src.includes("belongs to the gate/nightly"), "skip reason names the responsible layer");
+  assert.ok(src.includes('"central-integrity-deferred"'), "full fall-open skip mode disclosed");
+  assert.ok(
+    src.includes("belong to the post-merge/nightly/weekly integrity lane"),
+    "skip reason names the responsible layer",
+  );
 
   // Empty slice and all-green slice skip WITHOUT booting the runner.
   assert.ok(src.includes("runner never booted"), "empty/green slices never boot the runner");

@@ -51,24 +51,21 @@
 // videos + 11 review quotes in three time-based loops for motion-allowed
 // visitors; the served static material stays the complete
 // no-JS/reduced-motion presentation) → team (FULL
-// 18-person roster, Task #4979 owner directive — led by Ronnie → Oliver
+// 20-person roster, refreshed by Task #5239 — led by Ronnie → Oliver
 // → Brett → Jeff → Janno → Cam with the rest in prior relative order,
 // presented as a calm static grid that opens collapsed to its first
 // two rows behind a Meet the Full Team toggle (teamReveal.ts, Task
 // #5011 — the #4979/#4903 endless wall is RETIRED, owner verdict: it
-// didn't look good; the served 18-card grid stays the complete no-JS
+// didn't look good; the served 20-card grid stays the complete no-JS
 // presentation), still under ONE TEAM RESPONSIBLE FROM
 // FIRST CLICK TO SIGNED CASE and still NO in-band CTA; supersedes the
 // #4926 §10 five-person compression + its About roster link; the #4926
 // brief-§11 session-offer band that followed team — the free-session
 // lede + the you-leave-knowing card, NO booking CTA — was REMOVED by
-// Task #5016, owner request: the hero session-explainer note and the
-// homepage booking section carries the session facts) → fit (nb-fit, Task #4926,
-// brief §12 — the gold-vs-crimson
-// verdict pair re-homed OUT of the closing band, both lists rewritten to
-// the brief, resolving the old lead-generation contradiction; stacking
-// at ≤1000px) → faq (nb-faq-sec, Task #4926, brief §13 — cut to the six
-// buying questions; its old #4261 contact band stays retired) → book
+// Task #5016; the homepage booking section carries the session facts) →
+// faq (nb-faq-sec —
+// seven buying questions, with the fit/not-fit criteria folded into the final
+// native disclosure; the standalone fit band is retired) → book
 // (#book — existing lower-commitment handoff, now placed directly after
 // FAQ so it prepares the final decision without interrupting it) → conversion
 // close (#booking + #contact — the “Ready to Build Your Revenue Engine?”
@@ -163,22 +160,25 @@ const prestiQuoteExcerpt = (): string => {
   }
   return excerpt;
 };
-const PRESS_LOGOS: ReadonlyArray<readonly [string, string]> = [
-  ["aba.png", "American Bar Association"],
-  ["nadp.png", "National Association of Divorce Professionals"],
-  ["profit-with-law.png", "Profit with Law"],
-  ["law-firm-growth-summit.png", "Law Firm Growth Summit"],
-  ["wealthy-woman-lawyer.png", "Wealthy Woman Lawyer"],
-];
+// These five assets are preserved as an owner-protected, opaque press rail.
+// Their individual identity and permission evidence remain unconfirmed, so
+// they must not contribute a public text claim through alt text or captions.
+const PRESS_LOGOS = [
+  "aba.png",
+  "nadp.png",
+  "profit-with-law.png",
+  "law-firm-growth-summit.png",
+  "wealthy-woman-lawyer.png",
+] as const;
 
-const pressLogoTag = (r: string, [img, name]: readonly [string, string]): string =>
-  `<img class="nb-press-logo" src="${nbAsset(r, `press/${img}`)}" alt="${esc(name)}" loading="lazy"${nbDims(`press/${img}`)}>`;
+const pressLogoTag = (r: string, img: string): string =>
+  `<img class="nb-press-logo" src="${nbAsset(r, `press/${img}`)}" alt="" aria-hidden="true" loading="lazy"${nbDims(`press/${img}`)}>`;
 
-// Credibility metrics (Task #4261, owner doc §2 — outcome-first): the band
-// sits right after the press strip now, before The Gap, and leads with the
-// money result. Wording rules: "$150M+" pairs with "In New Client Revenue"
-// (ledger #17 — client firms' revenue, never NoBull's own); the firm count
-// reads cumulatively as "Law Firms Worked With" (ledger #13 — never
+// Credibility metrics (Task #4261, owner doc §2 — outcome-first): the metrics
+// lead the single rail directly under the hero, before the secondary press
+// strip and The Gap. Wording rules: "$150M+" pairs with "In New Client
+// Revenue" (ledger #17 — client firms' revenue, never NoBull's own); the firm
+// count reads cumulatively as "Law Firms Worked With" (ledger #13 — never
 // "Grown", never an active-client framing); leads are always "Generated",
 // never "Reviewed" (ledger #16). REVIEWS_GENERATED (30,000+, ledger #35)
 // is the sanctioned alternate for slot 4 if the owner prefers reviews.
@@ -242,20 +242,20 @@ const FAQ: ReadonlyArray<readonly [string, string]> = [
     "No. We install the engine in a fixed order: Marketing, then Intake, then Sales. A stage that is already well established can move through its work faster, but it does not change the sequence. Engagements are incremental: we normally cover one stage at a time, with no more than two active at once. All three feed the same click-to-close measurement, so each stage you add joins numbers that are already running.",
   ],
   [
-    "Will we need to replace our current team or software?",
-    "Not by default. The engine installs around the people and tools you already have: CaseIntake™ builds answering, follow-up, and booking systems around your intake team, and CaseConvert™ scripts, records, and coaches the consultation your attorneys already run. We generally build around your existing software rather than prescribing change. If a tool is materially inadequate or obstructs the system, we will recommend replacing it.",
-  ],
-  [
     "What does NoBull handle, and what does our firm handle?",
     "Your firm needs three owners: a decision-maker empowered to make and enforce the changes the engine needs, an Intake owner, and a Sales owner. NoBull does the hands-on implementation: we get campaigns live, configure and improve your CRM software, coordinate supporting vendors such as call-answering services, and measure results from first click to signed case. You keep practicing law; running the engine is our job. But the work cannot succeed if necessary decisions cannot be made and enforced.",
   ],
   [
-    "How long does implementation take?",
-    "CaseGen™ is typically fully launched within 21 days and profitable within 60 days. CaseIntake™ is typically launched within 90 days and in fine-tuning within 180 days. CaseConvert™ is typically launched within 30 days and seeing profitable ROI within 90 days. These are typical expectations, not guarantees. Client implementation pace is the number-one timing factor, and NoBull will go as fast as your firm allows.",
+    "Will we need to replace our current team or software?",
+    "Not by default. The engine installs around the people and tools you already have: CaseIntake™ builds answering, follow-up, and booking systems around your intake team, and CaseConvert™ scripts, records, and coaches the consultation your attorneys already run. We generally build around your existing software rather than prescribing change. If a tool is materially inadequate or obstructs the system, we will recommend replacing it.",
   ],
   [
     "How do you track leads, consultations, signed cases, and revenue?",
     "We use WhatConverts for complete lead tracking and lead scoring. Visibility into Intake and Sales outcomes depends on your firm's software and how consistently it is used. We go as deep as the available data allows to report outcomes and improve your marketing campaigns. Where your data can't support a precise revenue number, we say so and give you the best honest estimate instead of a guess.",
+  ],
+  [
+    "How long does implementation take?",
+    "CaseGen™ is typically fully launched within 21 days and profitable within 60 days. CaseIntake™ is typically launched within 90 days and in fine-tuning within 180 days. CaseConvert™ is typically launched within 30 days and seeing profitable ROI within 90 days. These are typical expectations, not guarantees. Client implementation pace is the number-one timing factor, and NoBull will go as fast as your firm allows.",
   ],
   [
     "What does working with NoBull cost?",
@@ -270,7 +270,7 @@ const nbAsset = (r: string, rest: string): string =>
 /** Intrinsic width/height attributes for a redesign asset (CLS). */
 const nbDims = (rest: string): string => dimsAttr(`nobull-redesign/${rest}`);
 
-/** One team-roster card — the single 18-card grid renders these (Task
+/** One team-roster card — the single 20-card grid renders these (Task
     #4979 roster; presentation Task #5011): the grid is the ONLY
     presentation now — home-client/teamReveal.ts never moves or clones
     these nodes, it only collapses the grid's tail rows via the
@@ -295,17 +295,18 @@ const bookCoverPicture = (
       </picture>`;
 
 /** One funnel stage, top-down order. Copy is the 2026-08-18 owner
-    brief's, verbatim — Title Case outcome headlines, capability lines
-    exactly as given (CaseGen's carries the three ™ system names). The
-    brief rules out body paragraphs, so there is deliberately no
-    lede/description field here. */
+    brief's, verbatim — Title Case outcome headlines, with capabilities
+    represented as three semantic beats (CaseGen's carries the three ™
+    system names). The brief rules out body paragraphs, so there is
+    deliberately no lede/description field here. */
 type FunnelStageSpec = {
   key: string; // data-fn-stage token (casegen / caseintake / caseconvert)
   num: string; // 01 / 02 / 03 — the translucent background numeral
   dept: string; // small component label: MARKETING / INTAKE / SALES
   name: string; // CASEGEN™ / CASEINTAKE™ / CASECONVERT™
   headline: string; // outcome-oriented headline (Title Case, serif)
-  caps: string; // one compact capability line (· separated)
+  caps: readonly string[]; // three capability beats
+  capSeparator: "," | " ·"; // preserves the owner-approved rendered phrase
   art: () => string; // engraved stage emblem — text-free inline SVG
 };
 export const homePage: PageDef = {
@@ -398,10 +399,7 @@ ${skipLink()}
            the five direct booking placements remain header, hero,
            product funnel, after proof, and footer (six anchors because
            the header has desktop/mobile twins). The session CTA
-           keeps the only filled treatment, and the brief's
-           session-explainer note sits under the pair (.nb-hero-note —
-           "free" + the revenue-goals plan promise ride ledger #36).
-           The #4165
+           keeps the only filled treatment. The #4165
            trust line ("✓ $150M+ … across 350+ law firms we've worked
            with") is GONE from the hero — the credibility rail directly
            below carries both figures once (ledger #17/#13). -->
@@ -409,15 +407,13 @@ ${skipLink()}
         <a class="nb-btn" href="#booking">Book a High Impact Revenue Session ${ARROW}</a>
         <a class="nb-btn-outline" href="${r}free-chapters/">Read the Book ${ARROW}</a>
       </div>
-      <p class="nb-hero-note">A free working session to build the plan for making your revenue goals a reality.</p>
     </div>
 
     <!-- Hero art (Task #4262, owner doc §3 — book funnel entry): the dark
          art side stays decorative (aria-hidden per layer), but the book
          cover itself is now a subtle link into /free-chapters/ — the
-         funnel's first step (cover → free chapters → session). The hero's
-         PRIMARY action remains the session CTA on the copy side; the caption
-         under the cover is the doc's approved connection line. -->
+          funnel's first step (cover → free chapters → session). The hero's
+          PRIMARY action remains the session CTA on the copy side. -->
     <div class="nb-hero-right">
       <div class="nb-machinery" aria-hidden="true">
         <div class="nb-machinery-img"></div>
@@ -430,7 +426,6 @@ ${skipLink()}
       <a class="nb-book-stage" href="${r}free-chapters/" aria-label="Read the first two chapters of The Law Firm Revenue Engine — free">
         ${bookCoverPicture(r, `class="nb-book" src="${nbAsset(r, "brand/front-cover.jpg")}" alt=""`)}
       </a>
-      <p class="nb-book-caption">The book explains the system. NoBull installs it.</p>
       <div class="nb-book-shadow" aria-hidden="true"></div>
       <div class="nb-book-reflect" aria-hidden="true"></div>
     </div>
@@ -438,26 +433,25 @@ ${skipLink()}
   </section>
 </div>
 
-<!-- Credibility rail (Task #4816, owner feedback): the #4261 press strip +
-     metrics pair merged into ONE compact hairline-framed band — AS SEEN ON
-     logos over the four outcome aggregates — so the authority moment costs
-     one glance instead of two screens and the engine section starts ~two
-     screens sooner (the cinematic then; the #4992 funnel now). #4261's outcome-first order and wording rules are
-     unchanged (ledger #17/#13/#16 — see the METRICS comment above), and
-     home-client/statsBand.ts still drives the count-up wherever the
-     [data-stats-band] hook sits. Band rhythm: hero (egg) → rail (warm,
-     hairline-framed like the old press strip) → gap (warm; the rail's
-     bottom hairline draws the divider). -->
+<!-- Credibility rail (Task #5369): the #4261 outcome metrics lead the
+     single hairline-framed band, with the #4816 press strip following as
+     secondary validation. The engine section still starts ~two screens
+     sooner (the cinematic then; the #4992 funnel now). #4261's outcome-first
+     order and wording rules are unchanged (ledger #17/#13/#16 — see the
+     METRICS comment above), and home-client/statsBand.ts still drives the
+     count-up wherever the [data-stats-band] hook sits. Band rhythm: hero
+     (egg) → metrics (warm, primary proof) → press validation (warm, quieter
+     hairline) → gap (warm; the rail's bottom hairline draws the divider). -->
 <section class="nb-cred" data-stats-band aria-label="As seen on, and aggregate results">
+  <div class="nb-wrap nb-metric-grid">
+${METRICS.map(([stat, label]) => `    <div class="nb-metric"><strong>${metricStat(stat)}</strong><span class="nb-metric-label">${esc(label)}</span></div>`).join("\n")}
+  </div>
   <div class="nb-wrap nb-cred-press">
     <span class="nb-press-strip-label">AS SEEN ON</span>
 ${PRESS_LOGOS.slice(0, 3).map((l) => `    ${pressLogoTag(r, l)}`).join("\n")}
     <span class="nb-press-pair">
 ${PRESS_LOGOS.slice(3).map((l) => `      ${pressLogoTag(r, l)}`).join("\n")}
     </span>
-  </div>
-  <div class="nb-wrap nb-metric-grid">
-${METRICS.map(([stat, label]) => `    <div class="nb-metric"><strong>${metricStat(stat)}</strong><span class="nb-metric-label">${esc(label)}</span></div>`).join("\n")}
   </div>
 </section>
 
@@ -468,23 +462,13 @@ ${METRICS.map(([stat, label]) => `    <div class="nb-metric"><strong>${metricSta
       <span class="nb-label">THE MILLION DOLLAR GAP</span>
     </div>
     <h2 class="nb-serif">Same ${GAP_MODEL.leads} Leads. ${GAP_MODEL.gap} Apart.</h2>
-    <p class="nb-gap-lede">
-      Picture two firms with the same ${GAP_MODEL.leads} qualified leads.
-      One signs ${GAP_MODEL.leaky.cases} cases. The other signs
-      ${GAP_MODEL.tuned.cases}. At a ${GAP_MODEL.caseValue} average case
-      value, that is a ${GAP_MODEL.gap} difference without generating one
-      additional lead.
-    </p>
     <!-- Task #4923 (owner brief 2026-08-18 §3, tighter setup) on the
          #4259 frame: the H2 still PRICES the gap (500 leads / $1,000,000
          — the #4259 supersession of the #3949 "numbers land once" rule
-         for the HEADLINE figures stands) and the lede now prices it too
-         (leads in, cases out, case value, difference), while the
-         consults pair + revenue duel still land only in the
-         chart/receipt. The lede KEEPS the "Picture two firms"
-         hypothetical cue (the illustrative-model label — claim ledger
-         row 19; the brief's setup dropped it, deliberately restored —
-         deviation logged in docs/website-copy-changelog.md 2026-08-18).
+         for the HEADLINE figures stands), while the consults pair + revenue
+         duel still land only in the chart/receipt. The hidden summary carries
+         the explicit hypothetical-model label (claim ledger row 19) now that
+         the visible setup paragraph is retired.
          Every figure stays GAP_MODEL-templated, like every number in
          the band, so the generate-time drift check still guards the
          arithmetic. This visually-hidden summary is the aria-hidden
@@ -500,7 +484,7 @@ ${METRICS.map(([stat, label]) => `    <div class="nb-metric"><strong>${metricSta
          captions; this summary's closing sentence is the four leak
          names' accessible home. -->
     <p class="nb-vh">
-      Marketing generates the same ${GAP_MODEL.leads} qualified
+       Hypothetical model: two firms generate the same ${GAP_MODEL.leads} qualified
       leads for both firms. Intake books the consultations:
       ${GAP_MODEL.leaky.consults} at the leaky firm, ${GAP_MODEL.tuned.consults} at the tuned firm. Sales
       signs the cases: ${GAP_MODEL.leaky.cases} against ${GAP_MODEL.tuned.cases} —
@@ -768,8 +752,8 @@ ${rowQuotes
       <span class="nb-label">NOBLE. NO B.S.</span>
     </div>
     <h2 class="nb-serif">One Team Responsible From First Click to Signed&nbsp;Case.</h2>
-    <!-- Full-roster band (Task #4979 owner directive, superseding the
-         #4926 §10 five-person compression): all 18 people, led by
+    <!-- Full-roster band (Task #5239 owner-confirmed roster, expanding
+         the #4979 directive): all 20 people, led by
          Ronnie, Oliver, Brett, Jeff, Janno and Cam, then the rest of
          the roster in its prior relative order. This served grid is
          the complete presentation for EVERY visitor — Task #5011
@@ -778,7 +762,7 @@ ${rowQuotes
          JS-enabled visitors home-client/teamReveal.ts collapses the
          grid to its first two rows per breakpoint behind the
          accessible Meet the Full Team toggle; no-JS visitors always
-         see all 18 cards. TEAM_ROSTER is also the About page's roster
+         see all 20 cards. TEAM_ROSTER is also the About page's roster
          contract, so photo/name/role/order cannot drift between the
          two surfaces. The About text link below the grid stays
          dropped — the complete roster already renders in-band — and there is
@@ -790,50 +774,16 @@ ${TEAM_ROSTER.map(teamCard(r)).join("\n")}
   </div>
 </section>
 
-<section class="nb-fit">
-  <div class="nb-wrap">
-    <h2 class="nb-serif">Is Your Firm a Fit?</h2>
-    <!-- Fit criteria (Task #4926, owner brief §12) — the verdict cards
-         re-homed from the closing band with both lists rewritten to the
-         brief. This resolves the old contradiction (the fit list said
-         "already generate leads"; the retired FAQ said you don't need
-         to): lead flow is no longer a fit condition — willingness to
-         improve Intake and Sales alongside is. No minimum-investment or
-         firm-size threshold is published: none is on file (changelog
-         records the withholding). -->
-    <div class="nb-qual-grid">
-      <div class="nb-qual-card">
-        <span class="nb-label" id="nb-fit-label">A FIT IF</span>
-        <ul aria-labelledby="nb-fit-label">
-          <li><span class="nb-check" aria-hidden="true">✓</span> You want more signed cases, not merely more marketing activity</li>
-          <li><span class="nb-check" aria-hidden="true">✓</span> You'll let NoBull measure Marketing, Intake, Sales, and revenue</li>
-          <li><span class="nb-check" aria-hidden="true">✓</span> Someone at the firm can approve and support implementation changes</li>
-          <li><span class="nb-check" aria-hidden="true">✓</span> You want the entire system working toward the same outcome</li>
-        </ul>
-      </div>
-      <div class="nb-qual-card nb-qual-not">
-        <span class="nb-label" id="nb-notfit-label">NOT A FIT IF</span>
-        <ul aria-labelledby="nb-notfit-label">
-          <li><span class="nb-cross" aria-hidden="true">✕</span> You only need a logo, a website refresh, or a one-off campaign</li>
-          <li><span class="nb-cross" aria-hidden="true">✕</span> You can't provide the access needed to measure results</li>
-          <li><span class="nb-cross" aria-hidden="true">✕</span> You want more leads but won't improve Intake or Sales</li>
-          <li><span class="nb-cross" aria-hidden="true">✕</span> Nobody at the firm can own implementation decisions</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section class="nb-faq-sec">
   <div class="nb-wrap">
     <div class="nb-eyebrow nb-eyebrow-center">
       <i class="nb-rule"></i>
       <span class="nb-label">BEFORE YOU BOOK</span>
     </div>
-    <h2 class="nb-serif">Six Questions, Answered Straight.</h2>
-    <!-- FAQ (Task #4926, owner brief §13) — cut from ten questions to the
-         six a buyer actually asks before booking. The old contact band that
-         wrapped this list remains retired; the FAQ stands alone, followed by
+    <h2 class="nb-serif">Seven Questions, Answered Straight.</h2>
+    <!-- FAQ — seven buying questions, with the existing fit/not-fit criteria
+         folded into the final native disclosure. The old standalone fit band
+         and contact band remain retired; this list stands alone, followed by
          the book handoff and final conversion close. -->
     <div class="nb-faq">
 ${FAQ.map(
@@ -842,6 +792,32 @@ ${FAQ.map(
         <p>${esc(a)}</p>
       </details>`,
 ).join("\n")}
+      <details class="nb-faq-item nb-faq-fit">
+        <summary>Is Your Firm a Fit?</summary>
+        <!-- Fit criteria (Task #4926, owner brief §12) — the existing
+             gold-vs-crimson verdict pair now lives inside the native FAQ
+             disclosure. -->
+        <div class="nb-qual-grid">
+          <div class="nb-qual-card">
+            <span class="nb-label" id="nb-fit-label">A FIT IF</span>
+            <ul aria-labelledby="nb-fit-label">
+              <li><span class="nb-check" aria-hidden="true">✓</span> You want more signed cases, not merely more marketing activity</li>
+              <li><span class="nb-check" aria-hidden="true">✓</span> You'll let NoBull measure Marketing, Intake, Sales, and revenue</li>
+              <li><span class="nb-check" aria-hidden="true">✓</span> Someone at the firm can approve and support implementation changes</li>
+              <li><span class="nb-check" aria-hidden="true">✓</span> You want the entire system working toward the same outcome</li>
+            </ul>
+          </div>
+          <div class="nb-qual-card nb-qual-not">
+            <span class="nb-label" id="nb-notfit-label">NOT A FIT IF</span>
+            <ul aria-labelledby="nb-notfit-label">
+              <li><span class="nb-cross" aria-hidden="true">✕</span> You only need a logo, a website refresh, or a one-off campaign</li>
+              <li><span class="nb-cross" aria-hidden="true">✕</span> You can't provide the access needed to measure results</li>
+              <li><span class="nb-cross" aria-hidden="true">✕</span> You want more leads but won't improve Intake or Sales</li>
+              <li><span class="nb-cross" aria-hidden="true">✕</span> Nobody at the firm can own implementation decisions</li>
+            </ul>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 </section>
@@ -889,27 +865,14 @@ ${BOOK_STORES.map(
       <h2 id="nb-conversion-head" class="nb-serif">Ready to Build Your Revenue Engine?</h2>
       <p class="nb-close-lede">You're already paying to create opportunity. The question is
       how much of it becomes revenue.</p>
-      <i class="nb-rule" aria-hidden="true"></i>
-      <p class="nb-close-subline">Sound like a fit? The session is free — you leave knowing how to
-      start with Marketing, then build through Intake to Sales.</p>
     </div>
 
     <div class="nb-conversion-grid">
       <section id="booking" class="nb-conversion-booking" aria-labelledby="nb-booking-head">
         <div class="nb-conversion-heading">
           <h3 id="nb-booking-head" class="nb-serif">Book a High Impact Revenue Session</h3>
-          <p>Choose a time that works for your firm, then continue to our scheduler to confirm it.</p>
         </div>
-        <div class="nb-booking-handoff">
-          <p class="nb-booking-promise nb-serif">A focused, free session to find the next practical step in your Revenue Engine.</p>
-          <ul class="nb-booking-facts">
-            <li><strong>Start with the real constraint.</strong><span>Marketing, Intake, or Sales — wherever opportunity is getting stuck.</span></li>
-            <li><strong>Leave with a clear next step.</strong><span>Use the session to decide where your firm should begin.</span></li>
-          </ul>
-          <a class="nb-btn nb-booking-cta" href="${CALENDLY_URL}" target="_blank" rel="noopener" aria-describedby="nb-booking-external">View Available Times ${ARROW}</a>
-          <p id="nb-booking-external" class="nb-booking-external">Opens the NoBull scheduler on Calendly in a new tab.</p>
-        </div>
-        <noscript><p class="nb-conversion-noscript">JavaScript is off — that’s okay. The scheduling button above still works.</p></noscript>
+        <a class="nb-btn nb-booking-cta" href="${CALENDLY_URL}" target="_blank" rel="noopener">View Available Times ${ARROW}</a>
       </section>
 
       <section id="contact" class="nb-conversion-contact" aria-labelledby="nb-contact-head">
@@ -1146,7 +1109,12 @@ const FUNNEL_STAGES: readonly FunnelStageSpec[] = [
     dept: "MARKETING",
     name: "CASEGEN™",
     headline: "Create More of the Right Opportunities.",
-    caps: "Local Authority Optimization™ · Paid Search Control System™ · Review Velocity System™",
+    caps: [
+      "Local Authority Optimization™",
+      "Paid Search Control System™",
+      "Review Velocity System™",
+    ],
+    capSeparator: " ·",
     art: pinArt,
   },
   {
@@ -1155,7 +1123,8 @@ const FUNNEL_STAGES: readonly FunnelStageSpec[] = [
     dept: "INTAKE",
     name: "CASEINTAKE™",
     headline: "Stop Qualified Leads From Disappearing.",
-    caps: "Answer faster · Guide consistently · Follow up · Remove friction",
+    caps: ["speed to human", "consult capture", "revenue follow through"],
+    capSeparator: ",",
     art: calArt,
   },
   {
@@ -1164,7 +1133,8 @@ const FUNNEL_STAGES: readonly FunnelStageSpec[] = [
     dept: "SALES",
     name: "CASECONVERT™",
     headline: "Turn More Booked Consultations Into Signed Cases.",
-    caps: "Script the conversation · Strengthen the offer · Coach the execution",
+    caps: ["Consult to Client Script", "Obvious Choice Offer", "Close Rate Lab"],
+    capSeparator: ",",
     art: sealArt,
   },
 ];
@@ -1190,7 +1160,12 @@ function funnelSection(r: string): string {
             <p class="nb-fn-dept">${s.dept}</p>
             <h3 class="nb-fn-name">${s.name}</h3>
             <p class="nb-fn-headline nb-serif">${s.headline}</p>
-            <p class="nb-fn-caps">${s.caps}</p>
+            <p class="nb-fn-caps">${s.caps
+              .map(
+                (cap, capIndex) =>
+                  `<span class="nb-fn-cap">${cap}${capIndex < s.caps.length - 1 ? s.capSeparator : ""}</span>`,
+              )
+              .join("")}</p>
           </div>
         </div>`;
   return `<section id="system" class="nb-funnel" aria-labelledby="nb-funnel-head">

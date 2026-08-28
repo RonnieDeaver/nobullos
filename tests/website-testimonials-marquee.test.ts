@@ -168,6 +168,14 @@ async function runMotionAllowedTests(
     mode === "marquee",
     `data-testi-mode="marquee" on .nb-testimonials (got: ${JSON.stringify(mode)})`,
   );
+  const featuredToggleHeight = await page.$eval(
+    ".nb-featured-testimonial-toggle",
+    (element) => (element as HTMLElement).getBoundingClientRect().height,
+  );
+  assert(
+    featuredToggleHeight >= 44,
+    `featured testimonial motion control has a 44px touch target (${featuredToggleHeight.toFixed(1)}px)`,
+  );
 
   // Scroll the testimonials section into view so IntersectionObserver marks
   // all three rows as inView=true before we take any drift readings.

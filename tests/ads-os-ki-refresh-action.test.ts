@@ -11,7 +11,8 @@
   "extraEnv": {
     "NODE_ENV": "test"
   },
-  "tier": "medium"
+  "tier": "medium",
+  "tierReason": "Covers a multi-account production-action drain through its setup import and injected dependencies."
 }
 test-registration */
 /**

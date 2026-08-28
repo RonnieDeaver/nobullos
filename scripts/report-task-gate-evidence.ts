@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
- * Read-only 42-day task-gate evidence report.
+ * Read-only task-gate evidence report over the retained window (14 days;
+ * see TASK_GATE_EVIDENCE_RETENTION_DAYS).
  *
  * Usage:
  *   npx tsx scripts/report-task-gate-evidence.ts
@@ -30,6 +31,9 @@ export function formatTaskGateEvidenceReport(
     .join(", ");
   const capReasons = Object.entries(decisions.capReasonCounts)
     .map(([reason, count]) => `${reason}=${count}`)
+    .join(", ");
+  const selectionModes = Object.entries(report.selectionModes)
+    .map(([mode, count]) => `${mode}=${count}`)
     .join(", ");
   const settings =
     decisions.settings.length === 0
@@ -66,6 +70,23 @@ export function formatTaskGateEvidenceReport(
     `Observations: ${report.observations.inWindow} unique in-window ` +
       `(${report.observations.duplicatesDropped} duplicate line(s) dropped)`,
     `Completed-gate wall time: median ${duration}; p95 ${p95}`,
+    `Cost boundary: repository validation resource use=${report.costBoundary.repositoryValidation.observations} observation(s), ` +
+      `wall=${(report.costBoundary.repositoryValidation.totalWallMs / 60_000).toFixed(2)} min, ` +
+      `CPU=${report.costBoundary.repositoryValidation.totalCpuMs === null ? "not available" : `${report.costBoundary.repositoryValidation.totalCpuMs.toFixed(0)}ms`}; ` +
+      `Replit/model/platform billing=${report.costBoundary.platformOrModelBilling.status} (never estimated from repository telemetry).`,
+    `Affordability: $${report.costBoundary.affordability.monthlyCeilingUsd.toLocaleString()}/month ceiling; ` +
+      `attributable spend=${report.costBoundary.affordability.attributableSpendUsd === null ? "unavailable" : `$${report.costBoundary.affordability.attributableSpendUsd.toFixed(2)}`}; ` +
+      `monthly-normalized spend=${report.costBoundary.affordability.monthlyNormalizedSpendUsd === null ? "unavailable" : `$${report.costBoundary.affordability.monthlyNormalizedSpendUsd.toFixed(2)}`}; ` +
+      `outcome=${report.costBoundary.affordability.outcome} (${report.costBoundary.affordability.reason}).`,
+    `Outcome separation: executed=${report.outcomes.execution.executedSuites}, ` +
+      `green-skipped=${report.outcomes.execution.greenSkippedSuites}, ` +
+      `deferred-not-verified=${report.outcomes.execution.deferredNotVerifiedSuites}; ` +
+      `quarantined=${report.outcomes.observations.quarantinedNonBlocking}, ` +
+      `inherited=${report.outcomes.observations.inheritedFailures}, ` +
+      `task-caused=${report.outcomes.observations.taskCausedFailures}, ` +
+      `unresolved=${report.outcomes.observations.unresolvedFailures}, ` +
+      `incomplete=${report.outcomes.observations.incompleteVerification}.`,
+    `Selection evidence: ${selectionModes} (related-smoke = precise related selection; deferred-central-integrity = bounded proof with central debt)`,
     `Lint evidence: ${report.performance.lint.observations} observation(s), ` +
       `median ${report.performance.lint.medianWallMs === null ? "not available" : `${(report.performance.lint.medianWallMs / 1000).toFixed(1)}s`}, ` +
       `p95 ${report.performance.lint.p95WallMs === null ? "not available" : `${(report.performance.lint.p95WallMs / 1000).toFixed(1)}s`}; ` +
@@ -98,11 +119,26 @@ export function formatTaskGateEvidenceReport(
       `yours=${report.failureAttribution.yours}, ` +
       `unattributable=${report.failureAttribution.unattributable}, ` +
       `unknown=${report.failureAttribution.unknown}`,
+    `Validation history: observed linked passes=${report.validationHistory.observed.linkedPasses}, ` +
+      `observed linked validator failures=${report.validationHistory.observed.linkedFailures}, ` +
+      `unknown=${report.validationHistory.unknown.observations}.`,
+    `Policy-required but unobserved checks: not counted (${report.validationHistory.requiredButUnobserved.reason}).`,
+    `Documentation-only mentions: not counted (${report.validationHistory.documentationOnlyMentions.reason}).`,
     `Verdicts: pass=${report.verdicts.pass}, fail=${report.verdicts.fail}`,
+    `Dispositions: executed-and-passed=${report.dispositions["executed-and-passed"]}, ` +
+      `reused-accepted-green-evidence=${report.dispositions["reused-accepted-green-evidence"]}, ` +
+      `deferred-and-not-verified=${report.dispositions["deferred-and-not-verified"]}, ` +
+      `quarantined-non-blocking=${report.dispositions["quarantined-non-blocking"]}, ` +
+      `blocking-failure=${report.dispositions["blocking-failure"]}`,
     `Execution: executed=${report.execution.executed}, skipped=${report.execution.skipped}, ` +
       `deferred=${report.execution.deferred}`,
     `Retention: newest ${report.retention.maxRecords} records within ${report.retention.maxAgeDays} days ` +
       `(${TASK_GATE_EVIDENCE_PATH})`,
+    `Evidence readiness: ${report.readiness.observedInWindow}/${report.readiness.minObservationsForReadiness} ` +
+      `completed-gate observation(s) in the ${report.windowDays}-day window ` +
+      `(floor ${report.readiness.meetsObservationFloor ? "met" : "not met"}); ` +
+      `a met floor plus the full calendar window are both required before a re-review decision, ` +
+      `elapsed time alone is not sufficient.`,
   ].join("\n");
 }
 

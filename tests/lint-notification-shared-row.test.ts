@@ -3,7 +3,7 @@
   "name": "lint-notification-shared-row drift guard (Task #4514)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #4514: guards the Task #4473 NotificationRow consolidation. The bell dropdown and /notifications page must keep rendering the shared NotificationRow or the visual parity gap silently reopens. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (string fixtures + real-tree check).",
+  "smokeReason": "Task #4514: guards the Task #4473 NotificationRow consolidation. The bell dropdown and /notifications page must keep rendering the shared NotificationRow or the visual parity gap silently reopens. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (string fixtures + real-tree check).",
   "tier": "small"
 }
 test-registration */
@@ -22,7 +22,7 @@ test-registration */
  *   6. The REAL repository surfaces pass (the assertion that keeps the
  *      Task #4473 consolidation from regressing) and the shared file exists.
  *   7. Wiring lockstep: gate.ts LINT_CHECKS registers the lint and the drift
- *      guard defines `VALIDATION_WORKFLOW` with command `npm run gate`.
+ *      guard defines `LONG_VALIDATION_WORKFLOW` with the exact managed Long validation command.
  */
 
 import { readFileSync } from "node:fs";
@@ -169,7 +169,7 @@ export function Surface() { return <NotificationRow/>; }
   if (!res.ok) for (const e of res.errors) console.error(`    ${e}`);
 }
 
-// 7. Wiring lockstep: gate LINT_CHECKS + Validate workflow command.
+// 7. Wiring lockstep: gate LINT_CHECKS + managed Long validation workflow command.
 {
   const gateSrc = readFileSync(new URL("../scripts/gate.ts", import.meta.url), "utf8");
   const driftSrc = readFileSync(
@@ -181,8 +181,8 @@ export function Surface() { return <NotificationRow/>; }
     "gate.ts LINT_CHECKS registers the lint",
   );
   assert(
-    /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(driftSrc),
-    "drift guard defines VALIDATION_WORKFLOW with command npm run gate",
+    /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(driftSrc),
+    "drift guard defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
   );
 }
 

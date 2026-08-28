@@ -120,8 +120,25 @@ Ref: developer.clickup.com/docs/rate-limits
 
 - HMAC-SHA256 over raw body with the per-webhook `secret` (returned at creation, stored encrypted).
 - Signature arrives in `X-Signature` header.
-- Webhook ID arrives in `X-Webhook-Id` header (used to look up the correct secret).
+- Webhook ID arrives in `X-Webhook-Id` header. Verification is fail-closed
+  against that exact active registration; the receiver never tries unrelated
+  stored secrets.
 - Receiver: `POST /api/webhooks/clickup` (unauthenticated, HMAC-gated).
+- Canonical Client List task events are accepted only after one transaction
+  stores a minimal receipt and its `clickup_task_apply` queue job. The receipt
+  keeps IDs, event type, a SHA-256 body correlation, and queue linkage only —
+  never the raw body or secret.
+- Canonical admission requires both the signed payload and the exact webhook
+  registration to have `location_type=list` and be pinned to list
+  `901417549202`. Other task events retain
+  generic mirror refresh behavior but are marked `generic_mirror` and cannot
+  enter the future client-role apply scope.
+- This task does not create or enable that production subscription. The
+  canonical path remains dormant until an operator-approved cutover provisions
+  the list-scoped registration; repair preserves its exact `list_id` scope.
+- Retries, leases, dead letters, and operator replay use the existing governed
+  work queue. Terminal canonical failures notify admins and remain visible in
+  the ClickUp task-apply dead-letter queue.
 
 ---
 
@@ -1148,6 +1165,28 @@ Checker only for explicitly approved department UUIDs):
 5. Record the pilot cohort, sandbox task/list IDs, disabled automations and
    notifications, approver, and observation window before enabling writes.
 
+### Canonical Client List role columns
+
+The Role Assignments console shows the required per-client role-column matrix:
+one **`<Department> Doer`** People field for every active per-client department,
+plus **`<Department> Checker`** only for departments approved by the capability
+contract. Company-scoped and inactive departments are intentionally excluded.
+
+ClickUp cannot create or reorder these columns through its public API. Create
+the missing single-person People fields in the canonical Client List manually,
+then use **Recheck** in Role Assignments. The owner explicitly chooses an
+eligible field from that fresh read; the console shows the ClickUp label
+alongside its exact field ID. NoBull stores the exact ID and revalidates the
+field type and observed cardinality. ClickUp labels are descriptive metadata,
+so a shorter label such as `GBP - Doer` is valid for the NoBull role
+`Fulfillment – GBP / Local SEO Doer`; duplicate labels do not decide a mapping
+once the exact ID is selected. A field missing from the fresh read, a non-People
+field, a field observed with multiple people, or an exact field ID reused by
+another role remains blocked. Mapping stays paused until sandbox evidence and
+owner/production approvals are complete. Canonical client-task mappings fan out
+automatically to every approved role destination, so do not create
+per-client/per-department projection targets.
+
 ### Status-to-action operating guide
 
 NoBull remains authoritative in every state. Never undo a NoBull assignment to
@@ -1214,3 +1253,49 @@ The current dated evidence record is
 Production promotion must also explicitly close or accept the known
 [`EXTERNAL_CALL_AUDIT.md`](./EXTERNAL_CALL_AUDIT.md) gap: projection calls are
 redacted, but are not yet included in the external-call audit wrapper.
+
+## Canonical Client List lifecycle mirror (Task #5245)
+
+NoBull owns client identity and lifecycle. Creating a customer, renaming it,
+archiving/offboarding, restoring it, entering/exiting the customer lifecycle,
+or merging a lead stages one desired revision in
+`cu_client_mirror_commands`. The client row, command, and initial
+`clickup_client_mirror` work-queue wake commit together; no ClickUp request is
+made while a database transaction is open. The queue handler is required at
+boot and uses the worker pool.
+
+The one supported remote identity is a parent task in canonical list
+`901417549202` whose description contains the stable marker
+`[NoBull Client ID: <client UUID>]`. `cu_client_list_mappings` remains the
+write-address authority. Before creating an unmapped row—and before retrying an
+ambiguous create—the worker performs a fresh bounded, paginated list lookup for
+that marker. One match is adopted, zero permits create, and multiple matches
+become reviewable `drift`; this is the timeout-after-success duplicate defense.
+Create responses are not accepted as ownership proof without a fresh lookup.
+
+For an owned row the worker changes only `name` and `archived`. It never deletes
+a ClickUp task and does not replace descriptions, custom fields, assignments,
+watchers, dates, tags, or other operational fields. The marker must remain
+present. A task in another list, a subtask, a removed/changed marker, duplicate
+marker, or a direct ClickUp name/archive edit becomes `blocked` or `drift`
+rather than overwriting NoBull or silently creating another row.
+
+Commands use five bounded attempts, expiring CAS leases, exponential delay
+(10 seconds through 10 minutes), an atomic delayed wake, and boot-required
+handler coverage. `pending`, `ambiguous`, `synced`, `blocked`, `drift`, and
+terminal `failed` are available through the backend status service. Manual
+retry is an atomic server predicate: only an unleased terminal `failed` row
+with `auth`, `rate_limited`, `timeout`, `vendor_5xx`, or `exhausted` is
+eligible. It never clears ambiguity or review drift. Both automatic processing
+and manual retry honor the persisted `clickup_role_projection` kill switch.
+
+### Recovery
+
+1. Engage `kill_switch_clickup_role_projection=true` to pause outbound effects.
+2. Inspect command error code, lease, mapping list/task IDs, and a fresh
+   canonical-list marker lookup. Never create or delete a row by name.
+3. Resolve token/list/duplicate/identity drift. Duplicate or wrong-list
+   identity requires explicit mapping review.
+4. Clear the kill switch. Due commands resume from durable queue wakes.
+5. Use terminal retry only when the server reports it eligible; ambiguous work
+   must return through read-before-write recovery.

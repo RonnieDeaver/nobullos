@@ -3,7 +3,7 @@
   "name": "lint-single-line-bare-ref-routes guard",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #4995: guards against single-line bare-reference route registrations that silently vanish from the route-inventory parser. The first assertion runs the lint over the REAL server/routes tree, so any new `app.get(\"/path\", mw, importedHandler);` one-liner fails the routine gate instead of silently disappearing from tests/route-inventory.json. The Validate workflow runs npm run gate, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (filesystem scan + in-memory fixtures).",
+  "smokeReason": "Task #4995: guards against single-line bare-reference route registrations that silently vanish from the route-inventory parser. The first assertion runs the lint over the REAL server/routes tree, so any new `app.get(\"/path\", mw, importedHandler);` one-liner fails the routine gate instead of silently disappearing from tests/route-inventory.json. The managed Long validation workflow runs the reviewed routine-gate profile, including this lint through gate.ts LINT_CHECKS. Fast, DB-free, deterministic (filesystem scan + in-memory fixtures).",
   "tier": "small"
 }
 test-registration */
@@ -22,8 +22,8 @@ test-registration */
  *   5. A comment line that mentions the bare-ref pattern is NOT flagged.
  *   6. A fixture with multiple violations reports all of them.
  *   7. Wiring lockstep: gate.ts LINT_CHECKS registers this lint and
- *      lint-gate-workflow-drift.ts defines `VALIDATION_WORKFLOW` with command
- *      `npm run gate`.
+ *      lint-gate-workflow-drift.ts defines `LONG_VALIDATION_WORKFLOW` with the
+ *      exact managed Long validation command.
  */
 
 import { readFileSync } from "node:fs";
@@ -158,7 +158,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // 7. Wiring lockstep: gate.ts LINT_CHECKS and the Validate workflow command.
+  // 7. Wiring lockstep: gate.ts LINT_CHECKS and the managed Long validation workflow command.
   {
     const gate = readFileSync("scripts/gate.ts", "utf-8");
     assert(
@@ -168,8 +168,8 @@ async function main(): Promise<void> {
     );
     const drift = readFileSync("scripts/lint-gate-workflow-drift.ts", "utf-8");
     assert(
-      /export const VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run gate"/.test(drift),
-      "lint-gate-workflow-drift.ts defines VALIDATION_WORKFLOW with command npm run gate",
+      /export const LONG_VALIDATION_WORKFLOW\s*=\s*\{[\s\S]*?command:\s*"npm run validate:long -- --request \.local\/runs\/long-validation-request\.json"/.test(drift),
+      "lint-gate-workflow-drift.ts defines LONG_VALIDATION_WORKFLOW with the exact managed Long validation command",
     );
   }
 

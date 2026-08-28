@@ -99,6 +99,54 @@ function makeFixtureRepo(): string {
     'import { util } from "../src/util";\nif (util() !== 1) throw new Error("no");\n',
   );
   writeFileSync(join(root, "tests", "b.test.ts"), "export const b = 2;\n");
+  // Generated-artifact ownership fixture: this guard reads source and output
+  // files via fs in production, so those non-import inputs must be fingerprinted.
+  mkdirSync(join(root, "server", "routes"), { recursive: true });
+  mkdirSync(join(root, "server", "services"), { recursive: true });
+  mkdirSync(join(root, "client", "src"), { recursive: true });
+  mkdirSync(join(root, "scripts"), { recursive: true });
+  mkdirSync(join(root, "audits"), { recursive: true });
+  mkdirSync(join(root, "audits", "governance"), { recursive: true });
+  writeFileSync(join(root, "server", "routes.ts"), "export const routes = [];\n");
+  writeFileSync(join(root, "server", "routes", "fixture.ts"), "export const route = 1;\n");
+  writeFileSync(join(root, "tests", "route-inventory.ts"), "export const parse = () => [];\n");
+  writeFileSync(
+    join(root, "scripts", "regen-route-inventory.mjs"),
+    'const outputs = ["tests/route-inventory.json", "tests/route-inventory-report.md"];\n',
+  );
+  writeFileSync(
+    join(root, "scripts", "lint-route-inventory-freshness.ts"),
+    'const outputs = ["tests/route-inventory.json", "tests/route-inventory-report.md"];\n',
+  );
+  writeFileSync(
+    join(root, "scripts", "generate-endpoint-contract-table.mjs"),
+    'const outputs = ["audits/D-endpoint-contract-table.md", "audits/D-endpoint-contract-table.json"];\n',
+  );
+  writeFileSync(join(root, "scripts", "contract-table-classifiers.mjs"), "export {};\n");
+  writeFileSync(
+    join(root, "scripts", "generate-test-portfolio-baseline.ts"),
+    'const output = "audits/governance/test-portfolio-baseline.json";\n',
+  );
+  writeFileSync(join(root, "scripts", "governanceInventoryLib.ts"), "export const stable = true;\n");
+  writeFileSync(join(root, "tests", "testRegistry.ts"), "export const registry = true;\n");
+  writeFileSync(
+    join(root, "scripts", "lint-contract-table-freshness.ts"),
+    'const outputs = ["audits/D-endpoint-contract-table.md", "audits/D-endpoint-contract-table.json"];\n',
+  );
+  writeFileSync(join(root, "tests", "route-inventory.json"), "[]\n");
+  writeFileSync(join(root, "tests", "route-inventory-report.md"), "# fixture\n");
+  writeFileSync(join(root, "tests", "lint-route-inventory-freshness.test.ts"), "export {};\n");
+  writeFileSync(join(root, "tests", "post-merge-route-inventory-refresh.test.ts"), "export {};\n");
+  writeFileSync(join(root, "tests", "lint-contract-table-freshness.test.ts"), "export {};\n");
+  writeFileSync(join(root, "tests", "post-merge-generated-artifact-refresh.test.ts"), "export {};\n");
+  writeFileSync(join(root, "tests", "governance-test-portfolio-baseline.test.ts"), "export {};\n");
+  writeFileSync(join(root, "audits", "D-endpoint-contract-table.json"), "[]\n");
+  writeFileSync(join(root, "audits", "D-endpoint-contract-table.md"), "# fixture\n");
+  writeFileSync(join(root, "audits", "governance", "test-portfolio-baseline.json"), '{"facts":{}}\n');
+  writeFileSync(join(root, "client", "src", "contract-caller.tsx"), "export const caller = 'client';\n");
+  writeFileSync(join(root, "scripts", "contract-caller.mjs"), "export const caller = 'script';\n");
+  writeFileSync(join(root, "tests", "contract-caller.test.ts"), "export const caller = 'test';\n");
+  writeFileSync(join(root, "server", "services", "contract-caller.ts"), "export const caller = 'service';\n");
   // DB-flavored pair (Task #4077): db.test.ts reaches a file that reads
   // process.env.DATABASE_URL — a DB content marker — so it (and only it)
   // is migration-sensitive.
@@ -140,6 +188,9 @@ const SUITE_B: SuiteLike = {
 };
 const SUITE_DB: SuiteLike = { file: "tests/db.test.ts" };
 const SUITE_WIDGETS: SuiteLike = { file: "tests/widgets.test.ts" };
+const SUITE_ROUTE_INVENTORY_OWNER: SuiteLike = { file: "tests/lint-route-inventory-freshness.test.ts" };
+const SUITE_CONTRACT_TABLE_OWNER: SuiteLike = { file: "tests/lint-contract-table-freshness.test.ts" };
+const SUITE_TEST_PORTFOLIO_OWNER: SuiteLike = { file: "tests/governance-test-portfolio-baseline.test.ts" };
 const NO_CORE: CoreRule[] = [];
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 
@@ -182,6 +233,96 @@ test("editing a traced closure file changes ONLY the suites that reach it", asyn
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("generated artifact ownership inputs invalidate the owning guard fingerprint", async () => {
+  const root = makeFixtureRepo();
+  try {
+    const before = await fingerprintsFor(root, [SUITE_ROUTE_INVENTORY_OWNER]);
+    writeFileSync(join(root, "server", "routes", "fixture.ts"), "export const route = 2;\n");
+    const afterSource = await fingerprintsFor(root, [SUITE_ROUTE_INVENTORY_OWNER]);
+    assert.notEqual(
+      afterSource.get(SUITE_ROUTE_INVENTORY_OWNER.file),
+      before.get(SUITE_ROUTE_INVENTORY_OWNER.file),
+      "declared route source must invalidate its fs-reading guard",
+    );
+    writeFileSync(join(root, "tests", "route-inventory.json"), '[{"path":"/fixture"}]\n');
+    const afterArtifact = await fingerprintsFor(root, [SUITE_ROUTE_INVENTORY_OWNER]);
+    assert.notEqual(
+      afterArtifact.get(SUITE_ROUTE_INVENTORY_OWNER.file),
+      afterSource.get(SUITE_ROUTE_INVENTORY_OWNER.file),
+      "a regenerated output must also invalidate the owning guard",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("all endpoint contract-table filesystem inputs invalidate its owning guard fingerprint", async () => {
+  const root = makeFixtureRepo();
+  try {
+    let before = await fingerprintsFor(root, [SUITE_CONTRACT_TABLE_OWNER]);
+    for (const [label, rel, replacement] of [
+      ["client caller", "client/src/contract-caller.tsx", "export const caller = 'client-next';\n"],
+      ["script caller", "scripts/contract-caller.mjs", "export const caller = 'script-next';\n"],
+      ["test caller", "tests/contract-caller.test.ts", "export const caller = 'test-next';\n"],
+      ["service caller", "server/services/contract-caller.ts", "export const caller = 'service-next';\n"],
+      ["route handler", "server/routes/fixture.ts", "export const route = 2;\n"],
+    ] as const) {
+      writeFileSync(join(root, rel), replacement);
+      const after = await fingerprintsFor(root, [SUITE_CONTRACT_TABLE_OWNER]);
+      assert.notEqual(
+        after.get(SUITE_CONTRACT_TABLE_OWNER.file),
+        before.get(SUITE_CONTRACT_TABLE_OWNER.file),
+        `${label} must invalidate its filesystem-reading contract-table guard`,
+      );
+      before = after;
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("test-portfolio generator inputs and output invalidate its owning guard fingerprint", async () => {
+  const root = makeFixtureRepo();
+  try {
+    const before = await fingerprintsFor(root, [SUITE_TEST_PORTFOLIO_OWNER]);
+    writeFileSync(join(root, "scripts", "governanceInventoryLib.ts"), "export const stable = false;\n");
+    const afterGeneratorInput = await fingerprintsFor(root, [SUITE_TEST_PORTFOLIO_OWNER]);
+    assert.notEqual(
+      afterGeneratorInput.get(SUITE_TEST_PORTFOLIO_OWNER.file),
+      before.get(SUITE_TEST_PORTFOLIO_OWNER.file),
+      "governance-inventory helper must invalidate the portfolio freshness guard",
+    );
+    writeFileSync(
+      join(root, "audits", "governance", "test-portfolio-baseline.json"),
+      '{"facts":{"updated":true}}\n',
+    );
+    const afterArtifact = await fingerprintsFor(root, [SUITE_TEST_PORTFOLIO_OWNER]);
+    assert.notEqual(
+      afterArtifact.get(SUITE_TEST_PORTFOLIO_OWNER.file),
+      afterGeneratorInput.get(SUITE_TEST_PORTFOLIO_OWNER.file),
+      "a regenerated portfolio output must invalidate its owning guard",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("sweep reports retain the aggregate task-gate rail proof", () => {
+  const taskGateRailProof = {
+    directAffected: { selected: 1, executed: 1, skippedGreen: 0, deferred: 0 },
+    core: { selected: 2, executed: 2, skippedGreen: 0, deferred: 0 },
+  };
+  const report = buildSweepReport([sweepResult({})], {
+    ...SWEEP_META,
+    taskGateRailProof,
+  });
+  assert.deepEqual(
+    report.taskGateRailProof,
+    taskGateRailProof,
+    "the private bounded-gate receipt needs the runner's aggregate rail accounting",
+  );
 });
 
 test("editing a string-referenced loader stub re-fingerprints extraNodeArgs suites via the shim tree", async () => {
@@ -1116,6 +1257,225 @@ test("a pass without a fingerprint records nothing; a fail without one still rec
   }
 });
 
+// ---------------------------------------------------------------------------
+// 3b. Task #5306 — per-suite persistence: an interrupted sweep (killed
+// process, timeout, lost connection) must leave every already-finished,
+// already-passed suite recorded, fabricate nothing for suites that never
+// finished, and tolerate concurrent writers without corrupting the store.
+// ---------------------------------------------------------------------------
+
+test("interrupted sweep: outcomes recorded suite-by-suite as they complete survive a kill; a suite that never finished is neither green nor failed", async () => {
+  const root = makeFixtureRepo();
+  const storePath = join(root, "store.json");
+  try {
+    const plan1 = await planIncrementalRun({
+      suites: [SUITE_A, SUITE_B, SUITE_DB],
+      mode: "smoke",
+      forceAll: false,
+      repoRoot: root,
+      storePath,
+      env: {},
+      now: NOW,
+      coreRules: NO_CORE,
+    });
+    // Simulate the runner persisting each suite's outcome the moment it is
+    // known (as the serial loop / sharded lane runner now do): a.test.ts
+    // finishes and passes, b.test.ts finishes and passes, then the process
+    // is killed (SIGKILL / disconnect / timeout) before db.test.ts ever
+    // starts. Each write is its own recordRunOutcomes call.
+    recordRunOutcomes({
+      storePath,
+      mode: "smoke",
+      fingerprints: plan1.fingerprints,
+      outcomes: [{ file: "tests/a.test.ts", passed: true, flaky: false, durationMs: 100 }],
+      fullRunGreen: false,
+      now: NOW,
+    });
+    recordRunOutcomes({
+      storePath,
+      mode: "smoke",
+      fingerprints: plan1.fingerprints,
+      outcomes: [{ file: "tests/b.test.ts", passed: true, flaky: false, durationMs: 150 }],
+      fullRunGreen: false,
+      now: new Date(NOW.getTime() + 1000),
+    });
+    // "Kill" happens here — no further writes, no end-of-sweep fullRunGreen
+    // stamp is ever reached.
+
+    const { store: afterKill } = loadGreenStore(storePath);
+    assert.equal(afterKill.records["tests/a.test.ts"]?.verdict, "green", "already-finished, already-passed suite survives the kill");
+    assert.equal(afterKill.records["tests/b.test.ts"]?.verdict, "green", "second finished suite also survives the kill");
+    assert.equal(
+      afterKill.records["tests/db.test.ts"],
+      undefined,
+      "a suite that never finished is not fabricated as green (or failed) — left exactly as it was before the run",
+    );
+    assert.equal(afterKill.lastFullRunGreenAt, null, "no full-green stamp — that remains a whole-sweep, end-of-run concern");
+
+    // A retry plans against the same suites: A and B skip (green, unchanged
+    // inputs); only the suite that never finished re-executes.
+    const retryPlan = await planIncrementalRun({
+      suites: [SUITE_A, SUITE_B, SUITE_DB],
+      mode: "smoke",
+      forceAll: false,
+      repoRoot: root,
+      storePath,
+      env: {},
+      now: new Date(NOW.getTime() + 2000),
+      coreRules: NO_CORE,
+    });
+    assert.deepEqual(
+      retryPlan.skippedFiles.slice().sort(),
+      ["tests/a.test.ts", "tests/b.test.ts"],
+      "retry skips exactly the suites the interrupted run had already finished",
+    );
+    assert.deepEqual(
+      [...retryPlan.executeFiles],
+      ["tests/db.test.ts"],
+      "retry re-executes only the suite that never got to finish",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("interrupted sweep: a genuine failure is recorded immediately, per-suite, and is never masked by the sweep never reaching its end-of-run write", async () => {
+  const root = makeFixtureRepo();
+  const storePath = join(root, "store.json");
+  try {
+    const plan1 = await planIncrementalRun({
+      suites: [SUITE_A, SUITE_B],
+      mode: "smoke",
+      forceAll: false,
+      repoRoot: root,
+      storePath,
+      env: {},
+      now: NOW,
+      coreRules: NO_CORE,
+    });
+    recordRunOutcomes({
+      storePath,
+      mode: "smoke",
+      fingerprints: plan1.fingerprints,
+      outcomes: [{ file: "tests/a.test.ts", passed: false, flaky: false, durationMs: 300 }],
+      fullRunGreen: false,
+      now: NOW,
+    });
+    // Killed before tests/b.test.ts ever ran.
+    const { store } = loadGreenStore(storePath);
+    assert.equal(store.records["tests/a.test.ts"]?.verdict, "failed", "a genuine failure persists immediately, per-suite");
+    assert.equal(store.records["tests/b.test.ts"], undefined, "the suite that never started has no record");
+
+    const retryPlan = await planIncrementalRun({
+      suites: [SUITE_A, SUITE_B],
+      mode: "smoke",
+      forceAll: false,
+      repoRoot: root,
+      storePath,
+      env: {},
+      now: new Date(NOW.getTime() + 1000),
+      coreRules: NO_CORE,
+    });
+    assert.deepEqual(
+      [...retryPlan.executeFiles].sort(),
+      ["tests/a.test.ts", "tests/b.test.ts"],
+      "retry re-executes the failed suite AND the never-run one; nothing wrongly skips",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("concurrent per-suite writers (e.g. two shard lanes in one run, or an orphaned killed run overlapping a fresh retry) merge via read-merge-write without dropping or corrupting either record", async () => {
+  const root = makeFixtureRepo();
+  const storePath = join(root, "store.json");
+  try {
+    const plan1 = await planIncrementalRun({
+      suites: [SUITE_A, SUITE_B],
+      mode: "smoke",
+      forceAll: false,
+      repoRoot: root,
+      storePath,
+      env: {},
+      now: NOW,
+      coreRules: NO_CORE,
+    });
+    // Two independent writers persist DIFFERENT suites' outcomes around the
+    // same time — modeling two shard lanes in one process (each
+    // recordRunOutcomes call is synchronous end-to-end, so calls cannot
+    // interleave mid-write) or two separate orphaned/fresh-retry processes
+    // (each call re-reads the store at save time). Neither writer knows
+    // about the other's suite.
+    recordRunOutcomes({
+      storePath,
+      mode: "smoke",
+      fingerprints: plan1.fingerprints,
+      outcomes: [{ file: "tests/a.test.ts", passed: true, flaky: false, durationMs: 120 }],
+      fullRunGreen: false,
+      now: NOW,
+    });
+    recordRunOutcomes({
+      storePath,
+      mode: "smoke",
+      fingerprints: plan1.fingerprints,
+      outcomes: [{ file: "tests/b.test.ts", passed: true, flaky: false, durationMs: 90 }],
+      fullRunGreen: false,
+      now: NOW,
+    });
+    const { store } = loadGreenStore(storePath);
+    assert.equal(store.records["tests/a.test.ts"]?.verdict, "green", "the first writer's record survives the second writer's write");
+    assert.equal(store.records["tests/b.test.ts"]?.verdict, "green", "the second writer's record is also present");
+    assert.equal(Object.keys(store.records).length, 2, "no phantom or duplicate records — exactly the two genuinely-recorded suites");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("per-suite persistence wiring: run-all persists each suite's outcome the moment it completes, in both the serial and sharded lane paths — not only after the whole sweep finishes", () => {
+  const runAllSrc = readFileSync("tests/run-all.ts", "utf8");
+  const perSuiteMarker = "outcomes: [{ file: t.file, passed, flaky: passed && attempts > 1, durationMs: elapsedMs }],";
+  const perSuiteCount = runAllSrc.split(perSuiteMarker).length - 1;
+  assert.equal(
+    perSuiteCount,
+    2,
+    "exactly one per-suite persistence call site in the serial loop and one in the sharded lane runner (Task #5306) — a regression back to end-of-sweep-only persistence, or a widened batch flush, changes this count",
+  );
+
+  const totalCallSites = runAllSrc.split("recordRunOutcomes({").length - 1;
+  assert.equal(
+    totalCallSites,
+    4,
+    "4 call sites total: per-suite (serial), per-suite (lane), incomplete-shard invalidation, and the final full write — the last two remain the closing end-of-sweep safety net",
+  );
+
+  const laneStart = runAllSrc.indexOf("async function runLane(");
+  const laneEnd = runAllSrc.indexOf("end Task #5029 sharded lane runner");
+  assert.ok(laneStart > 0 && laneEnd > laneStart, "locates the runLane function body");
+  assert.ok(
+    runAllSrc.slice(laneStart, laneEnd).includes(perSuiteMarker),
+    "runLane persists each suite's outcome inside its own loop body, before the lane's promise resolves — required for the sharded path to survive a mid-sweep kill",
+  );
+
+  const serialLoopStart = runAllSrc.indexOf("if (effectiveShardCount <= 1) {");
+  const killWorkers = runAllSrc.indexOf("killAllBatchWorkers();", serialLoopStart);
+  const firstPerSuiteInSerial = runAllSrc.indexOf(perSuiteMarker, serialLoopStart);
+  assert.ok(serialLoopStart > 0 && killWorkers > 0 && firstPerSuiteInSerial > 0, "locates the serial per-suite loop");
+  assert.ok(
+    firstPerSuiteInSerial < killWorkers,
+    "serial path persists each suite's outcome inside the per-suite loop, before batch workers are torn down at the end of the sweep",
+  );
+
+  // The end-of-sweep safety net must remain intact and unconditional.
+  assert.ok(
+    runAllSrc.includes("Invalidate every selected suite's prior green"),
+    "incomplete-shard invalidation still overwrites every selected suite's outcome at end-of-sweep, including any per-suite green written during this same untrustworthy run",
+  );
+  assert.ok(
+    runAllSrc.includes("toRun.length === selected.length"),
+    "fullRunGreen stamping still gates on whole-sweep completion — a whole-sweep concern, never a per-suite write",
+  );
+});
+
 test("skip audit manifest is written with per-suite decisions", async () => {
   const root = makeFixtureRepo();
   const storePath = join(root, "store.json");
@@ -1794,6 +2154,7 @@ test("pre-#3791 report JSON (no skippedGreen) still parses and summarizes", () =
     hardFailed: 0,
     quarantinedFailed: 0,
     flaky: 0,
+    verificationComplete: true,
     results: [sweepResult({})],
     hardFailedNames: [],
     quarantinedFailedNames: [],

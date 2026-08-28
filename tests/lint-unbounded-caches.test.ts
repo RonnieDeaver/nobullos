@@ -3,7 +3,7 @@
   "name": "lint-unbounded-caches guard (Task #2899)",
   "regression": true,
   "smoke": true,
-  "smokeReason": "Task #2899: the unbounded in-memory cache guard. On the always-on Reserved VM the process never recycles, so a NEW module-level Map cache added without a cap/TTL-prune is a slow leak (#2897 bounded the known ones by hand). The Validate workflow runs npm run gate; assertion 1 runs the real server/ tree against the committed baseline. Fast, DB-free, in-process (temp-dir fixtures for the exact-behavior assertions).",
+  "smokeReason": "Task #2899: the unbounded in-memory cache guard. On the always-on Reserved VM the process never recycles, so a NEW module-level Map cache added without a cap/TTL-prune is a slow leak (#2897 bounded the known ones by hand). The managed Long validation workflow runs the reviewed routine-gate profile; assertion 1 runs the real server/ tree against the committed baseline. Fast, DB-free, in-process (temp-dir fixtures for the exact-behavior assertions).",
   "tier": "small"
 }
 test-registration */
@@ -17,7 +17,7 @@ test-registration */
  * written via `.set(...)` but show no structural bound, no
  * `@bounded-cache-safe` annotation, and no baseline entry.
  *
- * The `.replit` `Validate` workflow runs `npm run gate`, so this lint is
+ * The managed Long validation workflow runs the reviewed routine-gate profile, so this lint is
  * gated here via SMOKE_FILES: assertion 1 runs the REAL server/ tree
  * against the committed baseline — a new unbounded cache fails the
  * routine validation gate.

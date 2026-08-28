@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Competitor backfill error classify (baseline triage, Task #3424)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 // Unit test for the SEMrush fetch-error classifier used by the

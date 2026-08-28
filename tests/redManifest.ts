@@ -31,6 +31,22 @@
  *     during classification. Attribution always falls open to "yours"; a bug
  *     here can only under-excuse, never hide a task-caused failure.
  *
+ * Task #5318 — live-tip fallback: when a failure's STATIC verdict above is
+ * "yours" or "unattributable" (the manifest proof could not settle it —
+ * stale/absent/mismatched manifest, or a fingerprint shift from an unrelated
+ * blast-radius touch), `attributeRunFailures` may additionally reproduce
+ * that one suite against a resolved clean upstream base commit in a
+ * disposable worktree (tests/liveTipAttribution.ts) — mechanizing the exact
+ * manual git-stash/worktree innocence ritual an agent would otherwise run by
+ * hand. This is a SECOND, additive proof source, never a replacement: it can
+ * only upgrade a verdict to "inherited" (proofStatus "proven-inherited-live-tip")
+ * when the failure reproduces at the base with a matching signature, is
+ * bounded by a small per-run wall-clock budget and suite cap, is armed only
+ * for the same excusal-eligible smoke lane as manifest-based excusal (never
+ * nightly publish, full/regression sweeps, or isolated-evidence runs), and
+ * any inability to reproduce, a timeout, an error, or an exhausted budget
+ * leaves the static verdict exactly as it was.
+ *
  * Rails mirrored from the green baseline:
  *   - single writer: the ONLY publishRedManifest call site is tests/run-all.ts
  *     under the nightly publish flag (guard: tests/upstream-red-attribution.test.ts);
@@ -52,6 +68,11 @@ import { classifyRecentFailureHistory, RECOVERY_GREENS, type SuiteHistoryFile } 
 // Task #4491 — freshness window for carrying the gate-written `lints` section
 // of the attribution report forward (single source; import is side-effect-free).
 import { ATTRIBUTION_REPORT_LINTS_FRESH_MS } from "../scripts/gateLintAttribution";
+// Task #5318 — type-only: erased at compile time, so this does not create a
+// runtime import cycle with tests/liveTipAttribution.ts (which imports
+// value-level helpers FROM this module). The real runner is loaded via a
+// dynamic import() inside attributeRunFailures, only when armed.
+import type { LiveTipCandidate, LiveTipRunner, LiveTipRunResult } from "./liveTipAttribution";
 
 export { DEFAULT_RED_MANIFEST_PATH };
 
@@ -66,6 +87,17 @@ export { DEFAULT_RED_MANIFEST_PATH };
 export const RED_MANIFEST_SCHEMA_VERSION = 2;
 export const SUPPORTED_RED_MANIFEST_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 export const DEFAULT_ATTRIBUTION_REPORT_PATH = ".local/runs/attribution-report.json";
+
+/**
+ * The red-manifest proof may be evaluated in every runner mode for visibility,
+ * but only a non-publishing smoke gate may turn that proof into a
+ * non-blocking result. Keep this decision beside the shared classifier so a
+ * future runner caller cannot accidentally arm excusal for regression,
+ * nightly, or isolated evidence lanes.
+ */
+export function isExcusalEligibleLane(mode: string, publishing = false): boolean {
+  return mode === "smoke" && !publishing;
+}
 
 /**
  * Task #4480 — a manifest older than this is STALE: the nightly publisher has
@@ -89,10 +121,21 @@ export interface ManifestStaleness {
 /** Task #4480 — never throws; unparseable publishedAt counts as stale (we
  * cannot honestly claim freshness we cannot measure). */
 export function computeManifestStaleness(manifest: RedManifest, now: Date): ManifestStaleness {
-  const publishedMs = Date.parse(manifest.publishedAt);
-  if (!Number.isFinite(publishedMs)) return { ageDays: null, stale: true };
+  const publishedMs = parseCanonicalUtcTimestamp(manifest.publishedAt);
+  if (publishedMs === null) return { ageDays: null, stale: true };
   const ageDays = (now.getTime() - publishedMs) / 86_400_000;
-  return { ageDays, stale: ageDays > RED_MANIFEST_STALE_AFTER_DAYS };
+  return { ageDays, stale: ageDays < 0 || ageDays > RED_MANIFEST_STALE_AFTER_DAYS };
+}
+
+function parseCanonicalUtcTimestamp(value: unknown): number | null {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+  ) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
 }
 
 /** Task #4501 — post-merge canary culprit stamp attached to new red entries.
@@ -588,6 +631,21 @@ export interface FailureAttribution {
    * "flaky" = intermittent, "none" = no recorded failures in the window.
    * Corroborating only — never affects verdict/excusable. */
   historyKind: "none" | "flaky" | "recovered";
+  /**
+   * Bounded reason for a non-proof result. This is diagnostic metadata only:
+   * verdict and excusability remain governed by the existing proof rails.
+   */
+  proofStatus:
+    | "proven-inherited"
+    | "proven-inherited-live-tip"
+    | "task-caused"
+    | "manifest-unavailable"
+    | "manifest-malformed"
+    | "manifest-stale"
+    | "signature-mismatch"
+    | "fingerprint-missing"
+    | "fingerprint-changed"
+    | "classification-error";
 }
 
 export interface ClassifyFailureInput {
@@ -624,6 +682,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
     excusable: false,
     evidence: [],
     historyKind: "none",
+    proofStatus: "task-caused",
   };
   try {
     const evidence: string[] = [];
@@ -654,6 +713,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       }
     }
     if (!input.manifest) {
+      base.proofStatus = input.manifestNote ? "manifest-malformed" : "manifest-unavailable";
       const why = input.manifestNote
         ? `upstream red manifest unusable (${input.manifestNote})`
         : "no upstream red manifest available (predates the first nightly publish, or file absent)";
@@ -676,6 +736,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
     if (!entry) {
       if (staleness.stale) {
         base.verdict = "unattributable";
+        base.proofStatus = "manifest-stale";
         base.evidence = [
           `upstream red manifest is STALE (${staleDesc}; ${stamp}) — the nightly publisher has not run since, so "not listed red" does NOT prove main is currently green here; verdict UNATTRIBUTABLE — stale baseline (still blocking, not excused). Rebut/verify via a worktree-at-HEAD repro if you believe this failure is main's.`,
           ...evidence,
@@ -691,6 +752,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       evidence.push(`note: upstream red manifest is STALE (${staleDesc}) — main's state may have changed since this measurement`);
     }
     if (!signaturesMatch(entry.failureSignature, input.failureReason)) {
+      base.proofStatus = "signature-mismatch";
       base.evidence = [
         `listed red at upstream main since ${entry.firstRedAt} but with a DIFFERENT signature (main: "${entry.failureSignature}", here: "${input.failureReason}") — cannot prove same breakage, attributed to this task (${stamp})`,
         ...evidence,
@@ -699,6 +761,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
     }
     const inheritedLine = `red at upstream main since ${entry.firstRedAt} with matching signature "${normalizeFailureSignature(entry.failureSignature)}" (${stamp})`;
     if (entry.fingerprint === null) {
+      base.proofStatus = "fingerprint-missing";
       base.evidence = [
         `${inheritedLine}, but main recorded NO input fingerprint for it — disjointness from the task diff cannot be proven, attributed to this task`,
         ...evidence,
@@ -706,6 +769,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       return base;
     }
     if (input.currentFingerprint === null) {
+      base.proofStatus = "fingerprint-missing";
       base.evidence = [
         `${inheritedLine}, but this run has NO input fingerprint for it (planning unavailable) — disjointness cannot be proven, attributed to this task`,
         ...evidence,
@@ -713,6 +777,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       return base;
     }
     if (entry.fingerprint !== input.currentFingerprint) {
+      base.proofStatus = "fingerprint-changed";
       base.evidence = [
         `${inheritedLine}, but the suite's inputs CHANGED since main's measurement (fingerprint ${entry.fingerprint.slice(0, 12)}… → ${input.currentFingerprint.slice(0, 12)}…) — the change set could include this task's diff, attributed to this task`,
         ...evidence,
@@ -725,6 +790,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       verdict: "inherited",
       excusable: true,
       historyKind: base.historyKind,
+        proofStatus: "proven-inherited",
       evidence: [
         inheritedLine,
         `input fingerprint identical to main's red measurement (${entry.fingerprint.slice(0, 12)}…) — the task diff is provably disjoint from this suite's fingerprinted input closure`,
@@ -732,6 +798,7 @@ export function classifyFailure(input: ClassifyFailureInput): FailureAttribution
       ],
     };
   } catch (err) {
+    base.proofStatus = "classification-error";
     base.evidence = [
       `attribution error (${(err as Error).message}) — falling open to "yours" (conservative)`,
     ];
@@ -747,6 +814,12 @@ export interface RunFailureInput {
   file: string;
   name: string;
   failureReason: string;
+  /** Task #5318 — the suite's registered run flags, needed only if the
+   * live-tip fallback ends up re-running this exact suite at a resolved
+   * upstream base commit (same invocation shape tests/run-all.ts uses). */
+  extraNodeArgs?: string[];
+  extraEnv?: Record<string, string>;
+  timeoutMs?: number;
 }
 
 export interface RunAttributionOptions {
@@ -757,10 +830,25 @@ export interface RunAttributionOptions {
   /** True only for the smoke gate in non-publishing environments with the
    * TEST_ATTRIBUTION_EXCUSE kill switch not set to "0" (decided by run-all). */
   excusalArmed: boolean;
+  /** True for the single main-side publishing lane. Publishing truth must
+   * remain blocking even if a caller accidentally requests an excusal. */
+  publishing?: boolean;
   priorHistory?: SuiteHistoryFile | null;
   manifestPath?: string;
   reportPath?: string;
   now?: Date;
+  /**
+   * Task #5318 — live-tip fallback arming. True only for the same
+   * excusal-eligible smoke lane as `excusalArmed`, with its own
+   * TEST_LIVE_TIP_ATTRIBUTION kill switch (decided by run-all, mirroring how
+   * excusalArmed is decided there and never read from this module).
+   */
+  liveTipArmed?: boolean;
+  /** Injection point for tests; defaults to the real worktree-based runner
+   * (tests/liveTipAttribution.ts), loaded via dynamic import only when armed. */
+  liveTip?: LiveTipRunner;
+  liveTipBudgetMs?: number;
+  liveTipMaxSuites?: number;
 }
 
 export interface RunAttributionResult {
@@ -777,6 +865,11 @@ export interface RunAttributionResult {
   /** Task #4480 — staleness of the loaded manifest (null when no manifest).
    * Surfaced so run-all can call it out next to the final failure count. */
   manifestStaleness: ManifestStaleness | null;
+  /** Whether this lane is structurally allowed to excuse an inherited red. */
+  excusalEligible: boolean;
+  /** Task #5318 — live-tip fallback facts for this run; null when it never
+   * ran (not armed, ineligible lane, or no unresolved candidates). */
+  liveTip: LiveTipRunResult | null;
 }
 
 /**
@@ -785,7 +878,7 @@ export interface RunAttributionResult {
  * and completion-review rebuttals. Never throws; any orchestration error
  * yields an all-blocking result with the error printed.
  */
-export function attributeRunFailures(opts: RunAttributionOptions): RunAttributionResult {
+export async function attributeRunFailures(opts: RunAttributionOptions): Promise<RunAttributionResult> {
   const fallback: RunAttributionResult = {
     attributions: opts.failures.map((f) => ({
       file: f.file,
@@ -794,6 +887,7 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
       excusable: false,
       evidence: ["attribution unavailable — treated as yours (conservative)"],
       historyKind: "none",
+      proofStatus: "classification-error",
     })),
     excusedFiles: [],
     blockingFiles: opts.failures.map((f) => f.file),
@@ -802,6 +896,8 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
     manifest: null,
     manifestNote: null,
     manifestStaleness: null,
+    excusalEligible: false,
+    liveTip: null,
   };
   try {
     const manifestPath = opts.manifestPath ?? resolve(opts.repoRoot, DEFAULT_RED_MANIFEST_PATH);
@@ -819,7 +915,76 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
         now,
       }),
     );
-    const excused = attributions.filter((a) => a.excusable && opts.excusalArmed);
+    // Do not trust the caller-provided arming boolean on its own. The
+    // attribution API is also used directly by focused tools/tests, and an
+    // armed regression/nightly invocation must remain blocking even when the
+    // manifest proof itself is exact.
+    const excusalEligible = isExcusalEligibleLane(opts.mode, opts.publishing === true);
+    const effectiveExcusalArmed = opts.excusalArmed && excusalEligible;
+
+    // Task #5318 — live-tip fallback. Same double-check discipline as
+    // effectiveExcusalArmed above: never trust the caller's boolean alone,
+    // and additionally require excusal itself to be armed — proving a
+    // failure "inherited" is pointless work when nothing will consume the
+    // proof. Only "yours"/"unattributable" verdicts that are not already
+    // excusable are eligible candidates; a suite already proven inherited by
+    // the manifest, or already blocking for an unrelated structural reason,
+    // is never re-litigated here.
+    const effectiveLiveTipArmed = opts.liveTipArmed === true && excusalEligible && effectiveExcusalArmed;
+    let liveTipResult: LiveTipRunResult | null = null;
+    if (effectiveLiveTipArmed) {
+      const liveTipCandidates: LiveTipCandidate[] = [];
+      for (const a of attributions) {
+        if (a.excusable) continue;
+        if (a.verdict !== "yours" && a.verdict !== "unattributable") continue;
+        const failure = opts.failures.find((f) => f.file === a.file);
+        if (!failure) continue;
+        liveTipCandidates.push({
+          file: a.file,
+          name: failure.name,
+          headFailureReason: a.failureReason,
+          extraNodeArgs: failure.extraNodeArgs,
+          extraEnv: failure.extraEnv,
+          timeoutMs: failure.timeoutMs,
+        });
+      }
+      if (liveTipCandidates.length > 0) {
+        try {
+          const runner: LiveTipRunner = opts.liveTip ?? (await import("./liveTipAttribution")).reproduceAtUpstream;
+          liveTipResult = await runner({
+            repoRoot: opts.repoRoot,
+            candidates: liveTipCandidates,
+            budgetMs: opts.liveTipBudgetMs,
+            maxSuites: opts.liveTipMaxSuites,
+          });
+        } catch (err) {
+          // Never let a live-tip crash escape or weaken anything — every
+          // candidate simply stays at its static verdict.
+          liveTipResult = {
+            ran: false,
+            skippedReason: `live-tip fallback threw (${(err as Error).message})`,
+            baseCommit: null,
+            outcomes: [],
+            wallMs: 0,
+            budgetMs: opts.liveTipBudgetMs ?? 0,
+            maxSuites: opts.liveTipMaxSuites ?? 0,
+          };
+        }
+        if (liveTipResult?.ran) {
+          for (const outcome of liveTipResult.outcomes) {
+            if (outcome.status !== "proved") continue;
+            const a = attributions.find((x) => x.file === outcome.file);
+            if (!a || a.excusable) continue;
+            a.verdict = "inherited";
+            a.excusable = true;
+            a.proofStatus = "proven-inherited-live-tip";
+            a.evidence = [`LIVE-TIP VERIFIED: ${outcome.detail}`, ...outcome.evidence, ...a.evidence];
+          }
+        }
+      }
+    }
+
+    const excused = attributions.filter((a) => a.excusable && effectiveExcusalArmed);
     const excusedSet = new Set(excused.map((a) => a.file));
     const blocking = attributions.filter((a) => !excusedSet.has(a.file));
 
@@ -841,15 +1006,50 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
         `[attribution] ⚠ STALE BASELINE: the upstream red manifest is ${ageDesc} — the nightly publisher has not run since (main may itself be red); "not listed red" cannot prove main is green, such failures are marked UNATTRIBUTABLE (still blocking, not excused)`,
       );
     }
-    for (const a of attributions) {
-      if (a.verdict === "inherited" && excusedSet.has(a.file)) {
-        lines.push(`[attribution] ✗ ${a.file} — INHERITED FROM UPSTREAM, excused (non-blocking)`);
-      } else if (a.verdict === "inherited") {
-        lines.push(`[attribution] ✗ ${a.file} — INHERITED FROM UPSTREAM (excusal not armed in mode "${opts.mode}"; still blocking)`);
-      } else if (a.verdict === "unattributable") {
-        lines.push(`[attribution] ✗ ${a.file} — UNATTRIBUTABLE (stale baseline; still blocking)`);
+    // Task #5318 — live-tip pass summary, printed once regardless of outcome
+    // so a reader always knows whether the fallback ran and why.
+    if (opts.liveTipArmed === true) {
+      if (!effectiveLiveTipArmed) {
+        lines.push(
+          `[attribution] live-tip fallback requested but not armed (ineligible lane "${opts.mode}"${opts.publishing ? " (publishing)" : ""}, or excusal itself not armed)`,
+        );
+      } else if (liveTipResult === null) {
+        lines.push(`[attribution] live-tip fallback: no unresolved candidates — nothing to reproduce`);
+      } else if (!liveTipResult.ran) {
+        lines.push(`[attribution] live-tip fallback did not run: ${liveTipResult.skippedReason}`);
       } else {
-        lines.push(`[attribution] ✗ ${a.file} — YOURS`);
+        const proved = liveTipResult.outcomes.filter((o) => o.status === "proved").length;
+        lines.push(
+          `[attribution] live-tip fallback: ${liveTipResult.outcomes.length} candidate(s) reproduced at base ${liveTipResult.baseCommit?.slice(0, 10) ?? "?"} — ${proved} proved inherited (${liveTipResult.wallMs}ms of ${liveTipResult.budgetMs}ms budget)`,
+        );
+        for (const o of liveTipResult.outcomes) {
+          lines.push(`[attribution]     live-tip · ${o.file} — ${o.status}: ${o.detail}`);
+        }
+      }
+    }
+    for (const a of attributions) {
+      if (a.proofStatus === "proven-inherited-live-tip" && excusedSet.has(a.file)) {
+        lines.push(
+          `[attribution] ✗ ${a.file} — INHERITED FROM UPSTREAM (live-tip verified), excused (non-blocking; next action: leave proven inherited debt alone)`,
+        );
+      } else if (a.verdict === "inherited" && excusedSet.has(a.file)) {
+        lines.push(
+          `[attribution] ✗ ${a.file} — INHERITED FROM UPSTREAM, excused (non-blocking; next action: leave proven inherited debt alone)`,
+        );
+      } else if (a.verdict === "inherited") {
+        const reason =
+          opts.excusalArmed && !excusalEligible
+            ? `ineligible lane "${opts.mode}"${opts.publishing ? " (publishing)" : ""}`
+            : `excusal not armed in mode "${opts.mode}"`;
+        lines.push(
+          `[attribution] ✗ ${a.file} — INHERITED FROM UPSTREAM (${reason}; still blocking; next action: repair through the canonical blocking workflow)`,
+        );
+      } else if (a.verdict === "unattributable") {
+        lines.push(
+          `[attribution] ✗ ${a.file} — UNATTRIBUTABLE (stale baseline; still blocking; next action: repair or verify in the canonical blocking workflow)`,
+        );
+      } else {
+        lines.push(`[attribution] ✗ ${a.file} — YOURS (next action: repair the task)`);
       }
       for (const ev of a.evidence.slice(0, 2)) lines.push(`[attribution]     · ${ev}`);
     }
@@ -885,11 +1085,35 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
         // v4 (Task #4491): optional `lints` section — per-lint base-tree A/B
         // verdicts written by the gate; this writer carries a fresh section
         // forward rather than clobbering it.
-        schemaVersion: 4,
+        // v5: records both requested and structurally eligible excusal so an
+        // executor can distinguish a proof-complete inherited red from a lane
+        // that correctly kept it blocking.
+        // proofStatus is an additive per-failure field; keep the shared report
+        // version stable because the lint-attribution writer also owns it.
+        // Task #5318: `liveTip` is likewise additive — the fallback's own
+        // section, distinguishable from manifest-based proof via each
+        // failure's proofStatus ("proven-inherited-live-tip").
+        schemaVersion: 5,
         ...(carriedLints ? { lints: carriedLints } : {}),
         generatedAt: (opts.now ?? new Date()).toISOString(),
         mode: opts.mode,
-        excusalArmed: opts.excusalArmed,
+        excusalArmed: effectiveExcusalArmed,
+        excusalRequested: opts.excusalArmed,
+        excusalEligible,
+        liveTip: {
+          armed: effectiveLiveTipArmed,
+          requested: opts.liveTipArmed === true,
+          attempted: liveTipResult?.ran ?? false,
+          skippedReason: liveTipResult?.skippedReason ?? null,
+          baseCommit: liveTipResult?.baseCommit ?? null,
+          candidates: liveTipResult?.outcomes.length ?? 0,
+          proved: liveTipResult ? liveTipResult.outcomes.filter((o) => o.status === "proved").length : 0,
+          notProved: liveTipResult ? liveTipResult.outcomes.filter((o) => o.status === "not-proved").length : 0,
+          inconclusive: liveTipResult ? liveTipResult.outcomes.filter((o) => o.status === "inconclusive").length : 0,
+          wallMs: liveTipResult?.wallMs ?? 0,
+          budgetMs: liveTipResult?.budgetMs ?? null,
+          maxSuites: liveTipResult?.maxSuites ?? null,
+        },
         manifest: {
           present: manifest !== null,
           path: DEFAULT_RED_MANIFEST_PATH,
@@ -909,8 +1133,12 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
             failureReason: a.failureReason,
             verdict: a.verdict,
             excused: excusedSet.has(a.file),
+            nextAction: excusedSet.has(a.file)
+              ? "leave-proven-inherited-debt"
+              : "repair-through-canonical-blocking-workflow",
             evidence: a.evidence,
             historyKind: a.historyKind,
+            proofStatus: a.proofStatus,
           };
         }),
         excusedCount: excusedSet.size,
@@ -932,6 +1160,8 @@ export function attributeRunFailures(opts: RunAttributionOptions): RunAttributio
       manifest,
       manifestNote,
       manifestStaleness,
+      excusalEligible,
+      liveTip: liveTipResult,
     };
   } catch (err) {
     fallback.lines = [

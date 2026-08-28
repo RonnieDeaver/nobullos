@@ -32,6 +32,13 @@ test-registration */
  *      kill switch, and the shim-tree hash excludes the committed manifest so
  *      nightly publishes never invalidate extraNodeArgs fingerprints.
  *   7. REPO INTEGRATION: the committed tests/red-manifest.json parses clean.
+ *   8. Live-tip fallback (Task #5318): classifyLiveTipCandidate is
+ *      conservative (only an identical signature at the base commit proves
+ *      inherited); attributeRunFailures excuses via live-tip when the
+ *      injected runner proves a candidate, NEVER excuses a task-caused
+ *      failure (not-proved / thrown / inconclusive / budget-exhausted all
+ *      leave the static verdict untouched), and never invokes the runner
+ *      outside the excusal-eligible smoke lane.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -58,6 +65,14 @@ import {
   loadGreenBaseline,
   type SuiteLike,
 } from "./suiteFingerprint";
+import {
+  DEFAULT_LIVE_TIP_MAX_SUITES,
+  LIVE_TIP_HARNESS_PATHS,
+  LIVE_TIP_KILL_SWITCH_ENV,
+  classifyLiveTipCandidate,
+  type LiveTipRunner,
+  type LiveTipRunResult,
+} from "./liveTipAttribution";
 
 type TestFn = () => void | Promise<void>;
 const tests: Array<{ name: string; fn: TestFn }> = [];
@@ -285,6 +300,7 @@ test("classifyFailure: 'inherited' requires manifest hit + signature match + fin
   const full = classifyFailure(base);
   assert.equal(full.verdict, "inherited");
   assert.equal(full.excusable, true);
+  assert.equal(full.proofStatus, "proven-inherited");
   assert.ok(full.evidence.some((e) => e.includes("red at upstream main since")), "evidence cites the manifest hit");
   assert.ok(full.evidence.some((e) => e.includes("fingerprint identical")), "evidence cites the fingerprint proof");
 
@@ -295,11 +311,9 @@ test("classifyFailure: 'inherited' requires manifest hit + signature match + fin
     "not listed (main green here) → yours",
   );
   assert.equal(classifyFailure({ ...base, failureReason: "exit 2" }).verdict, "yours", "signature mismatch → yours");
-  assert.equal(
-    classifyFailure({ ...base, currentFingerprint: "fp-DIFFERENT" }).verdict,
-    "yours",
-    "fingerprint mismatch (inputs changed — could be the task diff) → yours",
-  );
+  const changedFingerprint = classifyFailure({ ...base, currentFingerprint: "fp-DIFFERENT" });
+  assert.equal(changedFingerprint.verdict, "yours", "fingerprint mismatch (inputs changed — could be the task diff) → yours");
+  assert.equal(changedFingerprint.proofStatus, "fingerprint-changed", "deferred intake retains the incomplete-proof reason");
   assert.equal(classifyFailure({ ...base, currentFingerprint: null }).verdict, "yours", "no local fingerprint → yours");
 
   const noMainFp = validManifest();
@@ -412,7 +426,7 @@ test("Task #4480 — stale manifest: not-listed downgrades to UNATTRIBUTABLE (st
   assert.ok(mismatch.evidence.some((e) => e.includes("STALE")), "stale note rides along on entry-hit paths");
 });
 
-test("Task #4480 — attributeRunFailures surfaces staleness: banner line, UNATTRIBUTABLE verdict lines, report fields; blocking set unchanged", () => {
+test("Task #4480 — attributeRunFailures surfaces staleness: banner line, UNATTRIBUTABLE verdict lines, report fields; blocking set unchanged", async () => {
   const root = tmpRoot();
   try {
     const manifestPath = join(root, "red-manifest.json");
@@ -420,7 +434,7 @@ test("Task #4480 — attributeRunFailures surfaces staleness: banner line, UNATT
     writeFileSync(manifestPath, `${JSON.stringify(validManifest({ entries: {} }), null, 2)}\n`);
     const reportPath = join(root, "attribution-report.json");
     const STALE_NOW = new Date(NOW.getTime() + (RED_MANIFEST_STALE_AFTER_DAYS + 1.5) * 86_400_000);
-    const res = attributeRunFailures({
+    const res = await attributeRunFailures({
       repoRoot: root,
       mode: "smoke",
       failures: [{ file: "tests/mine.test.ts", name: "my suite", failureReason: "exit 1" }],
@@ -434,7 +448,10 @@ test("Task #4480 — attributeRunFailures surfaces staleness: banner line, UNATT
     assert.deepEqual(res.blockingFiles, ["tests/mine.test.ts"], "unattributable still blocks");
     assert.ok(res.manifestStaleness?.stale, "result exposes staleness for run-all's summary callout");
     assert.ok(res.lines.some((l) => l.includes("⚠ STALE BASELINE")), "prominent banner under the header");
-    assert.ok(res.lines.some((l) => l.includes("UNATTRIBUTABLE (stale baseline; still blocking)")));
+    assert.ok(
+      res.lines.some((l) => l.includes("UNATTRIBUTABLE (stale baseline") && l.includes("still blocking")),
+      "the stale-baseline disposition remains explicitly blocking while the next action is added",
+    );
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
     assert.equal(report.manifest.stale, true);
     assert.equal(report.manifest.staleAfterDays, RED_MANIFEST_STALE_AFTER_DAYS);
@@ -458,7 +475,7 @@ test("Task #4480 — staleness threshold stays in lockstep with the nightly base
   assert.ok(runAll.includes("manifestStaleness"), "run-all consumes the attribution staleness result");
 });
 
-test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keeps everything blocking, report lands with counts", () => {
+test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keeps everything blocking, report lands with counts", async () => {
   const root = tmpRoot();
   try {
     const manifestPath = join(root, "red-manifest.json");
@@ -473,7 +490,7 @@ test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keep
       ["tests/mine.test.ts", "fp-mine"],
     ]);
 
-    const armed = attributeRunFailures({
+    const armed = await attributeRunFailures({
       repoRoot: root,
       mode: "smoke",
       failures,
@@ -489,7 +506,7 @@ test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keep
     assert.ok(armed.lines.some((l) => l.includes("tests/mine.test.ts — YOURS")));
     assert.equal(armed.reportPath, reportPath);
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
-    assert.equal(report.schemaVersion, 4);
+    assert.equal(report.schemaVersion, 5);
     assert.equal(report.manifest.stale, false, "fresh manifest reports stale:false");
     assert.equal(typeof report.manifest.ageDays, "number");
     assert.ok(
@@ -499,9 +516,19 @@ test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keep
     assert.equal(report.excusedCount, 1);
     assert.equal(report.blockingCount, 1);
     assert.equal(report.failures.find((f: { file: string }) => f.file === "tests/red-suite.test.ts").excused, true);
+    assert.equal(
+      report.failures.find((f: { file: string }) => f.file === "tests/red-suite.test.ts").nextAction,
+      "leave-proven-inherited-debt",
+      "a non-blocking inherited red tells the executor not to duplicate the repair",
+    );
+    assert.equal(
+      report.failures.find((f: { file: string }) => f.file === "tests/mine.test.ts").nextAction,
+      "repair-through-canonical-blocking-workflow",
+      "a task-owned red gives one repair action",
+    );
     assert.ok(Array.isArray(report.failures[0].evidence) && report.failures[0].evidence.length > 0, "report carries citable evidence");
 
-    const disarmed = attributeRunFailures({
+    const disarmed = await attributeRunFailures({
       repoRoot: root,
       mode: "regression",
       failures,
@@ -517,16 +544,60 @@ test("attributeRunFailures: armed excusal splits excused/blocking, disarmed keep
       disarmed.lines.some((l) => l.includes("INHERITED FROM UPSTREAM (excusal not armed")),
       "inherited verdict still surfaces for visibility",
     );
+
+    // The API itself rejects an accidentally armed non-smoke lane. This is
+    // intentionally stronger than the current runner call site: a future
+    // caller cannot convert nightly/regression truth into a green result by
+    // passing `excusalArmed: true`.
+    const incorrectlyArmedRegression = await attributeRunFailures({
+      repoRoot: root,
+      mode: "regression",
+      failures: [failures[0]],
+      fingerprints,
+      excusalArmed: true,
+      manifestPath,
+      reportPath,
+      now: NOW,
+    });
+    assert.equal(incorrectlyArmedRegression.excusalEligible, false);
+    assert.deepEqual(incorrectlyArmedRegression.excusedFiles, []);
+    assert.deepEqual(incorrectlyArmedRegression.blockingFiles, ["tests/red-suite.test.ts"]);
+    assert.ok(
+      incorrectlyArmedRegression.lines.some((line) => line.includes('ineligible lane "regression"')),
+      "the ineligible lane is explicit rather than silently treating exact proof as a pass",
+    );
+    const regressionReport = JSON.parse(readFileSync(reportPath, "utf8"));
+    assert.equal(regressionReport.excusalRequested, true);
+    assert.equal(regressionReport.excusalEligible, false);
+    assert.equal(regressionReport.excusalArmed, false);
+
+    const incorrectlyArmedPublisher = await attributeRunFailures({
+      repoRoot: root,
+      mode: "smoke",
+      publishing: true,
+      failures: [failures[0]],
+      fingerprints,
+      excusalArmed: true,
+      manifestPath,
+      reportPath,
+      now: NOW,
+    });
+    assert.equal(incorrectlyArmedPublisher.excusalEligible, false);
+    assert.deepEqual(incorrectlyArmedPublisher.excusedFiles, []);
+    assert.ok(
+      incorrectlyArmedPublisher.lines.some((line) => line.includes("ineligible lane") && line.includes("publishing")),
+      "the main-side publishing lane preserves red truth even with a bad caller flag",
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("attributeRunFailures: absent manifest and null fingerprints mean every failure blocks; report-write failure degrades without throwing", () => {
+test("attributeRunFailures: absent manifest and null fingerprints mean every failure blocks; report-write failure degrades without throwing", async () => {
   const root = tmpRoot();
   try {
     const failures = [{ file: "tests/a.test.ts", name: "a", failureReason: "exit 1" }];
-    const res = attributeRunFailures({
+    const res = await attributeRunFailures({
       repoRoot: root,
       mode: "smoke",
       failures,
@@ -542,7 +613,7 @@ test("attributeRunFailures: absent manifest and null fingerprints mean every fai
 
     const fileAsDir = join(root, "occupied");
     writeFileSync(fileAsDir, "file");
-    const degraded = attributeRunFailures({
+    const degraded = await attributeRunFailures({
       repoRoot: root,
       mode: "smoke",
       failures,
@@ -582,6 +653,10 @@ test("run-all wiring: single red-publish call site under the nightly flag, and e
       runAll.includes('process.env.TEST_GREEN_BASELINE_PUBLISH !== "1"') &&
       runAll.includes('process.env.TEST_ATTRIBUTION_EXCUSE !== "0"'),
     "excusal arms only for the smoke gate, never on the publish arm, with the TEST_ATTRIBUTION_EXCUSE kill switch",
+  );
+  assert.ok(
+    runAll.includes('publishing: process.env.TEST_GREEN_BASELINE_PUBLISH === "1"'),
+    "run-all tells the shared attribution layer when the main-side publisher is active",
   );
   assert.ok(
     !readFileSync("tests/redManifest.ts", "utf8").includes("TEST_GREEN_BASELINE_PUBLISH"),
@@ -821,6 +896,313 @@ test("lint entries are structurally unable to seed greens: no fingerprints, and 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// 9. Live-tip fallback (Task #5318)
+// ---------------------------------------------------------------------------
+
+test("classifyLiveTipCandidate: only an identical signature at the base run proves inherited; every other shape stays conservative", () => {
+  // Identical signature reproduces → proved.
+  const proved = classifyLiveTipCandidate({
+    headFailureReason: "exit 1",
+    baseRun: { status: "ran", failureReason: "exit 1" },
+  });
+  assert.equal(proved.status, "proved");
+  assert.ok(proved.evidence.length > 0, "a proved verdict carries citable evidence");
+
+  // Base run passed clean → the task's tree is involved, not-proved.
+  const passed = classifyLiveTipCandidate({
+    headFailureReason: "exit 1",
+    baseRun: { status: "ran", failureReason: "" },
+  });
+  assert.equal(passed.status, "not-proved");
+
+  // Different signature class at base → not-proved (not the same breakage).
+  const different = classifyLiveTipCandidate({
+    headFailureReason: "exit 1",
+    baseRun: { status: "ran", failureReason: "exit 2" },
+  });
+  assert.equal(different.status, "not-proved");
+
+  // Spawn trouble, budget exhaustion, or no recorded run at all → inconclusive,
+  // never "proved" — an inability to prove must never masquerade as proof.
+  assert.equal(
+    classifyLiveTipCandidate({ headFailureReason: "exit 1", baseRun: { status: "spawn-error", failureReason: null } }).status,
+    "inconclusive",
+  );
+  assert.equal(
+    classifyLiveTipCandidate({ headFailureReason: "exit 1", baseRun: { status: "budget-exhausted", failureReason: null } })
+      .status,
+    "inconclusive",
+  );
+  assert.equal(classifyLiveTipCandidate({ headFailureReason: "exit 1", baseRun: undefined }).status, "inconclusive");
+});
+
+function liveTipRunnerFixture(result: LiveTipRunResult | (() => Promise<LiveTipRunResult>)): {
+  runner: LiveTipRunner;
+  calls: number[];
+} {
+  const state = { calls: [] as number[] };
+  const runner: LiveTipRunner = async (opts) => {
+    state.calls.push(opts.candidates.length);
+    return typeof result === "function" ? await result() : result;
+  };
+  return { runner, calls: state.calls };
+}
+
+test("attributeRunFailures: a stale/absent-manifest failure the live-tip runner PROVES gets excused with a distinct proofStatus and labeled evidence", async () => {
+  const root = tmpRoot();
+  try {
+    const reportPath = join(root, "attribution-report.json");
+    const { runner, calls } = liveTipRunnerFixture({
+      ran: true,
+      skippedReason: null,
+      baseCommit: "deadbeef00",
+      outcomes: [
+        {
+          file: "tests/mine.test.ts",
+          status: "proved",
+          detail: "identical signature reproduces at the resolved upstream base commit",
+          evidence: ["base-tree run: exit 1"],
+        },
+      ],
+      wallMs: 1234,
+      budgetMs: 240_000,
+      maxSuites: 3,
+    });
+    const res = await attributeRunFailures({
+      repoRoot: root,
+      mode: "smoke",
+      failures: [{ file: "tests/mine.test.ts", name: "my suite", failureReason: "exit 1" }],
+      fingerprints: null, // absent manifest/fingerprints — the exact stuck-attribution scenario
+      excusalArmed: true,
+      liveTipArmed: true,
+      liveTip: runner,
+      manifestPath: join(root, "does-not-exist.json"),
+      reportPath,
+      now: NOW,
+    });
+    assert.deepEqual(calls, [1], "live-tip runner is invoked exactly once with the one unresolved candidate");
+    assert.deepEqual(res.excusedFiles, ["tests/mine.test.ts"], "live-tip proof excuses the failure exactly like manifest proof");
+    const a = res.attributions.find((x) => x.file === "tests/mine.test.ts")!;
+    assert.equal(a.verdict, "inherited");
+    assert.equal(a.excusable, true);
+    assert.equal(a.proofStatus, "proven-inherited-live-tip", "distinct proof-status value, distinguishable from manifest proof");
+    assert.ok(
+      a.evidence.some((e) => e.startsWith("LIVE-TIP VERIFIED:")),
+      "evidence is clearly labeled as live-tip-verified, not manifest-based",
+    );
+    assert.ok(
+      res.lines.some((l) => l.includes("INHERITED FROM UPSTREAM (live-tip verified)")),
+      "console output distinguishes live-tip proof from manifest proof",
+    );
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    assert.equal(report.liveTip.attempted, true);
+    assert.equal(report.liveTip.proved, 1);
+    assert.equal(report.failures.find((f: { file: string }) => f.file === "tests/mine.test.ts").proofStatus, "proven-inherited-live-tip");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("attributeRunFailures: a genuinely task-caused failure is NEVER excused by live-tip — not-proved, thrown, and budget-exhausted all leave it blocking", async () => {
+  const root = tmpRoot();
+  const scenarios: Array<{ label: string; runner: LiveTipRunner }> = [
+    {
+      label: "not-proved (base run passed clean)",
+      runner: async () => ({
+        ran: true,
+        skippedReason: null,
+        baseCommit: "deadbeef00",
+        outcomes: [{ file: "tests/mine.test.ts", status: "not-proved", detail: "base run passed", evidence: [] }],
+        wallMs: 10,
+        budgetMs: 240_000,
+        maxSuites: 3,
+      }),
+    },
+    {
+      label: "runner throws",
+      runner: async () => {
+        throw new Error("worktree add failed");
+      },
+    },
+    {
+      label: "inconclusive (budget exhausted)",
+      runner: async () => ({
+        ran: true,
+        skippedReason: null,
+        baseCommit: "deadbeef00",
+        outcomes: [{ file: "tests/mine.test.ts", status: "inconclusive", detail: "budget exhausted", evidence: [] }],
+        wallMs: 240_000,
+        budgetMs: 240_000,
+        maxSuites: 3,
+      }),
+    },
+    {
+      label: "did not run at all (skipped)",
+      runner: async () => ({
+        ran: false,
+        skippedReason: "harness path touched",
+        baseCommit: null,
+        outcomes: [],
+        wallMs: 0,
+        budgetMs: 240_000,
+        maxSuites: 3,
+      }),
+    },
+  ];
+  try {
+    for (const scenario of scenarios) {
+      const res = await attributeRunFailures({
+        repoRoot: root,
+        mode: "smoke",
+        failures: [{ file: "tests/mine.test.ts", name: "my suite", failureReason: "exit 1" }],
+        fingerprints: null,
+        excusalArmed: true,
+        liveTipArmed: true,
+        liveTip: scenario.runner,
+        manifestPath: join(root, "does-not-exist.json"),
+        reportPath: join(root, "attribution-report.json"),
+        now: NOW,
+      });
+      assert.deepEqual(res.excusedFiles, [], `scenario "${scenario.label}" must never excuse`);
+      assert.deepEqual(res.blockingFiles, ["tests/mine.test.ts"], `scenario "${scenario.label}" stays blocking`);
+      const a = res.attributions.find((x) => x.file === "tests/mine.test.ts")!;
+      assert.equal(a.verdict, "yours", `scenario "${scenario.label}" keeps the static "yours" verdict`);
+      assert.notEqual(a.proofStatus, "proven-inherited-live-tip", `scenario "${scenario.label}" is never live-tip-proved`);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("attributeRunFailures: live-tip is never invoked outside the excusal-eligible smoke lane (regression mode, publishing lane, or excusal disarmed)", async () => {
+  const root = tmpRoot();
+  try {
+    const ineligibleCases: Array<{ label: string; opts: Partial<Parameters<typeof attributeRunFailures>[0]> }> = [
+      { label: "regression mode", opts: { mode: "regression", excusalArmed: true } },
+      { label: "publishing lane", opts: { mode: "smoke", publishing: true, excusalArmed: true } },
+      { label: "excusal disarmed", opts: { mode: "smoke", excusalArmed: false } },
+    ];
+    for (const c of ineligibleCases) {
+      const { runner, calls } = liveTipRunnerFixture({
+        ran: true,
+        skippedReason: null,
+        baseCommit: "deadbeef00",
+        outcomes: [{ file: "tests/mine.test.ts", status: "proved", detail: "would prove if ever called", evidence: [] }],
+        wallMs: 1,
+        budgetMs: 240_000,
+        maxSuites: 3,
+      });
+      const res = await attributeRunFailures({
+        repoRoot: root,
+        mode: "smoke",
+        failures: [{ file: "tests/mine.test.ts", name: "my suite", failureReason: "exit 1" }],
+        fingerprints: null,
+        excusalArmed: true,
+        liveTipArmed: true,
+        liveTip: runner,
+        manifestPath: join(root, "does-not-exist.json"),
+        reportPath: join(root, "attribution-report.json"),
+        now: NOW,
+        ...c.opts,
+      });
+      assert.deepEqual(calls, [], `live-tip runner must never be called in scenario "${c.label}"`);
+      assert.deepEqual(res.excusedFiles, [], `scenario "${c.label}" excuses nothing`);
+    }
+
+    // liveTipArmed itself false (the run-all-decided kill-switch state) → never called.
+    const { runner: neverArmedRunner, calls: neverArmedCalls } = liveTipRunnerFixture({
+      ran: true,
+      skippedReason: null,
+      baseCommit: "deadbeef00",
+      outcomes: [{ file: "tests/mine.test.ts", status: "proved", detail: "would prove if ever called", evidence: [] }],
+      wallMs: 1,
+      budgetMs: 240_000,
+      maxSuites: 3,
+    });
+    await attributeRunFailures({
+      repoRoot: root,
+      mode: "smoke",
+      failures: [{ file: "tests/mine.test.ts", name: "my suite", failureReason: "exit 1" }],
+      fingerprints: null,
+      excusalArmed: true,
+      liveTipArmed: false,
+      liveTip: neverArmedRunner,
+      manifestPath: join(root, "does-not-exist.json"),
+      reportPath: join(root, "attribution-report.json"),
+      now: NOW,
+    });
+    assert.deepEqual(neverArmedCalls, [], "liveTipArmed: false must never invoke the runner");
+
+    // A candidate the static classifier already excused (manifest-proven)
+    // must never be re-litigated through live-tip.
+    const manifestPath = join(root, "red-manifest.json");
+    writeFileSync(manifestPath, `${JSON.stringify(validManifest(), null, 2)}\n`);
+    const { runner: alreadyExcusedRunner, calls: alreadyExcusedCalls } = liveTipRunnerFixture({
+      ran: true,
+      skippedReason: null,
+      baseCommit: "deadbeef00",
+      outcomes: [],
+      wallMs: 1,
+      budgetMs: 240_000,
+      maxSuites: 3,
+    });
+    const alreadyExcusedRes = await attributeRunFailures({
+      repoRoot: root,
+      mode: "smoke",
+      failures: [{ file: "tests/red-suite.test.ts", name: "red suite", failureReason: "exit 1" }],
+      fingerprints: new Map([["tests/red-suite.test.ts", "fp-red-suite-at-main"]]),
+      excusalArmed: true,
+      liveTipArmed: true,
+      liveTip: alreadyExcusedRunner,
+      manifestPath,
+      reportPath: join(root, "attribution-report.json"),
+      now: NOW,
+    });
+    assert.deepEqual(alreadyExcusedCalls, [], "an already manifest-proven candidate is never handed to live-tip");
+    assert.deepEqual(alreadyExcusedRes.excusedFiles, ["tests/red-suite.test.ts"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Task #5318 wiring: TEST_LIVE_TIP_ATTRIBUTION is read only in tests/run-all.ts, mirrors excusalArmed's lane condition, and the harness-path guard names its own module", () => {
+  const runAll = readFileSync("tests/run-all.ts", "utf8");
+  const redManifestSrc = readFileSync("tests/redManifest.ts", "utf8");
+  const liveTipSrc = readFileSync("tests/liveTipAttribution.ts", "utf8");
+
+  const readsKillSwitch = (src: string) => new RegExp(`process\\.env(\\.|\\[["']?)${LIVE_TIP_KILL_SWITCH_ENV}`).test(src);
+  assert.ok(readsKillSwitch(runAll), "run-all reads the live-tip kill switch");
+  assert.ok(
+    !readsKillSwitch(redManifestSrc),
+    "tests/redManifest.ts never reads the kill switch itself (receives a boolean instead), exactly like TEST_ATTRIBUTION_EXCUSE — it may still mention the name in prose/doc-comments",
+  );
+  assert.ok(
+    !readsKillSwitch(liveTipSrc),
+    "tests/liveTipAttribution.ts never reads its own kill switch — arming is decided by the caller",
+  );
+
+  // liveTipArmed mirrors excusalArmed's exact lane condition (smoke, not
+  // publishing) with its own independent kill switch.
+  const liveTipArmedBlock = runAll.slice(runAll.indexOf("liveTipArmed ="), runAll.indexOf("liveTipArmed =") + 400);
+  assert.ok(liveTipArmedBlock.includes('sweepMode === "smoke"'), "live-tip arms only for the smoke lane");
+  assert.ok(
+    liveTipArmedBlock.includes('process.env.TEST_GREEN_BASELINE_PUBLISH !== "1"'),
+    "live-tip never arms on the nightly-publish lane",
+  );
+  assert.ok(
+    liveTipArmedBlock.includes(`process.env.${LIVE_TIP_KILL_SWITCH_ENV} !== "0"`),
+    "live-tip has its own independent kill switch",
+  );
+
+  // The harness-path self-guard names the actual attribution files, so a
+  // future rename cannot silently stop covering itself.
+  for (const p of ["tests/redManifest.ts", "tests/liveTipAttribution.ts", "tests/run-all.ts", "scripts/gateLintAttribution.ts"]) {
+    assert.ok(LIVE_TIP_HARNESS_PATHS.includes(p), `harness-path guard must cover ${p}`);
+  }
+  assert.ok(DEFAULT_LIVE_TIP_MAX_SUITES > 0 && DEFAULT_LIVE_TIP_MAX_SUITES <= 10, "the per-run suite cap stays small and bounded");
 });
 
 // ---------------------------------------------------------------------------

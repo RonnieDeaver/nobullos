@@ -255,7 +255,7 @@ export function TimeReportsPanel({ workspaceId }: { workspaceId: string }) {
   const byDay = new Map<string, number>();
   for (const e of entries) {
     if (e.duration <= 0) continue;
-    const name = e.user.username;
+    const name = e.user?.username ?? "Unknown";
     byPerson.set(name, (byPerson.get(name) ?? 0) + e.duration);
     const day = e.start ? new Date(e.start).toLocaleDateString() : "Unknown";
     byDay.set(day, (byDay.get(day) ?? 0) + e.duration);
@@ -447,7 +447,7 @@ export function TimeReportsPanel({ workspaceId }: { workspaceId: string }) {
                     <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">
                       {e.start ? new Date(e.start).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-3 py-1.5 text-foreground">{e.user.username}</td>
+                    <td className="px-3 py-1.5 text-foreground">{e.user?.username ?? "Unknown"}</td>
                     <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[100px]">
                       {e.task?.name ?? "—"}
                     </td>

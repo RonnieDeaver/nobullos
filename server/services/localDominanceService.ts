@@ -509,18 +509,27 @@ export async function buildCompetitorLeaderboardsForSnapshots(
 }
 
 export async function computeAndStoreDerivedMetrics(
-  snapshotId: string
+  snapshotId: string,
+  expectedRawPayload?: unknown,
 ): Promise<{ bandsWritten: boolean; sovWritten: boolean; errors: string[] }> {
   const errors: string[] = [];
   let bandsWritten = false;
   let sovWritten = false;
 
+  const currentSnapshotWhere = expectedRawPayload === undefined
+    ? eq(heatmapSnapshots.id, snapshotId)
+    : and(
+        eq(heatmapSnapshots.id, snapshotId),
+        eq(heatmapSnapshots.rawPayload, expectedRawPayload as any),
+      );
   const snapshot = await db.select().from(heatmapSnapshots)
-    .where(eq(heatmapSnapshots.id, snapshotId)).limit(1);
+    .where(currentSnapshotWhere).limit(1);
   if (!snapshot[0]) {
-    const msg = `Snapshot ${snapshotId} not found`;
+    const msg = expectedRawPayload === undefined
+      ? `Snapshot ${snapshotId} not found`
+      : `Snapshot ${snapshotId} was superseded before derived metrics ran`;
     console.warn(`[DerivedMetrics] ${msg}`);
-    return { bandsWritten: false, sovWritten: false, errors: [msg] };
+    return { bandsWritten: false, sovWritten: false, errors: expectedRawPayload === undefined ? [msg] : [] };
   }
 
   const snap = snapshot[0];
@@ -537,6 +546,14 @@ export async function computeAndStoreDerivedMetrics(
 
   const bands = computeRankDistributionBands(points);
   const sovRaw = computeShareOfVoiceFromPoints(points);
+  const currentScanGuard = expectedRawPayload === undefined
+    ? sql`TRUE`
+    : sql`EXISTS (
+        SELECT 1
+        FROM ${heatmapSnapshots} current_snapshot
+        WHERE current_snapshot.id = ${snapshotId}
+          AND current_snapshot.raw_payload = ${JSON.stringify(expectedRawPayload)}::jsonb
+      )`;
 
   // Task #1722 Phase 1.4 — Single-statement upsert. The previous flow
   // did a SELECT for existence, then an INSERT or UPDATE based on the
@@ -552,12 +569,14 @@ export async function computeAndStoreDerivedMetrics(
             band_11_to_20_pct = ${bands.band11to20Pct},
             band_out_of_top_20_pct = ${bands.bandOutOfTop20Pct}
         WHERE snapshot_id = ${snapshotId}
+          AND ${currentScanGuard}
         RETURNING id
       )
       INSERT INTO ${heatmapMetrics}
         (snapshot_id, band_top_3_pct, band_4_to_10_pct, band_11_to_20_pct, band_out_of_top_20_pct)
       SELECT ${snapshotId}, ${bands.bandTop3Pct}, ${bands.band4to10Pct}, ${bands.band11to20Pct}, ${bands.bandOutOfTop20Pct}
       WHERE NOT EXISTS (SELECT 1 FROM up)
+        AND ${currentScanGuard}
     `);
     bandsWritten = true;
     console.log(`[DerivedMetrics] Bands written for snapshot ${snapshotId}: top3=${bands.bandTop3Pct}%, 4-10=${bands.band4to10Pct}%, 11-20=${bands.band11to20Pct}%, out=${bands.bandOutOfTop20Pct}%`);
@@ -570,7 +589,7 @@ export async function computeAndStoreDerivedMetrics(
   try {
     await db.update(heatmapSnapshots)
       .set({ shareOfVoiceRaw: sovRaw })
-      .where(eq(heatmapSnapshots.id, snapshotId));
+      .where(currentSnapshotWhere);
     sovWritten = true;
     console.log(`[DerivedMetrics] SoV raw written for snapshot ${snapshotId}: ${sovRaw}%`);
   } catch (err) {
@@ -597,12 +616,14 @@ export async function computeAndStoreDerivedMetrics(
         SET share_of_voice_90d_avg = ${sov90d},
             share_of_voice_anchor_increase = ${anchorIncrease}
         WHERE snapshot_id = ${snapshotId}
+          AND ${currentScanGuard}
         RETURNING id
       )
       INSERT INTO ${heatmapMetrics}
         (snapshot_id, share_of_voice_90d_avg, share_of_voice_anchor_increase)
       SELECT ${snapshotId}, ${sov90d}, ${anchorIncrease}
       WHERE NOT EXISTS (SELECT 1 FROM up)
+        AND ${currentScanGuard}
     `);
   } catch (err) {
     const msg = `Failed to compute/store SoV rolling avg for snapshot ${snapshotId}: ${err instanceof Error ? err.message : err}`;
@@ -628,12 +649,10 @@ export async function storeCompetitorData(
     gbpUrl?: string;
     address?: string;
     isSubjectBusiness?: boolean;
-  }>
+  }>,
+  expectedRawPayload?: unknown,
 ): Promise<void> {
   if (competitors.length === 0) return;
-
-  await db.delete(heatmapCompetitorSnapshots)
-    .where(eq(heatmapCompetitorSnapshots.snapshotId, snapshotId));
 
   const rows: InsertHeatmapCompetitorSnapshot[] = competitors.map((c, idx) => {
     // Task #2020 — parse the SEMrush free-text address into structured
@@ -666,7 +685,27 @@ export async function storeCompetitorData(
     };
   });
 
-  await db.insert(heatmapCompetitorSnapshots).values(rows);
+  await db.transaction(async (tx) => {
+    const currentSnapshotWhere = expectedRawPayload === undefined
+      ? eq(heatmapSnapshots.id, snapshotId)
+      : and(
+          eq(heatmapSnapshots.id, snapshotId),
+          eq(heatmapSnapshots.rawPayload, expectedRawPayload as any),
+        );
+    const currentSnapshot = await tx.select({ id: heatmapSnapshots.id })
+      .from(heatmapSnapshots)
+      .where(currentSnapshotWhere)
+      .for("update")
+      .limit(1);
+    if (currentSnapshot.length === 0) {
+      console.log(`[Heatmap] Discarded stale competitor data for superseded snapshot version ${snapshotId}`);
+      return;
+    }
+
+    await tx.delete(heatmapCompetitorSnapshots)
+      .where(eq(heatmapCompetitorSnapshots.snapshotId, snapshotId));
+    await tx.insert(heatmapCompetitorSnapshots).values(rows);
+  });
 }
 
 export async function getLocalDominanceDashboard(

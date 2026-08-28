@@ -118,7 +118,7 @@ export type TimeEntry = {
   duration: number;
   start: number;
   end: number;
-  user: { id?: string; username: string };
+  user: { id?: string; username: string } | null;
   tags?: TimeEntryTag[];
   task?: { id: string; name: string } | null;
   task_location?: { list_id?: string; folder_id?: string; space_id?: string } | null;

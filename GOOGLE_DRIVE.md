@@ -38,10 +38,11 @@
 `spreadsheets.readonly` tokens:
 
 - `getSheetsAccessToken()` — used by the Ads OS client-log reader to read
-  Google Sheets. Key resolution order:
-  1. `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY` env var (Sheets-specific key, preferred);
-  2. `GOOGLE_SERVICE_ACCOUNT_KEY` env var (legacy main key);
-  3. `system_settings.google_service_account_key` (legacy stored key).
+  Google Sheets. It resolves only
+  `GOOGLE_SHEETS_SERVICE_ACCOUNT_KEY`; the retired
+  `GOOGLE_SERVICE_ACCOUNT_KEY` and
+  `system_settings.google_service_account_key` fallbacks are deliberately
+  unavailable to the Sheets lane.
 - `getSheetsServiceAccountEmail()` / `getServiceAccountEmail()` — surface the
   SA email for sheet-sharing instructions.
 - A thrown settings read surfaces as `GoogleDriveSettingsUnavailableError`
@@ -79,13 +80,25 @@ Status as of Task #4107 (2026-08-08):
    - calls the Google Cloud IAM API to delete key `43d3ab85…` on SA
      `nobull-os@core-respect-369420.iam.gserviceaccount.com` (project
      `core-respect-369420`),
-   - clears the `google_service_account_key` DB setting (belt-and-braces),
+   - follows the DELETE with an IAM GET and requires a 404 before treating
+     deletion as verified,
+   - only after verified IAM absence, clears and re-reads the
+     `google_service_account_key` DB setting (belt-and-braces),
    - re-verifies the Sheets lane is still healthy after deletion.
 
-   If the API call returns 403 (insufficient IAM permissions), the button
-   output includes the exact Google Cloud Console URL to complete the step
-   manually: IAM & Admin → Service Accounts → `nobull-os@…` → Keys →
+   If the API call returns 403 (insufficient IAM permissions), B-008 remains
+   open and the DB setting is preserved. With explicit owner/security
+   approval, the preferred remediation is owner-admin deletion in Google
+   Cloud Console: IAM & Admin → Service Accounts → `nobull-os@…` → Keys →
    delete key `43d3ab85b5596ea3e8f822b4e5c007b47b7eb8de`.
+   If an automated retry is approved instead, grant the Sheets service
+   account a **resource-scoped custom role** on the target service account
+   containing only `iam.serviceAccountKeys.delete` and
+   `iam.serviceAccountKeys.get`. Do not grant key-create permission or the
+   predefined Service Account Key Admin role: that broader role could mint
+   a replacement credential for the legacy full-Drive identity. Revoke the
+   custom grant after the lever verifies closure. The lever remains visible
+   until its IAM probe verifies the key is gone.
 
    Task #4762 — this button is a **manual lever**: its status always reads
    `not-needed` (a lever is availability, not work — the old perpetual

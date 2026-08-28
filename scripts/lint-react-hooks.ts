@@ -67,7 +67,7 @@
  *
  * Gating
  * ------
- * The `.replit` `Validate` workflow runs `npm run gate`, so this lint is gated through
+ * The managed Long validation workflow runs the reviewed routine-gate profile, so this lint is gated through
  * `tests/lint-react-hooks.test.ts` (registered in tests/run-all.ts SMOKE_FILES
  * with `regression: true`), whose first assertion runs runLint() on the real
  * tree — the established pattern for post-cap lint guards.

@@ -118,6 +118,11 @@ import {
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { enqueueJob } from "../services/workScheduler";
+import {
+  ClickUpWebhookInputError,
+  receiveClickUpWebhook,
+  type VerifiedClickUpWebhookIdentity,
+} from "../services/clickUpWebhookInbox";
 import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -2001,6 +2006,8 @@ export function registerClickUpRoutes(app: Express): void {
               endpoint,
               secret: encryptToken(result.secret),
               events: ["*"],
+              locationType: null,
+              locationId: null,
               status: "active",
             }).onConflictDoUpdate({
               target: clickupWebhooks.id,
@@ -2039,31 +2046,44 @@ export function registerClickUpRoutes(app: Express): void {
 
   app.post(
     "/api/webhooks/clickup",
-    (req, _res, next) => {
-      let data = Buffer.alloc(0);
-      req.on("data", (chunk: Buffer) => { data = Buffer.concat([data, chunk]); });
-      req.on("end", () => { (req as any).__rawBody = data; next(); });
-    },
     async (req: any, res) => {
       try {
-        const rawBody: Buffer = req.__rawBody ?? Buffer.from(JSON.stringify(req.body));
-        const signature = req.headers["x-signature"] as string ?? "";
-        const webhookId = req.headers["x-webhook-id"] as string ?? "";
+        const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : null;
+        const signatureHeader = req.headers["x-signature"];
+        const webhookIdHeader = req.headers["x-webhook-id"];
+        const signature = typeof signatureHeader === "string" ? signatureHeader : "";
+        const webhookId = typeof webhookIdHeader === "string" ? webhookIdHeader : "";
+        if (!rawBody) {
+          return res.status(400).json({ error: "Missing raw webhook body" });
+        }
 
-        const verified = await verifyIncomingWebhook(rawBody, signature, webhookId);
-        if (!verified) {
-          return res.status(401).json({ error: "Invalid webhook signature" });
+        const received = await receiveClickUpWebhook({
+          rawBody,
+          payload: req.body,
+          signature,
+          webhookId,
+        });
+        if (received.accepted) {
+          return res.status(200).json({
+            ok: true,
+            duplicate: received.accepted.duplicate,
+            scope: received.accepted.scope,
+          });
         }
 
         res.status(200).json({ ok: true });
-
-        let payload: any;
-        try { payload = JSON.parse(rawBody.toString("utf8")); } catch { return; }
-        applyWebhookEvent(payload).catch((err) => {
-          console.error("[ClickUp] webhook apply error:", err?.message || err);
+        void applyWebhookEvent(req.body, received.identity).catch(() => {
+          console.error("[ClickUp] generic webhook apply failed");
         });
       } catch (err: any) {
-        console.error("[ClickUp] webhook receiver error:", err?.message || err);
+        if (err instanceof ClickUpWebhookInputError) {
+          const message =
+            err.code === "invalid_signature"
+              ? "Invalid webhook signature"
+              : err.code;
+          return res.status(err.statusCode).json({ error: message });
+        }
+        console.error("[ClickUp] webhook receiver failed");
         res.status(500).json({ error: "internal error" });
       }
     },
@@ -3511,71 +3531,12 @@ function buildWebhookEndpoint(req: any): string {
   return `${proto}://${host}/api/webhooks/clickup`;
 }
 
-async function verifyIncomingWebhook(
-  rawBody: Buffer,
-  signature: string,
-  webhookId: string,
-): Promise<boolean> {
-  if (!signature) return false;
-  try {
-    let secret: string | null = null;
-    if (webhookId) {
-      secret = await withDbAttribution("clickup:verifyWebhook:byId", async () => {
-        const db = getDb();
-        const [row] = await db
-          .select({ secret: clickupWebhooks.secret })
-          .from(clickupWebhooks)
-          .where(eq(clickupWebhooks.id, webhookId))
-          .limit(1);
-        return row?.secret ? decryptToken(row.secret) : null;
-      });
-    }
-    if (!secret) {
-      return withDbAttribution("clickup:verifyWebhook:allSecrets", async () => {
-        const db = getDb();
-        const rows = await db.select({ secret: clickupWebhooks.secret }).from(clickupWebhooks);
-        for (const row of rows) {
-          if (!row.secret) continue;
-          try {
-            const s = decryptToken(row.secret);
-            if (cu.verifyWebhookSignature(rawBody, signature, s)) return true;
-          } catch { /* try next */ }
-        }
-        return false;
-      });
-    }
-    return cu.verifyWebhookSignature(rawBody, signature, secret);
-  } catch {
-    return false;
-  }
-}
-
-async function getAnyClickUpToken(): Promise<string | null> {
-  return withDbAttribution("clickup:webhook:getAnyToken", async () => {
-    const db = getDb();
-    const rows = await db.select({ accessTokenEncrypted: clickupUserTokens.accessTokenEncrypted })
-      .from(clickupUserTokens)
-      .limit(1);
-    if (!rows.length || !rows[0].accessTokenEncrypted) return null;
-    return decryptToken(rows[0].accessTokenEncrypted);
-  });
-}
-
-async function applyWebhookEvent(payload: any): Promise<void> {
+async function applyWebhookEvent(
+  payload: any,
+  identity: VerifiedClickUpWebhookIdentity,
+): Promise<void> {
   const event = payload.event as string;
   if (!event) return;
-
-  if (event.startsWith("task")) {
-    const taskId = payload.task_id as string | undefined;
-    if (!taskId) return;
-    await enqueueJob({
-      queueName: "clickup_task_apply",
-      workloadClass: "ingestion",
-      payload: { taskId, event },
-      dedupeKey: `clickup_task_apply:${taskId}:${Date.now()}`,
-    }).catch(() => {});
-    return;
-  }
 
   // Space events: spaceCreated, spaceUpdated, spaceDeleted
   if (event === "spaceDeleted") {
@@ -3591,7 +3552,7 @@ async function applyWebhookEvent(payload: any): Promise<void> {
   if (event === "spaceCreated" || event === "spaceUpdated") {
     const spaceId = String(payload.space_id ?? "");
     if (!spaceId) return;
-    const token = await getAnyClickUpToken();
+    const token = await clickUpIntegration.getAccessToken(identity.serviceUserId);
     if (!token) return;
     const space = await cu.getSpace(token, spaceId).catch(() => null);
     if (!space?.id) return;
@@ -3640,7 +3601,7 @@ async function applyWebhookEvent(payload: any): Promise<void> {
   if (event === "folderCreated" || event === "folderUpdated") {
     const folderId = String(payload.folder_id ?? "");
     if (!folderId) return;
-    const token = await getAnyClickUpToken();
+    const token = await clickUpIntegration.getAccessToken(identity.serviceUserId);
     if (!token) return;
     const folder = await cu.getFolder(token, folderId).catch(() => null);
     if (!folder?.id) return;
@@ -3685,7 +3646,7 @@ async function applyWebhookEvent(payload: any): Promise<void> {
   if (event === "listCreated" || event === "listUpdated") {
     const listId = String(payload.list_id ?? "");
     if (!listId) return;
-    const token = await getAnyClickUpToken();
+    const token = await clickUpIntegration.getAccessToken(identity.serviceUserId);
     if (!token) return;
     const list = await cu.getList(token, listId).catch(() => null);
     if (!list?.id) return;

@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "Workload backoff + kill switches (Task #836 P2)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert/strict";

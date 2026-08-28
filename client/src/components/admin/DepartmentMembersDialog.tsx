@@ -487,6 +487,10 @@ function MembersDialogInner({
 
           {membersQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : membersQuery.isError ? (
+            <p className="text-sm text-destructive" data-testid="text-members-load-error">
+              Failed to load members. Try closing and reopening this dialog.
+            </p>
           ) : members.length === 0 ? (
             <p className="text-sm text-muted-foreground" data-testid="text-no-members">
               No members yet. Add people so they can be assigned Doer/Checker roles for this

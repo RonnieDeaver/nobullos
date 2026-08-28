@@ -1,7 +1,7 @@
 /* test-registration
 {
   "name": "DB attribution endpoint shape (Task #836 P8)",
-  "tier": "medium"
+  "tier": "small"
 }
 test-registration */
 import assert from "node:assert";
